@@ -9,11 +9,15 @@ import {
   auctionCurrentPrice,
   CATEGORIES,
   getCategory,
+  governorateLabel,
   GOVERNORATES,
+  listingSearchText,
   LISTINGS,
+  subcategoryLabel,
   SALE_TYPE_LABEL,
   type SaleType,
 } from "@/data/catalog";
+import { useI18n } from "@/hooks/use-i18n";
 
 type Sort = "recent" | "prix-asc" | "prix-desc";
 
@@ -63,6 +67,7 @@ const field =
 
 function Filters({ search, onDone }: { search: AnnoncesSearch; onDone?: () => void }) {
   const navigate = useNavigate({ from: "/annonces/" });
+  const { t: tr } = useI18n();
   const [q, setQ] = useState(search.q ?? "");
   const [min, setMin] = useState(search.min?.toString() ?? "");
   const [max, setMax] = useState(search.max?.toString() ?? "");
@@ -94,7 +99,7 @@ function Filters({ search, onDone }: { search: AnnoncesSearch; onDone?: () => vo
           <FilterChip active={!search.cat} onClick={() => set({ cat: undefined, sub: undefined })}>Toutes</FilterChip>
           {CATEGORIES.map((c) => (
             <FilterChip key={c.slug} active={search.cat === c.slug} onClick={() => set({ cat: c.slug, sub: undefined })}>
-              {c.name}
+              {tr(c.name)}
             </FilterChip>
           ))}
         </div>
@@ -111,7 +116,7 @@ function Filters({ search, onDone }: { search: AnnoncesSearch; onDone?: () => vo
                 onClick={() => set({ sub: search.sub === s ? undefined : s })}
                 className={`rounded-full border px-3 py-1 text-xs transition ${search.sub === s ? "border-rust bg-rust text-rust-foreground" : "border-border bg-card hover:border-rust/60"}`}
               >
-                {s}
+                {tr(subcategoryLabel(s))}
               </button>
             ))}
           </div>
@@ -124,7 +129,7 @@ function Filters({ search, onDone }: { search: AnnoncesSearch; onDone?: () => vo
           <FilterChip active={!search.type} onClick={() => set({ type: undefined })}>Tous</FilterChip>
           {(Object.keys(SALE_TYPE_LABEL) as SaleType[]).map((t) => (
             <FilterChip key={t} active={search.type === t} onClick={() => set({ type: t })}>
-              {SALE_TYPE_LABEL[t]}
+              {tr(SALE_TYPE_LABEL[t])}
             </FilterChip>
           ))}
         </div>
@@ -135,7 +140,7 @@ function Filters({ search, onDone }: { search: AnnoncesSearch; onDone?: () => vo
         <select className={field} value={search.gov ?? ""} onChange={(e) => set({ gov: e.target.value || undefined })}>
           <option value="">Toute la Tunisie</option>
           {GOVERNORATES.map((g) => (
-            <option key={g} value={g}>{g}</option>
+            <option key={g} value={g}>{tr(governorateLabel(g))}</option>
           ))}
         </select>
       </div>
@@ -148,7 +153,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-md px-3 py-2 text-left text-sm transition ${active ? "bg-charcoal font-semibold text-on-dark" : "text-foreground/80 hover:bg-accent/60"}`}
+      className={`rounded-md px-3 py-2 text-start text-sm transition ${active ? "bg-charcoal font-semibold text-on-dark" : "text-foreground/80 hover:bg-accent/60"}`}
     >
       {children}
     </button>
@@ -159,11 +164,12 @@ function Catalogue() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/annonces/" });
   const [open, setOpen] = useState(false);
+  const { t, dir } = useI18n();
 
   const q = search.q?.toLowerCase();
   let results = LISTINGS.filter((l) => {
     const price = l.saleType === "enchere" ? auctionCurrentPrice(l) : l.price;
-    if (q && !`${l.title} ${l.description} ${l.subcategory}`.toLowerCase().includes(q)) return false;
+    if (q && !listingSearchText(l).includes(q)) return false;
     if (search.cat && l.category !== search.cat) return false;
     if (search.sub && l.subcategory !== search.sub) return false;
     if (search.gov && l.governorate !== search.gov) return false;
@@ -184,12 +190,12 @@ function Catalogue() {
     <>
       <PageHeader
         eyebrow="Catalogue"
-        title={activeCat ? activeCat.name : "Toutes les annonces"}
+        title={activeCat ? t(activeCat.name) : t({ ar: "كل الإعلانات", fr: "Toutes les annonces", en: "All listings" })}
         intro="Ferraille, métaux, pièces automobiles et matériel industriel — prix en dinars tunisiens, partout en Tunisie."
       />
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[260px_1fr]">
         <aside className="hidden lg:block">
-          <div className="surface-card sticky top-24 p-5">
+          <div className="surface-card sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain p-5">
             <Filters key={JSON.stringify(search)} search={search} />
           </div>
         </aside>
@@ -209,7 +215,7 @@ function Catalogue() {
                 <SheetTrigger asChild>
                   <Button variant="outline" size="sm" className="lg:hidden"><SlidersHorizontal /> Filtres</Button>
                 </SheetTrigger>
-                <SheetContent side="left" className="w-80 overflow-y-auto bg-background">
+                <SheetContent side={dir === "rtl" ? "right" : "left"} dir={dir} className="w-80 overflow-y-auto bg-background">
                   <SheetTitle className="font-display">Filtres</SheetTitle>
                   <div className="mt-4">
                     <Filters search={search} onDone={() => setOpen(false)} />
