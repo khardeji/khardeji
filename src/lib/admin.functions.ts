@@ -145,13 +145,9 @@ export const deleteAdminListing = admin
 export const listAdminCategories = adminGet.handler(async ({ context }) => {
   const { supabase, userId } = context;
   await assertAdmin(supabase, userId);
-  const [cats, rows] = await Promise.all([
-    supabase.from("categories").select("*").order("sort_order"),
-    supabase.from("categories").select("image, slug"),
-  ]);
+  const cats = await supabase.from("categories").select("*").order("sort_order");
   if (cats.error) throw new Error("categories_unavailable");
-  const imageKeys = new Map((rows.data ?? []).map((r) => [r.slug, r.image]));
-  return cats.data.map((c) => ({ ...rowToCategory(c), imageKey: imageKeys.get(c.slug) ?? "" }));
+  return cats.data.map((c) => ({ ...rowToCategory(c), imageKey: c.image }));
 });
 
 export interface CategoryInput {
