@@ -142,7 +142,7 @@ export interface Listing {
     /** Real auctions: absolute end time (ISO). */
     endsAt?: string | undefined;
     bids: DemoBid[];
-  };
+  } | undefined;
   status?: ListingStatus;
   ownerId?: string | null;
   moderationNote?: string;
