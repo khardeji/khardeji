@@ -15,6 +15,13 @@
       "when": 1794266596041,
       "tag": "0001_admin_catalog_pricing",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794266637242,
+      "tag": "0002_listing_photos_read",
+      "breakpoints": true
     }
   ]
 }
