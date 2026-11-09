@@ -85,7 +85,10 @@ export function OfferPanel({ listing }: { listing: Listing }) {
       className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
-        if (!(offerNum > 0)) return toast.error("Indiquez un prix valide.");
+        if (!(offerNum > 0)) {
+          toast.error("Indiquez un prix valide.");
+          return;
+        }
         toast.success("Offre envoyée au vendeur", { description: `${formatDT(offerNum)} / ${short} pour ${formatNumber(qty)} ${short}.` });
       }}
     >
@@ -123,7 +126,10 @@ export function AuctionPanel({ listing }: { listing: Listing }) {
   function placeBid(e: React.FormEvent) {
     e.preventDefault();
     const check = validateBid({ ...state, endsAt: demoEndsAt(a.endsInHours) }, Number(amount), Date.now());
-    if (!check.ok) return toast.error(check.reason);
+    if (!check.ok) {
+      toast.error(check.reason);
+      return;
+    }
     const next = [...bids, { bidder: "Vous", amount: Number(amount), minutesAgo: 0 }];
     setBids(next);
     setAmount(String(Number(amount) + a.increment));
