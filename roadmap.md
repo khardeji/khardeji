@@ -18,13 +18,17 @@
 - [x] Traduire le reste des textes des pages (accueil, fiche, enchères, services, guide, publication, connexion)
 
 ## Phase 2 — Comptes et données réelles (à faire, nécessite Lovable Cloud)
-- [ ] Activer Lovable Cloud : comptes, rôles, tables annonces / enchères / offres / stocks / commandes
-- [ ] Inscription, connexion, mot de passe oublié, vérification email et téléphone
-- [ ] Publication réelle avec stockage des photos
+- [x] Activer Lovable Cloud : comptes, rôles, annonces, catégories, tarifs
+- [ ] Tables enchères / offres / stocks / commandes
+- [x] Inscription, connexion, mot de passe oublié, vérification email
+- [ ] Vérification du téléphone
+- [x] Publication réelle avec stockage des photos + page « Mes annonces »
 - [ ] Enchères vérifiées côté serveur + temps réel, clôture automatique
 - [ ] Demandes de quantité avec confirmation vendeur et mise à jour du stock
 
 ## Phase 3 — Espaces et administration
 - [ ] Espace acheteur, espace vendeur, messagerie, notifications
 - [ ] Jetons : achat, solde, historique ; paiement
-- [ ] Administration : modération, signalements, vérification vendeurs, catégories, tarifs
+- [x] Administration : statistiques, comptes (bloquer, admin), modération, catégories, tarifs
+- [x] Fichier SQL complet de la base
+- [ ] Administration : signalements, vérification vendeurs

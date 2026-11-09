@@ -7,7 +7,8 @@ export const Route = createFileRoute("/_authenticated")({
   beforeLoad: async ({ location }) => {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
-      throw redirect({ to: "/connexion", search: { redirect: location.href, raison: "publier" } });
+      const raison = location.pathname.startsWith("/publier") ? "publier" : undefined;
+      throw redirect({ to: "/connexion", search: { redirect: location.href, raison } });
     }
   },
   component: () => <Outlet />,

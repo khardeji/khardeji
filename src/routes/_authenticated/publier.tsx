@@ -1,12 +1,18 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Check, ChevronLeft, ChevronRight, Gavel, HandCoins, ImagePlus, Tag, X } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { Check, ChevronLeft, ChevronRight, Gavel, HandCoins, ImagePlus, Loader2, Tag, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/site/SectionHeading";
 import { governorateLabel, GOVERNORATES, SALE_TYPE_LABEL, subcategoryLabel, type SaleType } from "@/data/catalog";
 import { useI18n } from "@/hooks/use-i18n";
+import { supabase } from "@/integrations/supabase/client";
+import { PHOTO_BUCKET } from "@/lib/catalog-map";
 import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
+import { MAX_PHOTOS, type ListingProblem } from "@/lib/listing-rules";
+import { createListing } from "@/lib/listings.functions";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { UNIT_LABEL, type SaleUnit } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
@@ -43,7 +49,7 @@ interface Draft {
   subcategory: string;
   governorate: string;
   city: string;
-  photos: string[];
+  photos: { file: File; url: string }[];
   saleType: SaleType;
   unit: SaleUnit;
   price: string;
@@ -58,6 +64,24 @@ interface Draft {
 const EMPTY: Draft = {
   title: "", description: "", category: "", subcategory: "", governorate: "", city: "", photos: [],
   saleType: "fixe", unit: "kg", price: "", stock: "", startPrice: "", reservePrice: "", increment: "50", startAt: "", endAt: "",
+};
+
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
+
+const PROBLEM_MSG: Record<ListingProblem | "blocked" | "failed" | "upload", Msg> = {
+  title: { ar: "العنوان لازم يكون بين 5 و90 حرف.", fr: "Le titre doit contenir entre 5 et 90 caractères.", en: "The title must be 5 to 90 characters." },
+  category: { ar: "اختار صنف وصنف فرعي.", fr: "Choisissez une catégorie et une sous-catégorie.", en: "Choose a category and subcategory." },
+  governorate: { ar: "اختار الولاية.", fr: "Choisissez un gouvernorat.", en: "Choose a governorate." },
+  photos: { ar: "فمّا مشكل في التصاور (12 على الأكثر).", fr: "Problème avec les photos (12 maximum).", en: "Problem with the photos (12 maximum)." },
+  sale: { ar: "طريقة البيع ولا الوحدة غالطة.", fr: "Type de vente ou unité invalide.", en: "Invalid sale type or unit." },
+  price: { ar: "اكتب السعر.", fr: "Indiquez un prix.", en: "Enter a price." },
+  start_price: { ar: "اكتب سعر الانطلاق.", fr: "Indiquez un prix de départ.", en: "Enter a start price." },
+  increment: { ar: "اكتب أدنى زيادة.", fr: "Indiquez un incrément minimum.", en: "Enter a minimum increment." },
+  dates: { ar: "تاريخ النهاية لازم يكون بعد تاريخ البداية.", fr: "La date de fin doit suivre la date de début.", en: "The end date must be after the start date." },
+  stock: { ar: "اكتب الكمية المتوفرة.", fr: "Indiquez la quantité disponible.", en: "Enter the available quantity." },
+  blocked: { ar: "حسابك مسكّر: ما تنجمش تنشر إعلانات. اتصل بالإدارة.", fr: "Votre compte est bloqué : vous ne pouvez pas publier. Contactez l'administration.", en: "Your account is blocked: you can't post. Contact the administrators." },
+  failed: { ar: "ما نجمناش نسجّلو الإعلان. عاود جرّب.", fr: "L'annonce n'a pas pu être enregistrée. Réessayez.", en: "The listing could not be saved. Try again." },
+  upload: { ar: "ما نجمناش نرفعو التصاور. ثبّت في الكونكسيون وعاود.", fr: "L'envoi des photos a échoué. Vérifiez votre connexion et réessayez.", en: "Photo upload failed. Check your connection and try again." },
 };
 
 function Field({ label, htmlFor, hint, children }: { label: string; htmlFor: string; hint?: string | undefined; children: React.ReactNode }) {
@@ -80,7 +104,11 @@ function Publish() {
   const { t, dt, num } = useI18n();
   const [step, setStep] = useState(0);
   const [d, setD] = useState<Draft>(EMPTY);
+  const [busy, setBusy] = useState(false);
   const { categories: CATEGORIES } = useCatalog();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  const createListingFn = useServerFn(createListing);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }));
   const cat = CATEGORIES.find((c) => c.slug === d.category);
   const unit = { step: UNIT_LABEL[d.unit].step, short: t(UNIT_LABEL[d.unit].short), long: t(UNIT_LABEL[d.unit].long) };
@@ -114,8 +142,86 @@ function Publish() {
 
   function addPhotos(files: FileList | null) {
     if (!files) return;
-    const urls = Array.from(files).slice(0, 12 - d.photos.length).map((f) => URL.createObjectURL(f));
-    set("photos", [...d.photos, ...urls]);
+    const all = Array.from(files);
+    const ok = all.filter((f) => f.type.startsWith("image/") && f.size <= MAX_PHOTO_BYTES).slice(0, MAX_PHOTOS - d.photos.length);
+    if (ok.length < all.length) {
+      toast.error(t({ ar: "بعض التصاور ما تزادوش: تصاور برك، 8 ميغا على الأكثر، و12 في الجملة.", fr: "Certaines photos ont été ignorées : images uniquement, 8 Mo max, 12 au total.", en: "Some photos were skipped: images only, 8 MB max, 12 in total." }));
+    }
+    set("photos", [...d.photos, ...ok.map((file) => ({ file, url: URL.createObjectURL(file) }))]);
+  }
+
+  function removePhoto(url: string) {
+    URL.revokeObjectURL(url);
+    set("photos", d.photos.filter((x) => x.url !== url));
+  }
+
+  async function publish() {
+    for (const s of [0, 2]) {
+      const err = validate(s);
+      if (err) {
+        toast.error(t(err));
+        setStep(s);
+        return;
+      }
+    }
+    setBusy(true);
+    const uploaded: string[] = [];
+    const cleanup = () => (uploaded.length ? supabase.storage.from(PHOTO_BUCKET).remove(uploaded) : Promise.resolve());
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) {
+        navigate({ to: "/connexion", search: { redirect: "/publier", raison: "publier" } });
+        return;
+      }
+      for (const p of d.photos) {
+        const ext = (p.file.name.split(".").pop() ?? "").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 5) || "jpg";
+        const path = `${auth.user.id}/${crypto.randomUUID()}.${ext}`;
+        const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, p.file, { contentType: p.file.type, upsert: false });
+        if (error) {
+          await cleanup();
+          toast.error(t(PROBLEM_MSG.upload));
+          return;
+        }
+        uploaded.push(path);
+      }
+      const auction = d.saleType === "enchere";
+      const res = await createListingFn({
+        data: {
+          title: d.title.trim(),
+          description: d.description.trim(),
+          category: d.category,
+          subcategory: d.subcategory,
+          governorate: d.governorate,
+          city: d.city.trim(),
+          photos: uploaded,
+          saleType: d.saleType,
+          unit: d.unit,
+          price: auction ? 0 : Number(d.price),
+          stock: d.unit === "libre" ? 0 : Number(d.stock),
+          startPrice: auction ? Number(d.startPrice) : 0,
+          reservePrice: auction && Number(d.reservePrice) > 0 ? Number(d.reservePrice) : null,
+          increment: auction ? Number(d.increment) : 0,
+          startAt: auction ? new Date(d.startAt).toISOString() : "",
+          endAt: auction ? new Date(d.endAt).toISOString() : "",
+        },
+      });
+      if (!res.ok) {
+        await cleanup();
+        toast.error(t(PROBLEM_MSG[res.error]));
+        return;
+      }
+      d.photos.forEach((p) => URL.revokeObjectURL(p.url));
+      await qc.invalidateQueries({ queryKey: ["me", "listings"] });
+      toast.success(t({ ar: "الإعلان تبعث للمراجعة", fr: "Annonce envoyée pour validation", en: "Listing sent for review" }), {
+        description: t({ ar: "باش يتنشر كي فريقنا يقبلو.", fr: "Elle sera en ligne dès que notre équipe l'aura validée.", en: "It goes live once our team approves it." }),
+      });
+      navigate({ to: "/mes-annonces" });
+    } catch {
+      await cleanup();
+      toast.error(t(PROBLEM_MSG.failed));
+    } finally {
+      setBusy(false);
+    }
   }
 
   const priceLabel =
@@ -195,9 +301,9 @@ function Publish() {
                 <p className="text-sm font-medium">{t({ ar: "التصاور", fr: "Photos", en: "Photos" })} ({d.photos.length}/12)</p>
                 <div className="mt-2 grid grid-cols-3 gap-3 sm:grid-cols-6">
                   {d.photos.map((p, i) => (
-                    <div key={p} className="relative aspect-square overflow-hidden rounded-md border border-border">
-                      <img src={p} alt={`${t({ ar: "تصويرة", fr: "Photo", en: "Photo" })} ${i + 1}`} className="size-full object-cover" />
-                      <button type="button" aria-label={t({ ar: "نحّي", fr: "Retirer", en: "Remove" })} onClick={() => set("photos", d.photos.filter((x) => x !== p))} className="absolute end-1 top-1 grid size-6 place-items-center rounded-full bg-charcoal/80 text-on-dark">
+                    <div key={p.url} className="relative aspect-square overflow-hidden rounded-md border border-border">
+                      <img src={p.url} alt={`${t({ ar: "تصويرة", fr: "Photo", en: "Photo" })} ${i + 1}`} className="size-full object-cover" />
+                      <button type="button" aria-label={t({ ar: "نحّي", fr: "Retirer", en: "Remove" })} onClick={() => removePhoto(p.url)} className="absolute end-1 top-1 grid size-6 place-items-center rounded-full bg-charcoal/80 text-on-dark">
                         <X className="size-3.5" />
                       </button>
                     </div>
@@ -299,25 +405,15 @@ function Publish() {
           )}
 
           <div className="mt-8 flex justify-between gap-3 border-t border-border pt-6">
-            <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
+            <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0 || busy}>
               <ChevronLeft className="rtl:rotate-180" /> {t({ ar: "السابق", fr: "Précédent", en: "Back" })}
             </Button>
             {step < STEPS.length - 1 ? (
               <Button variant="default" onClick={next}>{t({ ar: "التالي", fr: "Suivant", en: "Next" })} <ChevronRight className="rtl:rotate-180" /></Button>
             ) : (
-              <Button
-                variant="rust"
-                onClick={() =>
-                  toast(t({ ar: "الإعلان حاضر", fr: "Annonce prête", en: "Listing ready" }), {
-                    description: t({
-                      ar: "حفظ الإعلانات على الموقع باش يتحلّ في المرحلة الجاية.",
-                      fr: "L'enregistrement des annonces en ligne ouvre à la prochaine étape.",
-                      en: "Saving listings online opens in the next step.",
-                    }),
-                  })
-                }
-              >
-                <Check /> {t({ ar: "انشر الإعلان", fr: "Publier l'annonce", en: "Publish listing" })}
+              <Button variant="rust" disabled={busy} onClick={() => void publish()}>
+                {busy ? <Loader2 className="animate-spin" /> : <Check />}
+                {busy ? t({ ar: "قاعد يتبعث…", fr: "Envoi en cours…", en: "Sending…" }) : t({ ar: "انشر الإعلان", fr: "Publier l'annonce", en: "Publish listing" })}
               </Button>
             )}
           </div>

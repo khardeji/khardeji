@@ -17,6 +17,8 @@ import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as EncheresRouteImport } from './routes/encheres'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ServicesRouteImport } from './routes/services'
+import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedMesAnnoncesRouteImport } from './routes/_authenticated/mes-annonces'
 import { Route as AuthenticatedPublierRouteImport } from './routes/_authenticated/publier'
 import { Route as AnnoncesIndexRouteImport } from './routes/annonces.index'
 import { Route as AnnoncesIdRouteImport } from './routes/annonces.$id'
@@ -60,6 +62,17 @@ const ServicesRoute = ServicesRouteImport.update({
   path: '/services',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMesAnnoncesRoute =
+  AuthenticatedMesAnnoncesRouteImport.update({
+    id: '/mes-annonces',
+    path: '/mes-annonces',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedPublierRoute = AuthenticatedPublierRouteImport.update({
   id: '/publier',
   path: '/publier',
@@ -84,6 +97,8 @@ export interface FileRoutesByFullPath {
   '/encheres': typeof EncheresRoute
   '/reset-password': typeof ResetPasswordRoute
   '/services': typeof ServicesRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
   '/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces/': typeof AnnoncesIndexRoute
@@ -96,6 +111,8 @@ export interface FileRoutesByTo {
   '/encheres': typeof EncheresRoute
   '/reset-password': typeof ResetPasswordRoute
   '/services': typeof ServicesRoute
+  '/admin': typeof AuthenticatedAdminRoute
+  '/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
   '/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces': typeof AnnoncesIndexRoute
@@ -110,6 +127,8 @@ export interface FileRoutesById {
   '/encheres': typeof EncheresRoute
   '/reset-password': typeof ResetPasswordRoute
   '/services': typeof ServicesRoute
+  '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
   '/_authenticated/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces/': typeof AnnoncesIndexRoute
@@ -124,6 +143,8 @@ export interface FileRouteTypes {
     | '/encheres'
     | '/reset-password'
     | '/services'
+    | '/admin'
+    | '/mes-annonces'
     | '/publier'
     | '/annonces/$id'
     | '/annonces/'
@@ -136,6 +157,8 @@ export interface FileRouteTypes {
     | '/encheres'
     | '/reset-password'
     | '/services'
+    | '/admin'
+    | '/mes-annonces'
     | '/publier'
     | '/annonces/$id'
     | '/annonces'
@@ -149,6 +172,8 @@ export interface FileRouteTypes {
     | '/encheres'
     | '/reset-password'
     | '/services'
+    | '/_authenticated/admin'
+    | '/_authenticated/mes-annonces'
     | '/_authenticated/publier'
     | '/annonces/$id'
     | '/annonces/'
@@ -225,6 +250,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/admin': {
+      id: '/_authenticated/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AuthenticatedAdminRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mes-annonces': {
+      id: '/_authenticated/mes-annonces'
+      path: '/mes-annonces'
+      fullPath: '/mes-annonces'
+      preLoaderRoute: typeof AuthenticatedMesAnnoncesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/publier': {
       id: '/_authenticated/publier'
       path: '/publier'
@@ -250,10 +289,14 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedMesAnnoncesRoute: typeof AuthenticatedMesAnnoncesRoute
   AuthenticatedPublierRoute: typeof AuthenticatedPublierRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedMesAnnoncesRoute: AuthenticatedMesAnnoncesRoute,
   AuthenticatedPublierRoute: AuthenticatedPublierRoute,
 }
 

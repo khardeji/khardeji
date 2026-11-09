@@ -1,5 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { LogOut, Menu, Plus, UserRound } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { LayoutDashboard, ListChecks, LogOut, Menu, Plus, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -13,6 +14,7 @@ import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/s
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { Logo } from "./Logo";
 
@@ -26,18 +28,31 @@ const NAV = [
 ] as const;
 
 const PUBLISH = { ar: "انشر إعلان", fr: "Publier une annonce", en: "Post a listing" };
+const MY_LISTINGS = { ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" };
+const ADMIN = { ar: "لوحة الإدارة", fr: "Administration", en: "Admin dashboard" };
+const SIGN_OUT = { ar: "تسجيل الخروج", fr: "Se déconnecter", en: "Sign out" };
+
+/** Sign out and drop every private cached answer (my listings, admin data). */
+function useSignOut() {
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+  return async () => {
+    await qc.cancelQueries();
+    qc.removeQueries({ queryKey: ["me"] });
+    qc.removeQueries({ queryKey: ["admin"] });
+    await supabase.auth.signOut();
+    navigate({ to: "/connexion", replace: true });
+  };
+}
 
 function AccountMenu() {
   const { user } = useAuth();
   const { t } = useI18n();
   const navigate = useNavigate();
+  const signOut = useSignOut();
+  const { isAdmin } = useIsAdmin();
   if (!user) return null;
   const name = (user.user_metadata?.["full_name"] as string | undefined) || user.email || "";
-
-  async function signOut() {
-    await supabase.auth.signOut();
-    navigate({ to: "/connexion", replace: true });
-  }
 
   return (
     <DropdownMenu>
@@ -52,11 +67,20 @@ function AccountMenu() {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="truncate font-normal text-muted-foreground">{user.email}</DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {isAdmin && (
+          <DropdownMenuItem onSelect={() => navigate({ to: "/admin" })}>
+            <LayoutDashboard /> {t(ADMIN)}
+          </DropdownMenuItem>
+        )}
+        <DropdownMenuItem onSelect={() => navigate({ to: "/mes-annonces" })}>
+          <ListChecks /> {t(MY_LISTINGS)}
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate({ to: "/publier" })}>
           <Plus /> {t(PUBLISH)}
         </DropdownMenuItem>
+        <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => void signOut()}>
-          <LogOut /> {t({ ar: "تسجيل الخروج", fr: "Se déconnecter", en: "Sign out" })}
+          <LogOut /> {t(SIGN_OUT)}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -66,6 +90,8 @@ function AccountMenu() {
 export function Header() {
   const { t, dir } = useI18n();
   const { user, loading } = useAuth();
+  const { isAdmin } = useIsAdmin();
+  const signOut = useSignOut();
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur-md">
@@ -122,9 +148,19 @@ export function Header() {
                 ))}
                 <div className="rivet-rule my-4" />
                 {user ? (
-                  <Button variant="outline" onClick={() => void supabase.auth.signOut()}>
-                    <LogOut /> {t({ ar: "تسجيل الخروج", fr: "Se déconnecter", en: "Sign out" })}
-                  </Button>
+                  <>
+                    {isAdmin && (
+                      <Link to="/admin" className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
+                        <LayoutDashboard className="size-5" /> {t(ADMIN)}
+                      </Link>
+                    )}
+                    <Link to="/mes-annonces" className="mb-2 flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
+                      <ListChecks className="size-5" /> {t(MY_LISTINGS)}
+                    </Link>
+                    <Button variant="outline" onClick={() => void signOut()}>
+                      <LogOut /> {t(SIGN_OUT)}
+                    </Button>
+                  </>
                 ) : (
                   <Button asChild variant="outline">
                     <Link to="/connexion">{t({ ar: "دخول / تسجيل", fr: "Connexion / Inscription", en: "Sign in / Sign up" })}</Link>
