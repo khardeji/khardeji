@@ -1,5 +1,20 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1794267916039,
+      "tag": "0000_khardeji_baseline",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794267964758,
+      "tag": "0001_tighten_visitor_access",
+      "breakpoints": true
+    }
+  ]
 }
