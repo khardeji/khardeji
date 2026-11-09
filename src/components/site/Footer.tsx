@@ -31,7 +31,7 @@ export function Footer() {
           <h3 className="label-stamp text-xs text-brass">{t({ ar: "مساعدة", fr: "Aide", en: "Help" })}</h3>
           <ul className="mt-4 space-y-2 text-sm text-on-dark-muted">
             <li><Link to="/comment-ca-marche" className={link}>{t({ ar: "كيفاش تخدم؟", fr: "Comment ça marche ?", en: "How it works" })}</Link></li>
-            <li><Link to="/services" className={link}>{t({ ar: "الخدمات والجتونات", fr: "Services et jetons", en: "Services & tokens" })}</Link></li>
+            <li><Link to="/services" className={link}>{t({ ar: "الخدمات والنقاط", fr: "Services et jetons", en: "Services & tokens" })}</Link></li>
             <li><Link to="/connexion" className={link}>{t({ ar: "دخول", fr: "Connexion", en: "Sign in" })}</Link></li>
           </ul>
         </div>
