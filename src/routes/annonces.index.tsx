@@ -18,14 +18,14 @@ import {
 type Sort = "recent" | "prix-asc" | "prix-desc";
 
 export interface AnnoncesSearch {
-  q?: string;
-  cat?: string;
-  sub?: string;
-  gov?: string;
-  min?: number;
-  max?: number;
-  type?: SaleType;
-  sort?: Sort;
+  q?: string | undefined;
+  cat?: string | undefined;
+  sub?: string | undefined;
+  gov?: string | undefined;
+  min?: number | undefined;
+  max?: number | undefined;
+  type?: SaleType | undefined;
+  sort?: Sort | undefined;
 }
 
 const str = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : undefined);
@@ -36,14 +36,14 @@ const num = (v: unknown) => {
 
 export const Route = createFileRoute("/annonces/")({
   validateSearch: (s: Record<string, unknown>): AnnoncesSearch => ({
-    q: str(s.q),
-    cat: str(s.cat),
-    sub: str(s.sub),
-    gov: str(s.gov),
-    min: num(s.min),
-    max: num(s.max),
-    type: s.type === "fixe" || s.type === "negociable" || s.type === "enchere" ? s.type : undefined,
-    sort: s.sort === "prix-asc" || s.sort === "prix-desc" || s.sort === "recent" ? s.sort : undefined,
+    q: str(s["q"]),
+    cat: str(s["cat"]),
+    sub: str(s["sub"]),
+    gov: str(s["gov"]),
+    min: num(s["min"]),
+    max: num(s["max"]),
+    type: s["type"] === "fixe" || s["type"] === "negociable" || s["type"] === "enchere" ? s["type"] : undefined,
+    sort: s["sort"] === "prix-asc" || s["sort"] === "prix-desc" || s["sort"] === "recent" ? s["sort"] : undefined,
   }),
   head: () => ({
     meta: [

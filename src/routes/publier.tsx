@@ -51,7 +51,7 @@ const EMPTY: Draft = {
   saleType: "fixe", unit: "kg", price: "", stock: "", startPrice: "", reservePrice: "", increment: "50", startAt: "", endAt: "",
 };
 
-function Field({ label, htmlFor, hint, children }: { label: string; htmlFor: string; hint?: string; children: React.ReactNode }) {
+function Field({ label, htmlFor, hint, children }: { label: string; htmlFor: string; hint?: string | undefined; children: React.ReactNode }) {
   return (
     <div>
       <label htmlFor={htmlFor} className="text-sm font-medium">{label}</label>
@@ -87,7 +87,10 @@ function Publish() {
 
   function next() {
     const err = validate(step);
-    if (err) return toast.error(err);
+    if (err) {
+      toast.error(err);
+      return;
+    }
     setStep((s) => Math.min(s + 1, STEPS.length - 1));
   }
 
