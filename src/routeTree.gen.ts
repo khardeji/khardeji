@@ -10,33 +10,141 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as CategoriesRouteImport } from './routes/categories'
+import { Route as CommentCaMarcheRouteImport } from './routes/comment-ca-marche'
+import { Route as ConnexionRouteImport } from './routes/connexion'
+import { Route as EncheresRouteImport } from './routes/encheres'
+import { Route as PublierRouteImport } from './routes/publier'
+import { Route as ServicesRouteImport } from './routes/services'
+import { Route as AnnoncesIndexRouteImport } from './routes/annonces.index'
+import { Route as AnnoncesIdRouteImport } from './routes/annonces.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CategoriesRoute = CategoriesRouteImport.update({
+  id: '/categories',
+  path: '/categories',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CommentCaMarcheRoute = CommentCaMarcheRouteImport.update({
+  id: '/comment-ca-marche',
+  path: '/comment-ca-marche',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ConnexionRoute = ConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const EncheresRoute = EncheresRouteImport.update({
+  id: '/encheres',
+  path: '/encheres',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PublierRoute = PublierRouteImport.update({
+  id: '/publier',
+  path: '/publier',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicesRoute = ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnnoncesIndexRoute = AnnoncesIndexRouteImport.update({
+  id: '/annonces/',
+  path: '/annonces/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AnnoncesIdRoute = AnnoncesIdRouteImport.update({
+  id: '/annonces/$id',
+  path: '/annonces/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/categories': typeof CategoriesRoute
+  '/comment-ca-marche': typeof CommentCaMarcheRoute
+  '/connexion': typeof ConnexionRoute
+  '/encheres': typeof EncheresRoute
+  '/publier': typeof PublierRoute
+  '/services': typeof ServicesRoute
+  '/annonces/$id': typeof AnnoncesIdRoute
+  '/annonces/': typeof AnnoncesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/categories': typeof CategoriesRoute
+  '/comment-ca-marche': typeof CommentCaMarcheRoute
+  '/connexion': typeof ConnexionRoute
+  '/encheres': typeof EncheresRoute
+  '/publier': typeof PublierRoute
+  '/services': typeof ServicesRoute
+  '/annonces/$id': typeof AnnoncesIdRoute
+  '/annonces': typeof AnnoncesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/categories': typeof CategoriesRoute
+  '/comment-ca-marche': typeof CommentCaMarcheRoute
+  '/connexion': typeof ConnexionRoute
+  '/encheres': typeof EncheresRoute
+  '/publier': typeof PublierRoute
+  '/services': typeof ServicesRoute
+  '/annonces/$id': typeof AnnoncesIdRoute
+  '/annonces/': typeof AnnoncesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/categories'
+    | '/comment-ca-marche'
+    | '/connexion'
+    | '/encheres'
+    | '/publier'
+    | '/services'
+    | '/annonces/$id'
+    | '/annonces/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/categories'
+    | '/comment-ca-marche'
+    | '/connexion'
+    | '/encheres'
+    | '/publier'
+    | '/services'
+    | '/annonces/$id'
+    | '/annonces'
+  id:
+    | '__root__'
+    | '/'
+    | '/categories'
+    | '/comment-ca-marche'
+    | '/connexion'
+    | '/encheres'
+    | '/publier'
+    | '/services'
+    | '/annonces/$id'
+    | '/annonces/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  CategoriesRoute: typeof CategoriesRoute
+  CommentCaMarcheRoute: typeof CommentCaMarcheRoute
+  ConnexionRoute: typeof ConnexionRoute
+  EncheresRoute: typeof EncheresRoute
+  PublierRoute: typeof PublierRoute
+  ServicesRoute: typeof ServicesRoute
+  AnnoncesIdRoute: typeof AnnoncesIdRoute
+  AnnoncesIndexRoute: typeof AnnoncesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,11 +156,75 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/categories': {
+      id: '/categories'
+      path: '/categories'
+      fullPath: '/categories'
+      preLoaderRoute: typeof CategoriesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/comment-ca-marche': {
+      id: '/comment-ca-marche'
+      path: '/comment-ca-marche'
+      fullPath: '/comment-ca-marche'
+      preLoaderRoute: typeof CommentCaMarcheRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/connexion': {
+      id: '/connexion'
+      path: '/connexion'
+      fullPath: '/connexion'
+      preLoaderRoute: typeof ConnexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/encheres': {
+      id: '/encheres'
+      path: '/encheres'
+      fullPath: '/encheres'
+      preLoaderRoute: typeof EncheresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/publier': {
+      id: '/publier'
+      path: '/publier'
+      fullPath: '/publier'
+      preLoaderRoute: typeof PublierRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/services': {
+      id: '/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/annonces/': {
+      id: '/annonces/'
+      path: '/annonces'
+      fullPath: '/annonces/'
+      preLoaderRoute: typeof AnnoncesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/annonces/$id': {
+      id: '/annonces/$id'
+      path: '/annonces/$id'
+      fullPath: '/annonces/$id'
+      preLoaderRoute: typeof AnnoncesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  CategoriesRoute: CategoriesRoute,
+  CommentCaMarcheRoute: CommentCaMarcheRoute,
+  ConnexionRoute: ConnexionRoute,
+  EncheresRoute: EncheresRoute,
+  PublierRoute: PublierRoute,
+  ServicesRoute: ServicesRoute,
+  AnnoncesIdRoute: AnnoncesIdRoute,
+  AnnoncesIndexRoute: AnnoncesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
