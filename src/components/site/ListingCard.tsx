@@ -28,7 +28,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
           height={768}
           className="size-full object-cover transition-transform duration-700 group-hover:scale-105"
         />
-        <div className="absolute left-3 top-3 flex flex-wrap gap-1.5">
+        <div className="absolute left-3 right-14 top-3 flex flex-wrap gap-1.5">
           {listing.publishedAt >= NEW_SINCE && <Badge variant="olive">Nouveau</Badge>}
           {isAuction && (
             <Badge variant="rust">
