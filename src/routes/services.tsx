@@ -1,11 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowUpCircle, BadgeCheck, Building2, Check, Coins, Flame, Home, Rocket, Sparkles, Star } from "lucide-react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/hooks/use-i18n";
+import { pricingQuery } from "@/lib/catalog-queries";
 import { pageMeta, type Msg } from "@/lib/i18n";
 
 export const Route = createFileRoute("/services")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(pricingQuery),
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
       title: {
@@ -54,81 +57,14 @@ const OVERVIEW = [
   },
 ];
 
-const PACKS: { tokens: number; price: number; tag?: Msg }[] = [
-  { tokens: 10, price: 10 },
-  { tokens: 30, price: 25, tag: { ar: "الأكثر طلباً", fr: "Populaire", en: "Popular" } },
-  { tokens: 80, price: 60 },
-  { tokens: 200, price: 130, tag: { ar: "أحسن سوم", fr: "Meilleur prix", en: "Best value" } },
-];
-
-const BOOSTS = [
-  {
-    icon: ArrowUpCircle,
-    cost: 2,
-    name: { ar: "طلّع الإعلان للفوق", fr: "Remonter l'annonce", en: "Bump the listing" },
-    text: { ar: "إعلانك يرجع في أوّل نتائج الصنف متاعو.", fr: "Votre annonce repasse en tête des résultats de sa catégorie.", en: "Your listing goes back to the top of its category." },
-  },
-  {
-    icon: Flame,
-    cost: 3,
-    name: { ar: "إعلان مستعجل", fr: "Annonce urgente", en: "Urgent listing" },
-    text: { ar: "علامة «مستعجل» تبان على البطاقة وفي صفحة الإعلان.", fr: "Badge « Urgent » visible sur la carte et dans la fiche.", en: "An “Urgent” badge on the card and the listing page." },
-  },
-  {
-    icon: Star,
-    cost: 8,
-    name: { ar: "إعلان مميّز — 7 أيام", fr: "Annonce Premium — 7 jours", en: "Premium listing — 7 days" },
-    text: { ar: "بلاصة في الأولوية وإطار ذهبي في القوائم.", fr: "Position prioritaire et cadre doré dans les listes.", en: "Priority position and a gold frame in lists." },
-  },
-  {
-    icon: Home,
-    cost: 15,
-    name: { ar: "في الواجهة — الصفحة الرئيسية", fr: "À la une — page d'accueil", en: "Featured — home page" },
-    text: { ar: "يظهر في اختيارات الصفحة الرئيسية لمدّة 3 أيام.", fr: "Affichage dans la sélection de la page d'accueil pendant 3 jours.", en: "Shown in the home page selection for 3 days." },
-  },
-];
-
-const PLANS: { id: string; price: number; highlight?: boolean; name: Msg; features: Msg[] }[] = [
-  {
-    id: "basique",
-    price: 0,
-    name: { ar: "أساسي", fr: "Basique", en: "Basic" },
-    features: [
-      { ar: "5 إعلانات نشيطة", fr: "5 annonces actives", en: "5 active listings" },
-      { ar: "حتى 12 تصويرة في الإعلان", fr: "Photos jusqu'à 12 par annonce", en: "Up to 12 photos per listing" },
-      { ar: "سعر ثابت، قابل للتفاوض ومزايدات", fr: "Prix fixe, négociable et enchères", en: "Fixed, negotiable and auctions" },
-      { ar: "مراسلة مع المشترين", fr: "Messagerie avec les acheteurs", en: "Messaging with buyers" },
-    ],
-  },
-  {
-    id: "pro",
-    price: 49,
-    highlight: true,
-    name: { ar: "محترف خردة", fr: "Pro Ferrailleur", en: "Scrap Pro" },
-    features: [
-      { ar: "50 إعلان نشيط", fr: "50 annonces actives", en: "50 active listings" },
-      { ar: "علامة بائع محترف", fr: "Badge vendeur professionnel", en: "Professional seller badge" },
-      { ar: "40 نقطة هدية كل شهر", fr: "40 jetons offerts chaque mois", en: "40 free tokens every month" },
-      { ar: "إحصائيات المشاهدة", fr: "Statistiques de consultation", en: "View statistics" },
-      { ar: "تسيير المخزون لبرشا إعلانات", fr: "Gestion des stocks multi-annonces", en: "Multi-listing stock management" },
-    ],
-  },
-  {
-    id: "entreprise",
-    price: 149,
-    name: { ar: "شركة", fr: "Entreprise", en: "Business" },
-    features: [
-      { ar: "إعلانات بلا حدود", fr: "Annonces illimitées", en: "Unlimited listings" },
-      { ar: "حانوت باسمك", fr: "Boutique à votre nom", en: "Your own branded shop" },
-      { ar: "150 نقطة هدية كل شهر", fr: "150 jetons offerts chaque mois", en: "150 free tokens every month" },
-      { ar: "برشا حسابات للخدّامة", fr: "Plusieurs comptes collaborateurs", en: "Multiple team accounts" },
-      { ar: "مرافقة خاصة", fr: "Accompagnement dédié", en: "Dedicated support" },
-    ],
-  },
-];
+const BOOST_ICON: Record<string, typeof Star> = { "arrow-up": ArrowUpCircle, flame: Flame, star: Star, home: Home };
 
 function Services() {
   const { t, dt, num } = useI18n();
+  const { data: pricing } = useSuspenseQuery(pricingQuery);
+  const PACKS = pricing.packs;
+  const BOOSTS = pricing.boosts;
+  const PLANS = pricing.plans;
   const tokensWord = t({ ar: "نقطة", fr: "jetons", en: "tokens" });
   const perMonth = t({ ar: "/ الشهر", fr: "/ mois", en: "/ month" });
 
@@ -174,7 +110,7 @@ function Services() {
           </p>
           <div className="mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {PACKS.map((p) => (
-              <div key={p.tokens} className="surface-card card-lift relative flex flex-col p-6">
+              <div key={p.id} className="surface-card card-lift relative flex flex-col p-6">
                 {p.tag && <span className="label-stamp absolute end-4 top-4 rounded bg-brass px-2 py-0.5 text-[0.62rem] text-brass-foreground">{t(p.tag)}</span>}
                 <Coins className="size-8 text-brass" />
                 <p className="mt-4 font-display text-4xl font-semibold">{num(p.tokens)} <span className="text-lg font-normal text-muted-foreground">{tokensWord}</span></p>
@@ -203,16 +139,19 @@ function Services() {
           <p className="label-stamp text-xs text-rust">{t({ ar: "الظهور", fr: "Visibilité", en: "Visibility" })}</p>
           <h2 className="mt-2 text-3xl font-semibold sm:text-4xl">{t({ ar: "روّج إعلاناتك بفعالية", fr: "Boostez vos annonces efficacement", en: "Boost your listings effectively" })}</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
-            {BOOSTS.map((b) => (
-              <div key={b.name.fr} className="surface-card flex items-start gap-4 p-5">
-                <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-charcoal text-brass"><b.icon className="size-6" /></span>
+            {BOOSTS.map((b) => {
+              const Icon = BOOST_ICON[b.icon] ?? Star;
+              return (
+              <div key={b.id} className="surface-card flex items-start gap-4 p-5">
+                <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-charcoal text-brass"><Icon className="size-6" /></span>
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold">{t(b.name)}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{t(b.text)}</p>
+                  <p className="mt-1 text-sm text-muted-foreground">{t(b.description)}</p>
                 </div>
                 <span className="shrink-0 rounded-full bg-beige px-3 py-1 font-label text-sm font-semibold">{num(b.cost)} {tokensWord}</span>
               </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
@@ -242,8 +181,8 @@ function Services() {
                   {p.price > 0 && <span className={p.highlight ? "text-on-dark-muted" : "text-muted-foreground"}> {perMonth}</span>}
                 </p>
                 <ul className="mt-6 space-y-3">
-                  {p.features.map((f) => (
-                    <li key={f.fr} className={`flex items-start gap-2 text-sm ${p.highlight ? "text-on-dark" : ""}`}>
+                  {p.features.map((f, i) => (
+                    <li key={i} className={`flex items-start gap-2 text-sm ${p.highlight ? "text-on-dark" : ""}`}>
                       <Check className="mt-0.5 size-4 shrink-0 text-olive" /> {t(f)}
                     </li>
                   ))}
