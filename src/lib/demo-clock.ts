@@ -23,3 +23,14 @@ export function useNow(intervalMs = 1000): number | null {
   }, [intervalMs]);
   return now;
 }
+
+/** When an auction closes: real auctions have a fixed date, demo ones run relative to page open. */
+export function auctionEndsAt(a: { endsInHours?: number | undefined; endsAt?: string | undefined }): number {
+  if (a.endsAt) return Date.parse(a.endsAt);
+  return demoEndsAt(a.endsInHours ?? 0);
+}
+
+/** Stable order for listing auctions (works during server rendering): demo ones by hours, then real ones by date. */
+export function auctionSortKey(a: { endsInHours?: number | undefined; endsAt?: string | undefined }): number {
+  return a.endsAt ? 1e12 + Date.parse(a.endsAt) : (a.endsInHours ?? 0) * 3_600_000;
+}

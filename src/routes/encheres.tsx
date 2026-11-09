@@ -2,11 +2,13 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Gavel, ShieldCheck, Timer, TrendingUp } from "lucide-react";
 import { AuctionCard } from "@/components/site/AuctionCard";
 import { PageHeader } from "@/components/site/SectionHeading";
-import { LISTINGS } from "@/data/catalog";
+import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
+import { auctionSortKey } from "@/lib/demo-clock";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta } from "@/lib/i18n";
 
 export const Route = createFileRoute("/encheres")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(catalogQuery),
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
       title: {
@@ -56,7 +58,10 @@ const RULES = [
 
 function Auctions() {
   const { t } = useI18n();
-  const auctions = [...LISTINGS.filter((l) => l.saleType === "enchere")].sort((a, b) => a.auction!.endsInHours - b.auction!.endsInHours);
+  const { listings } = useCatalog();
+  const auctions = listings
+    .filter((l) => l.saleType === "enchere" && l.auction)
+    .sort((a, b) => auctionSortKey(a.auction!) - auctionSortKey(b.auction!));
   return (
     <>
       <PageHeader

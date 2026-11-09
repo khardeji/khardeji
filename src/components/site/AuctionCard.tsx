@@ -42,7 +42,7 @@ export function AuctionCard({ listing }: { listing: Listing }) {
           </div>
           <div>
             <p className="text-[0.7rem] text-on-dark-muted">{t({ ar: "الوقت المتبقي", fr: "Temps restant", en: "Time left" })}</p>
-            <Countdown endsInHours={a.endsInHours} className="mt-1 text-on-dark" />
+            <Countdown auction={a} className="mt-1 text-on-dark" />
           </div>
         </div>
 

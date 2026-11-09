@@ -1,11 +1,13 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/site/SectionHeading";
-import { CATEGORIES, LISTINGS, subcategoryLabel } from "@/data/catalog";
+import { subcategoryLabel } from "@/data/catalog";
+import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta } from "@/lib/i18n";
 
 export const Route = createFileRoute("/categories")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(catalogQuery),
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
       title: {
@@ -25,6 +27,7 @@ export const Route = createFileRoute("/categories")({
 
 function Categories() {
   const { t } = useI18n();
+  const { categories, listings } = useCatalog();
   return (
     <>
       <PageHeader
@@ -37,8 +40,8 @@ function Categories() {
         })}
       />
       <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:px-6 md:grid-cols-2">
-        {CATEGORIES.map((c) => {
-          const count = LISTINGS.filter((l) => l.category === c.slug).length;
+        {categories.map((c) => {
+          const count = listings.filter((l) => l.category === c.slug).length;
           return (
             <article key={c.slug} className="surface-card overflow-hidden">
               <Link to="/annonces" search={{ cat: c.slug }} className="group relative isolate block h-48 overflow-hidden">

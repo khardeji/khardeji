@@ -2,7 +2,8 @@ import { useNavigate } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { CATEGORIES, governorateLabel, GOVERNORATES } from "@/data/catalog";
+import { governorateLabel, GOVERNORATES } from "@/data/catalog";
+import { useCatalog } from "@/lib/catalog-queries";
 import { useI18n } from "@/hooks/use-i18n";
 
 const fieldClass =
@@ -11,6 +12,7 @@ const fieldClass =
 export function HeroSearch() {
   const navigate = useNavigate();
   const { t } = useI18n();
+  const { categories } = useCatalog();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("");
   const [gov, setGov] = useState("");
@@ -54,7 +56,7 @@ export function HeroSearch() {
       <label className="sr-only" htmlFor="hs-cat">{L.cat}</label>
       <select id="hs-cat" className={fieldClass} value={cat} onChange={(e) => setCat(e.target.value)}>
         <option value="">{L.allCat}</option>
-        {CATEGORIES.map((c) => (
+        {categories.map((c) => (
           <option key={c.slug} value={c.slug}>{t(c.name)}</option>
         ))}
       </select>

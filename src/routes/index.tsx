@@ -6,11 +6,12 @@ import { AuctionCard } from "@/components/site/AuctionCard";
 import { HeroSearch } from "@/components/site/HeroSearch";
 import { ListingCard } from "@/components/site/ListingCard";
 import { SectionHeading } from "@/components/site/SectionHeading";
-import { CATEGORIES, LISTINGS } from "@/data/catalog";
+import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(catalogQuery),
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
       title: {
@@ -69,8 +70,9 @@ const STATS = [
 
 function Home() {
   const { t, num } = useI18n();
-  const recent = [...LISTINGS].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, 8);
-  const auctions = LISTINGS.filter((l) => l.saleType === "enchere").slice(0, 4);
+  const { listings, categories } = useCatalog();
+  const recent = [...listings].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, 8);
+  const auctions = listings.filter((l) => l.saleType === "enchere" && l.auction).slice(0, 4);
 
   return (
     <>
@@ -131,7 +133,7 @@ function Home() {
           }
         />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {CATEGORIES.map((c, i) => (
+          {categories.map((c, i) => (
             <Link
               key={c.slug}
               to="/annonces"
