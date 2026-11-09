@@ -4,13 +4,15 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/site/SectionHeading";
-import { CATEGORIES, governorateLabel, GOVERNORATES, SALE_TYPE_LABEL, subcategoryLabel, type SaleType } from "@/data/catalog";
+import { governorateLabel, GOVERNORATES, SALE_TYPE_LABEL, subcategoryLabel, type SaleType } from "@/data/catalog";
 import { useI18n } from "@/hooks/use-i18n";
+import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { UNIT_LABEL, type SaleUnit } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/publier")({
+  loader: ({ context }) => context.queryClient.ensureQueryData(catalogQuery),
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
       title: { ar: "انشر إعلان — بيع الخردة متاعك | خردجي", fr: "Publier une annonce — Vendez votre ferraille | Khardeji", en: "Post a listing — Sell your scrap | Khardeji" },
@@ -78,6 +80,7 @@ function Publish() {
   const { t, dt, num } = useI18n();
   const [step, setStep] = useState(0);
   const [d, setD] = useState<Draft>(EMPTY);
+  const { categories: CATEGORIES } = useCatalog();
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }));
   const cat = CATEGORIES.find((c) => c.slug === d.category);
   const unit = { step: UNIT_LABEL[d.unit].step, short: t(UNIT_LABEL[d.unit].short), long: t(UNIT_LABEL[d.unit].long) };
