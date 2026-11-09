@@ -22,6 +22,13 @@
       "when": 1794266637242,
       "tag": "0002_listing_photos_read",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1794266786652,
+      "tag": "0003_listing_private_reserve",
+      "breakpoints": true
     }
   ]
 }

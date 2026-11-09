@@ -86,6 +86,35 @@ export type Database = {
         }
         Relationships: []
       }
+      listing_private: {
+        Row: {
+          created_at: string
+          listing_id: string
+          owner_id: string
+          reserve_price: number | null
+        }
+        Insert: {
+          created_at?: string
+          listing_id: string
+          owner_id: string
+          reserve_price?: number | null
+        }
+        Update: {
+          created_at?: string
+          listing_id?: string
+          owner_id?: string
+          reserve_price?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "listing_private_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: true
+            referencedRelation: "listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       listings: {
         Row: {
           auction: Json | null
