@@ -43,6 +43,8 @@ export interface Category {
   image: string;
   /** Stable subcategory keys (French); display with subcategoryLabel(). */
   subcategories: string[];
+  sortOrder?: number;
+  isActive?: boolean;
 }
 
 const SUB: Record<string, Msg> = {
@@ -120,7 +122,7 @@ export interface Listing {
   description: Msg;
   category: CategorySlug;
   subcategory: string;
-  governorate: Governorate;
+  governorate: string;
   city: Msg;
   price: number;
   unit: SaleUnit;
