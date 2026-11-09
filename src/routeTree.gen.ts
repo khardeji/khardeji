@@ -10,18 +10,23 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as CommentCaMarcheRouteImport } from './routes/comment-ca-marche'
 import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as EncheresRouteImport } from './routes/encheres'
-import { Route as PublierRouteImport } from './routes/publier'
 import { Route as ServicesRouteImport } from './routes/services'
+import { Route as AuthenticatedPublierRouteImport } from './routes/_authenticated/publier'
 import { Route as AnnoncesIndexRouteImport } from './routes/annonces.index'
 import { Route as AnnoncesIdRouteImport } from './routes/annonces.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
   getParentRoute: () => rootRouteImport,
 } as any)
 const CategoriesRoute = CategoriesRouteImport.update({
@@ -44,15 +49,15 @@ const EncheresRoute = EncheresRouteImport.update({
   path: '/encheres',
   getParentRoute: () => rootRouteImport,
 } as any)
-const PublierRoute = PublierRouteImport.update({
-  id: '/publier',
-  path: '/publier',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
   path: '/services',
   getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedPublierRoute = AuthenticatedPublierRouteImport.update({
+  id: '/publier',
+  path: '/publier',
+  getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AnnoncesIndexRoute = AnnoncesIndexRouteImport.update({
   id: '/annonces/',
@@ -71,8 +76,8 @@ export interface FileRoutesByFullPath {
   '/comment-ca-marche': typeof CommentCaMarcheRoute
   '/connexion': typeof ConnexionRoute
   '/encheres': typeof EncheresRoute
-  '/publier': typeof PublierRoute
   '/services': typeof ServicesRoute
+  '/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces/': typeof AnnoncesIndexRoute
 }
@@ -82,20 +87,21 @@ export interface FileRoutesByTo {
   '/comment-ca-marche': typeof CommentCaMarcheRoute
   '/connexion': typeof ConnexionRoute
   '/encheres': typeof EncheresRoute
-  '/publier': typeof PublierRoute
   '/services': typeof ServicesRoute
+  '/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces': typeof AnnoncesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/categories': typeof CategoriesRoute
   '/comment-ca-marche': typeof CommentCaMarcheRoute
   '/connexion': typeof ConnexionRoute
   '/encheres': typeof EncheresRoute
-  '/publier': typeof PublierRoute
   '/services': typeof ServicesRoute
+  '/_authenticated/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces/': typeof AnnoncesIndexRoute
 }
@@ -107,8 +113,8 @@ export interface FileRouteTypes {
     | '/comment-ca-marche'
     | '/connexion'
     | '/encheres'
-    | '/publier'
     | '/services'
+    | '/publier'
     | '/annonces/$id'
     | '/annonces/'
   fileRoutesByTo: FileRoutesByTo
@@ -118,30 +124,31 @@ export interface FileRouteTypes {
     | '/comment-ca-marche'
     | '/connexion'
     | '/encheres'
-    | '/publier'
     | '/services'
+    | '/publier'
     | '/annonces/$id'
     | '/annonces'
   id:
     | '__root__'
     | '/'
+    | '/_authenticated'
     | '/categories'
     | '/comment-ca-marche'
     | '/connexion'
     | '/encheres'
-    | '/publier'
     | '/services'
+    | '/_authenticated/publier'
     | '/annonces/$id'
     | '/annonces/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   CategoriesRoute: typeof CategoriesRoute
   CommentCaMarcheRoute: typeof CommentCaMarcheRoute
   ConnexionRoute: typeof ConnexionRoute
   EncheresRoute: typeof EncheresRoute
-  PublierRoute: typeof PublierRoute
   ServicesRoute: typeof ServicesRoute
   AnnoncesIdRoute: typeof AnnoncesIdRoute
   AnnoncesIndexRoute: typeof AnnoncesIndexRoute
@@ -154,6 +161,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/categories': {
@@ -184,19 +198,19 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof EncheresRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/publier': {
-      id: '/publier'
-      path: '/publier'
-      fullPath: '/publier'
-      preLoaderRoute: typeof PublierRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/services': {
       id: '/services'
       path: '/services'
       fullPath: '/services'
       preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated/publier': {
+      id: '/_authenticated/publier'
+      path: '/publier'
+      fullPath: '/publier'
+      preLoaderRoute: typeof AuthenticatedPublierRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
     }
     '/annonces/': {
       id: '/annonces/'
@@ -215,13 +229,24 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedPublierRoute: typeof AuthenticatedPublierRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedPublierRoute: AuthenticatedPublierRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   CategoriesRoute: CategoriesRoute,
   CommentCaMarcheRoute: CommentCaMarcheRoute,
   ConnexionRoute: ConnexionRoute,
   EncheresRoute: EncheresRoute,
-  PublierRoute: PublierRoute,
   ServicesRoute: ServicesRoute,
   AnnoncesIdRoute: AnnoncesIdRoute,
   AnnoncesIndexRoute: AnnoncesIndexRoute,
