@@ -7,17 +7,15 @@ import { ListingCard } from "@/components/site/ListingCard";
 import { PageHeader } from "@/components/site/SectionHeading";
 import {
   auctionCurrentPrice,
-  CATEGORIES,
-  getCategory,
   governorateLabel,
   GOVERNORATES,
   listingSearchText,
-  LISTINGS,
   SALE_TYPE_LABEL,
   subcategoryLabel,
   type SaleType,
 } from "@/data/catalog";
 import { useI18n } from "@/hooks/use-i18n";
+import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
 import { pageMeta } from "@/lib/i18n";
 
 type Sort = "recent" | "prix-asc" | "prix-desc";
@@ -64,6 +62,7 @@ export const Route = createFileRoute("/annonces/")({
       },
     }),
   }),
+  loader: ({ context }) => context.queryClient.ensureQueryData(catalogQuery),
   component: Catalogue,
 });
 
@@ -73,6 +72,7 @@ const field =
 function Filters({ search, onDone }: { search: AnnoncesSearch; onDone?: () => void }) {
   const navigate = useNavigate({ from: "/annonces/" });
   const { t } = useI18n();
+  const { categories: CATEGORIES, getCategory } = useCatalog();
   const [q, setQ] = useState(search.q ?? "");
   const [min, setMin] = useState(search.min?.toString() ?? "");
   const [max, setMax] = useState(search.max?.toString() ?? "");
@@ -170,6 +170,7 @@ function Catalogue() {
   const navigate = useNavigate({ from: "/annonces/" });
   const [open, setOpen] = useState(false);
   const { t, dir, locale } = useI18n();
+  const { listings: LISTINGS, getCategory } = useCatalog();
 
   const q = search.q?.toLowerCase();
   let results = LISTINGS.filter((l) => {

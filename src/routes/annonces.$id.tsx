@@ -6,7 +6,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ListingCard } from "@/components/site/ListingCard";
 import { AuctionPanel, FixedPricePanel, OfferPanel } from "@/components/site/PurchasePanels";
-import { getCategory, getListing, governorateLabel, LISTINGS, SALE_TYPE_LABEL, SELLER_KIND_LABEL, subcategoryLabel } from "@/data/catalog";
+import { governorateLabel, SALE_TYPE_LABEL, SELLER_KIND_LABEL, subcategoryLabel } from "@/data/catalog";
+import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
 import { useI18n } from "@/hooks/use-i18n";
 import { useFavorites } from "@/lib/favorites";
 import { formatDT } from "@/lib/format";
@@ -15,8 +16,9 @@ import { UNIT_LABEL } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/annonces/$id")({
-  loader: ({ params }) => {
-    const listing = getListing(params.id);
+  loader: async ({ context, params }) => {
+    const { listings } = await context.queryClient.ensureQueryData(catalogQuery);
+    const listing = listings.find((l) => l.id === params.id);
     if (!listing) throw notFound();
     return { listing };
   },
@@ -67,9 +69,10 @@ function ListingDetail() {
   const { isFavorite, toggle } = useFavorites();
   const { t, dt, num, date } = useI18n();
   const fav = isFavorite(listing.id);
+  const { listings, getCategory } = useCatalog();
   const cat = getCategory(listing.category);
   const unit = { short: t(UNIT_LABEL[listing.unit].short), long: t(UNIT_LABEL[listing.unit].long) };
-  const similar = LISTINGS.filter((l) => l.category === listing.category && l.id !== listing.id).slice(0, 4);
+  const similar = listings.filter((l) => l.category === listing.category && l.id !== listing.id).slice(0, 4);
 
   const share = async () => {
     const url = window.location.href;

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Countdown } from "./Countdown";
 import type { Listing } from "@/data/catalog";
 import { minimumNextBid, participantCount, validateBid, type AuctionState } from "@/lib/auction";
-import { demoEndsAt } from "@/lib/demo-clock";
+import { auctionEndsAt } from "@/lib/demo-clock";
 import { useI18n } from "@/hooks/use-i18n";
 import { clampQuantity, quantityTotal, UNIT_LABEL } from "@/lib/quantity";
 
@@ -158,7 +158,7 @@ export function AuctionPanel({ listing }: { listing: Listing }) {
 
   function placeBid(e: React.FormEvent) {
     e.preventDefault();
-    const check = validateBid({ ...state, endsAt: demoEndsAt(a.endsInHours) }, Number(amount), Date.now());
+    const check = validateBid({ ...state, endsAt: auctionEndsAt(a) }, Number(amount), Date.now());
     if (!check.ok) {
       toast.error(
         check.code === "closed"
@@ -186,7 +186,7 @@ export function AuctionPanel({ listing }: { listing: Listing }) {
         </div>
         <div className="rounded-lg bg-muted/70 p-4">
           <p className="text-xs text-muted-foreground">{t({ ar: "تتسكّر بعد", fr: "Clôture dans", en: "Closes in" })}</p>
-          <Countdown endsInHours={a.endsInHours} className="mt-1 text-lg" />
+          <Countdown auction={a} className="mt-1 text-lg" />
         </div>
       </div>
       <div className="flex flex-wrap justify-between gap-2 text-sm text-muted-foreground">
