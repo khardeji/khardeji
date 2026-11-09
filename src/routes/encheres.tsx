@@ -88,7 +88,7 @@ function Auctions() {
         <p className="mt-8 flex items-center gap-2 text-sm text-muted-foreground">
           <Gavel className="size-4 shrink-0" />
           {t({
-            ar: "الجتونات متاع الإشهار ما يستعملوش أبداً في المزايدة: المزايدات بالدينار برك.",
+            ar: "نقاط الإشهار ما تستعملش أبداً في المزايدة: المزايدات بالدينار برك.",
             fr: "Les jetons promotionnels ne servent jamais à miser : les enchères se font uniquement en DT.",
             en: "Promotion tokens are never used to bid: auctions are in TND only.",
           })}

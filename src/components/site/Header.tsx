@@ -22,7 +22,7 @@ const NAV = [
   { to: "/encheres", label: { ar: "المزايدات", fr: "Enchères", en: "Auctions" } },
   { to: "/categories", label: { ar: "الأصناف", fr: "Catégories", en: "Categories" } },
   { to: "/comment-ca-marche", label: { ar: "كيفاش تخدم؟", fr: "Comment ça marche ?", en: "How it works" } },
-  { to: "/services", label: { ar: "الخدمات والجتونات", fr: "Services et jetons", en: "Services & tokens" } },
+  { to: "/services", label: { ar: "الخدمات والنقاط", fr: "Services et jetons", en: "Services & tokens" } },
 ] as const;
 
 const PUBLISH = { ar: "انشر إعلان", fr: "Publier une annonce", en: "Post a listing" };

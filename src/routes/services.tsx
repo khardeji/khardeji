@@ -9,12 +9,12 @@ export const Route = createFileRoute("/services")({
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
       title: {
-        ar: "العروض والخدمات — جتونات، تبويست وباقات محترفين | خردجي",
+        ar: "العروض والخدمات — نقاط، ترويج الإعلانات وباقات محترفين | خردجي",
         fr: "Offres et services — Jetons, boosts et forfaits Pro | Khardeji",
         en: "Plans and services — Tokens, boosts and Pro plans | Khardeji",
       },
       description: {
-        ar: "انشر بلاش، اشري جتونات، بوّست إعلاناتك واختار باقة محترفين لأصحاب الخردة والشركات في تونس.",
+        ar: "انشر بلاش، اشري نقاط، روّج إعلاناتك واختار باقة محترفين لأصحاب الخردة والشركات في تونس.",
         fr: "Publiez gratuitement, achetez des jetons, boostez vos annonces et choisissez une offre Pro pour ferrailleurs et entreprises en Tunisie.",
         en: "Post for free, buy tokens, boost your listings and pick a Pro plan for scrap dealers and companies in Tunisia.",
       },
@@ -34,16 +34,16 @@ const OVERVIEW = [
   {
     icon: Coins,
     href: "#jetons",
-    title: { ar: "اشري جتونات", fr: "Achetez des jetons", en: "Buy tokens" },
+    title: { ar: "اشري نقاط", fr: "Achetez des jetons", en: "Buy tokens" },
     text: { ar: "رصيد تستعملو في خدمات الظهور كيف ما تحب.", fr: "Des crédits pour profiter des services de visibilité à la carte.", en: "Credits for pay-as-you-go visibility services." },
-    cta: { ar: "شوف باقات الجتونات", fr: "Voir les forfaits de jetons", en: "See token packs" },
+    cta: { ar: "شوف باقات النقاط", fr: "Voir les forfaits de jetons", en: "See token packs" },
   },
   {
     icon: Rocket,
     href: "#boosts",
-    title: { ar: "بوّست إعلاناتك", fr: "Boostez vos annonces", en: "Boost your listings" },
+    title: { ar: "روّج إعلاناتك", fr: "Boostez vos annonces", en: "Boost your listings" },
     text: { ar: "مشاهدات أكثر، عروض أكثر، وبيع أسرع.", fr: "Plus de vues, plus d'offres, une vente plus rapide.", en: "More views, more offers, a faster sale." },
-    cta: { ar: "اعرف أكثر على التبويست", fr: "En savoir plus sur les boosts", en: "Learn about boosts" },
+    cta: { ar: "اعرف أكثر على الترويج", fr: "En savoir plus sur les boosts", en: "Learn about boosts" },
   },
   {
     icon: Building2,
@@ -108,7 +108,7 @@ const PLANS: { id: string; price: number; highlight?: boolean; name: Msg; featur
     features: [
       { ar: "50 إعلان نشيط", fr: "50 annonces actives", en: "50 active listings" },
       { ar: "علامة بائع محترف", fr: "Badge vendeur professionnel", en: "Professional seller badge" },
-      { ar: "40 جتون هدية كل شهر", fr: "40 jetons offerts chaque mois", en: "40 free tokens every month" },
+      { ar: "40 نقطة هدية كل شهر", fr: "40 jetons offerts chaque mois", en: "40 free tokens every month" },
       { ar: "إحصائيات المشاهدة", fr: "Statistiques de consultation", en: "View statistics" },
       { ar: "تسيير المخزون لبرشا إعلانات", fr: "Gestion des stocks multi-annonces", en: "Multi-listing stock management" },
     ],
@@ -120,7 +120,7 @@ const PLANS: { id: string; price: number; highlight?: boolean; name: Msg; featur
     features: [
       { ar: "إعلانات بلا حدود", fr: "Annonces illimitées", en: "Unlimited listings" },
       { ar: "حانوت باسمك", fr: "Boutique à votre nom", en: "Your own branded shop" },
-      { ar: "150 جتون هدية كل شهر", fr: "150 jetons offerts chaque mois", en: "150 free tokens every month" },
+      { ar: "150 نقطة هدية كل شهر", fr: "150 jetons offerts chaque mois", en: "150 free tokens every month" },
       { ar: "برشا حسابات للخدّامة", fr: "Plusieurs comptes collaborateurs", en: "Multiple team accounts" },
       { ar: "مرافقة خاصة", fr: "Accompagnement dédié", en: "Dedicated support" },
     ],
@@ -129,7 +129,7 @@ const PLANS: { id: string; price: number; highlight?: boolean; name: Msg; featur
 
 function Services() {
   const { t, dt, num } = useI18n();
-  const tokensWord = t({ ar: "جتون", fr: "jetons", en: "tokens" });
+  const tokensWord = t({ ar: "نقطة", fr: "jetons", en: "tokens" });
   const perMonth = t({ ar: "/ الشهر", fr: "/ mois", en: "/ month" });
 
   return (
@@ -163,11 +163,11 @@ function Services() {
       <div className="mx-auto max-w-7xl px-4 sm:px-6">
         {/* Tokens */}
         <section id="jetons" className="scroll-mt-24 pt-20">
-          <p className="label-stamp text-xs text-rust">{t({ ar: "جتونات", fr: "Jetons", en: "Tokens" })}</p>
-          <h2 className="mt-2 text-3xl font-semibold sm:text-4xl">{t({ ar: "اشري جتونات بسهولة", fr: "Achetez des jetons facilement", en: "Buy tokens easily" })}</h2>
+          <p className="label-stamp text-xs text-rust">{t({ ar: "النقاط", fr: "Jetons", en: "Tokens" })}</p>
+          <h2 className="mt-2 text-3xl font-semibold sm:text-4xl">{t({ ar: "اشري نقاط بسهولة", fr: "Achetez des jetons facilement", en: "Buy tokens easily" })}</h2>
           <p className="mt-2 max-w-2xl text-muted-foreground">
             {t({
-              ar: "الجتونات تستعمل كان لخدمات الظهور. عمرها ما تستعمل للمزايدة.",
+              ar: "النقاط تستعمل كان لخدمات الظهور. عمرها ما تستعمل للمزايدة.",
               fr: "Les jetons servent uniquement aux services de visibilité. Ils ne servent jamais à miser dans une enchère.",
               en: "Tokens are only for visibility services. They can never be used to bid in an auction.",
             })}
@@ -179,7 +179,7 @@ function Services() {
                 <Coins className="size-8 text-brass" />
                 <p className="mt-4 font-display text-4xl font-semibold">{num(p.tokens)} <span className="text-lg font-normal text-muted-foreground">{tokensWord}</span></p>
                 <p className="mt-1 text-sm text-muted-foreground">
-                  {dt(Math.round((p.price / p.tokens) * 100) / 100)} {t({ ar: "للجتون", fr: "le jeton", en: "per token" })}
+                  {dt(Math.round((p.price / p.tokens) * 100) / 100)} {t({ ar: "للنقطة", fr: "le jeton", en: "per token" })}
                 </p>
                 <p className="mt-6 font-display text-2xl font-semibold text-rust">{dt(p.price)}</p>
                 <Button
@@ -187,7 +187,7 @@ function Services() {
                   className="mt-4"
                   onClick={() =>
                     toast(t({ ar: "الخلاص قريب", fr: "Paiement bientôt disponible", en: "Payment coming soon" }), {
-                      description: t({ ar: "شراء الجتونات باش يتحلّ قريب.", fr: "L'achat de jetons ouvrira très prochainement.", en: "Token purchases will open very soon." }),
+                      description: t({ ar: "شراء النقاط باش يتحلّ قريب.", fr: "L'achat de jetons ouvrira très prochainement.", en: "Token purchases will open very soon." }),
                     })
                   }
                 >
@@ -201,7 +201,7 @@ function Services() {
         {/* Boosts */}
         <section id="boosts" className="scroll-mt-24 pt-20">
           <p className="label-stamp text-xs text-rust">{t({ ar: "الظهور", fr: "Visibilité", en: "Visibility" })}</p>
-          <h2 className="mt-2 text-3xl font-semibold sm:text-4xl">{t({ ar: "بوّست إعلاناتك بفعالية", fr: "Boostez vos annonces efficacement", en: "Boost your listings effectively" })}</h2>
+          <h2 className="mt-2 text-3xl font-semibold sm:text-4xl">{t({ ar: "روّج إعلاناتك بفعالية", fr: "Boostez vos annonces efficacement", en: "Boost your listings effectively" })}</h2>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             {BOOSTS.map((b) => (
               <div key={b.name.fr} className="surface-card flex items-start gap-4 p-5">

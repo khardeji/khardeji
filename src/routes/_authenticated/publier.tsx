@@ -321,7 +321,7 @@ function Publish() {
         </div>
         <p className="mt-6 text-center text-sm text-muted-foreground">
           {t({ ar: "تحب إعلانك يبان أكثر؟", fr: "Besoin de plus de visibilité ?", en: "Need more visibility?" })}{" "}
-          <Link to="/services" className="text-rust hover:underline">{t({ ar: "اكتشف التبويست", fr: "Découvrez les boosts", en: "Discover boosts" })}</Link>
+          <Link to="/services" className="text-rust hover:underline">{t({ ar: "اكتشف خدمات الترويج", fr: "Découvrez les boosts", en: "Discover boosts" })}</Link>
         </p>
       </div>
     </>

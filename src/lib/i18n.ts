@@ -28,6 +28,24 @@ export function localeFromCookieString(cookies: string | null | undefined): Loca
   return DEFAULT_LOCALE;
 }
 
+// Language picked in this browser tab. Kept in memory because embedded previews (iframes) may block cookies.
+let chosenLocale: Locale | null = null;
+
+/** Remember the visitor's language: in memory for this tab, and in a cookie so the server renders it next time. */
+export function rememberLocale(next: Locale) {
+  chosenLocale = next;
+  const secure = typeof location !== "undefined" && location.protocol === "https:";
+  // SameSite=None + Partitioned lets the cookie survive inside an embedded preview frame.
+  document.cookie = secure
+    ? `${LOCALE_COOKIE}=${next}; path=/; max-age=31536000; SameSite=None; Secure; Partitioned`
+    : `${LOCALE_COOKIE}=${next}; path=/; max-age=31536000; SameSite=Lax`;
+}
+
+/** Browser-side language: the one chosen in this tab, else the saved cookie, else Arabic. */
+export function clientLocale(): Locale {
+  return chosenLocale ?? localeFromCookieString(document.cookie);
+}
+
 export function translator(locale: Locale) {
   return (m: Msg) => m[locale];
 }
