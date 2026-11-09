@@ -3,12 +3,14 @@ import { Search } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { CATEGORIES, GOVERNORATES } from "@/data/catalog";
+import { useI18n } from "@/hooks/use-i18n";
 
 const fieldClass =
   "h-12 w-full rounded-md border border-input bg-card px-3 text-sm text-foreground outline-none transition focus:border-rust focus:ring-2 focus:ring-rust/25";
 
 export function HeroSearch() {
   const navigate = useNavigate();
+  const { t } = useI18n();
   const [q, setQ] = useState("");
   const [cat, setCat] = useState("");
   const [gov, setGov] = useState("");
@@ -40,7 +42,7 @@ export function HeroSearch() {
       <select id="hs-cat" className={fieldClass} value={cat} onChange={(e) => setCat(e.target.value)}>
         <option value="">Toutes catégories</option>
         {CATEGORIES.map((c) => (
-          <option key={c.slug} value={c.slug}>{c.name}</option>
+          <option key={c.slug} value={c.slug}>{t(c.name)}</option>
         ))}
       </select>
       <label className="sr-only" htmlFor="hs-gov">Gouvernorat</label>
