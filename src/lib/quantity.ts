@@ -1,13 +1,15 @@
 // Rules for buying an exact quantity from a listing's stock.
+import type { Msg } from "./i18n";
+
 export type SaleUnit = "piece" | "kg" | "g" | "tonne" | "lot" | "libre";
 
-export const UNIT_LABEL: Record<SaleUnit, { short: string; long: string; step: number }> = {
-  piece: { short: "pièce", long: "À la pièce", step: 1 },
-  kg: { short: "kg", long: "Au kilogramme", step: 1 },
-  g: { short: "g", long: "Au gramme", step: 50 },
-  tonne: { short: "tonne", long: "À la tonne", step: 0.5 },
-  lot: { short: "lot", long: "Par lot", step: 1 },
-  libre: { short: "unité", long: "Quantité libre", step: 1 },
+export const UNIT_LABEL: Record<SaleUnit, { short: Msg; long: Msg; step: number }> = {
+  piece: { short: { ar: "قطعة", fr: "pièce", en: "piece" }, long: { ar: "بالقطعة", fr: "À la pièce", en: "Per piece" }, step: 1 },
+  kg: { short: { ar: "كغ", fr: "kg", en: "kg" }, long: { ar: "بالكيلوغرام", fr: "Au kilogramme", en: "Per kilogram" }, step: 1 },
+  g: { short: { ar: "غ", fr: "g", en: "g" }, long: { ar: "بالغرام", fr: "Au gramme", en: "Per gram" }, step: 50 },
+  tonne: { short: { ar: "طن", fr: "tonne", en: "tonne" }, long: { ar: "بالطن", fr: "À la tonne", en: "Per tonne" }, step: 0.5 },
+  lot: { short: { ar: "دفعة", fr: "lot", en: "lot" }, long: { ar: "بالدفعة (لوط)", fr: "Par lot", en: "Per lot" }, step: 1 },
+  libre: { short: { ar: "وحدة", fr: "unité", en: "unit" }, long: { ar: "كمية حرة", fr: "Quantité libre", en: "Free quantity" }, step: 1 },
 };
 
 /** Clamp a requested quantity between one step and the available stock — never above stock. */
