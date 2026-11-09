@@ -34,3 +34,5 @@ use the editor.
 - Quantity and auction rules live in pure modules (`src/lib/quantity.ts`, `src/lib/auction.ts`) covered by `src/lib/rules.test.ts`; the server must reuse the same rules when added.
 - Demo auction end times are computed client-side from page open (`src/lib/demo-clock.ts`) to avoid SSR hydration mismatches.
 - `/annonces` uses folder-style leaves (`annonces.index.tsx`, `annonces.$id.tsx`) with no layout parent, so detail pages render standalone.
+- UI copy is colocated as `{ ar, fr, en }` objects rendered with `t()` from `useI18n()`; the language lives in a cookie read in the root `beforeLoad` so the server renders the right `lang`/`dir` (no hydration flash).
+- Pages that need an account live under `src/routes/_authenticated/` (client-only guard redirecting to `/connexion?redirect=`), so adding a protected page is just a new file there.
