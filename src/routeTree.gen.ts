@@ -15,6 +15,7 @@ import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as CommentCaMarcheRouteImport } from './routes/comment-ca-marche'
 import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as EncheresRouteImport } from './routes/encheres'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as AuthenticatedPublierRouteImport } from './routes/_authenticated/publier'
 import { Route as AnnoncesIndexRouteImport } from './routes/annonces.index'
@@ -49,6 +50,11 @@ const EncheresRoute = EncheresRouteImport.update({
   path: '/encheres',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ServicesRoute = ServicesRouteImport.update({
   id: '/services',
   path: '/services',
@@ -76,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/comment-ca-marche': typeof CommentCaMarcheRoute
   '/connexion': typeof ConnexionRoute
   '/encheres': typeof EncheresRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/services': typeof ServicesRoute
   '/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
@@ -87,6 +94,7 @@ export interface FileRoutesByTo {
   '/comment-ca-marche': typeof CommentCaMarcheRoute
   '/connexion': typeof ConnexionRoute
   '/encheres': typeof EncheresRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/services': typeof ServicesRoute
   '/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
@@ -100,6 +108,7 @@ export interface FileRoutesById {
   '/comment-ca-marche': typeof CommentCaMarcheRoute
   '/connexion': typeof ConnexionRoute
   '/encheres': typeof EncheresRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/services': typeof ServicesRoute
   '/_authenticated/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
@@ -113,6 +122,7 @@ export interface FileRouteTypes {
     | '/comment-ca-marche'
     | '/connexion'
     | '/encheres'
+    | '/reset-password'
     | '/services'
     | '/publier'
     | '/annonces/$id'
@@ -124,6 +134,7 @@ export interface FileRouteTypes {
     | '/comment-ca-marche'
     | '/connexion'
     | '/encheres'
+    | '/reset-password'
     | '/services'
     | '/publier'
     | '/annonces/$id'
@@ -136,6 +147,7 @@ export interface FileRouteTypes {
     | '/comment-ca-marche'
     | '/connexion'
     | '/encheres'
+    | '/reset-password'
     | '/services'
     | '/_authenticated/publier'
     | '/annonces/$id'
@@ -149,6 +161,7 @@ export interface RootRouteChildren {
   CommentCaMarcheRoute: typeof CommentCaMarcheRoute
   ConnexionRoute: typeof ConnexionRoute
   EncheresRoute: typeof EncheresRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   ServicesRoute: typeof ServicesRoute
   AnnoncesIdRoute: typeof AnnoncesIdRoute
   AnnoncesIndexRoute: typeof AnnoncesIndexRoute
@@ -196,6 +209,13 @@ declare module '@tanstack/react-router' {
       path: '/encheres'
       fullPath: '/encheres'
       preLoaderRoute: typeof EncheresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/services': {
@@ -247,6 +267,7 @@ const rootRouteChildren: RootRouteChildren = {
   CommentCaMarcheRoute: CommentCaMarcheRoute,
   ConnexionRoute: ConnexionRoute,
   EncheresRoute: EncheresRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   ServicesRoute: ServicesRoute,
   AnnoncesIdRoute: AnnoncesIdRoute,
   AnnoncesIndexRoute: AnnoncesIndexRoute,
