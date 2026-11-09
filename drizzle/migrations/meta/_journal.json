@@ -8,6 +8,13 @@
       "when": 1794264518763,
       "tag": "0000_profiles_baseline",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1794266596041,
+      "tag": "0001_admin_catalog_pricing",
+      "breakpoints": true
     }
   ]
 }
