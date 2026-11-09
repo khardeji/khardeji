@@ -5,10 +5,9 @@ import { toast } from "sonner";
 import heroImg from "@/assets/listing-lathe.jpg";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { rememberAfterLogin, safeRedirect, useAuth } from "@/hooks/use-auth";
+import { safeRedirect, useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { supabase } from "@/integrations/supabase/client";
-import { lovable } from "@/integrations/lovable";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
@@ -57,28 +56,6 @@ function authErrorMessage(message: string): Msg {
   if (m.includes("password") && (m.includes("weak") || m.includes("pwned") || m.includes("least"))) return { ar: "كلمة السر ضعيفة برشا. اختار وحدة أطول وأصعب.", fr: "Mot de passe trop faible. Choisissez-en un plus long et plus difficile.", en: "Password too weak. Choose a longer, harder one." };
   if (m.includes("rate limit") || m.includes("too many")) return { ar: "برشا محاولات. استنّى شوية وعاود.", fr: "Trop de tentatives. Patientez un peu puis réessayez.", en: "Too many attempts. Wait a moment and try again." };
   return { ar: "صار مشكل. عاود جرّب.", fr: "Une erreur est survenue. Réessayez.", en: "Something went wrong. Please try again." };
-}
-
-function GoogleButton({ label, onClick, busy }: { label: string; onClick: () => void; busy: boolean }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={busy}
-      className="inline-flex h-11 w-full items-center justify-center gap-2.5 rounded-md border border-[#747775] bg-[#FFFFFF] px-3 text-sm font-medium leading-5 text-[#1F1F1F] transition hover:bg-[#F8F8F8] disabled:opacity-60"
-    >
-      <svg aria-hidden="true" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/></svg>
-      {label}
-    </button>
-  );
-}
-
-function Divider({ text }: { text: string }) {
-  return (
-    <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
-      <span className="h-px flex-1 bg-border" /> {text} <span className="h-px flex-1 bg-border" />
-    </div>
-  );
 }
 
 function AuthPage() {
@@ -142,16 +119,6 @@ function AuthPage() {
     setForgot(false);
   }
 
-  async function google() {
-    setBusy(true);
-    rememberAfterLogin(redirectTo);
-    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
-    setBusy(false);
-    if (result.error) {
-      toast.error(t({ ar: "الدخول بغوغل ما نجحش. عاود جرّب.", fr: "La connexion Google a échoué. Réessayez.", en: "Google sign-in failed. Please try again." }));
-    }
-  }
-
   const spinner = busy ? <Loader2 className="animate-spin" /> : null;
 
   let panel;
@@ -210,10 +177,6 @@ function AuthPage() {
 
         <TabsContent value="connexion">
           <h1 className="mt-6 text-3xl font-semibold">{t({ ar: "مرحبا بيك من جديد", fr: "Bon retour", en: "Welcome back" })}</h1>
-          <div className="mt-6">
-            <GoogleButton label={t({ ar: "ادخل بحساب Google", fr: "Se connecter avec Google", en: "Sign in with Google" })} onClick={() => void google()} busy={busy} />
-          </div>
-          <Divider text={t({ ar: "ولا بالإيميل", fr: "ou par email", en: "or with email" })} />
           <form onSubmit={signIn} className="space-y-4">
             <div>
               <label htmlFor="li-email" className="text-sm font-medium">{t({ ar: "الإيميل", fr: "Email", en: "Email" })}</label>
@@ -232,10 +195,6 @@ function AuthPage() {
 
         <TabsContent value="inscription">
           <h1 className="mt-6 text-3xl font-semibold">{t({ ar: "اعمل حساب", fr: "Créer un compte", en: "Create an account" })}</h1>
-          <div className="mt-6">
-            <GoogleButton label={t({ ar: "سجّل بحساب Google", fr: "S'inscrire avec Google", en: "Sign up with Google" })} onClick={() => void google()} busy={busy} />
-          </div>
-          <Divider text={t({ ar: "ولا بالإيميل", fr: "ou par email", en: "or with email" })} />
           <form onSubmit={signUp} className="space-y-4">
             <fieldset>
               <legend className="text-sm font-medium">{t({ ar: "نوع الحساب", fr: "Type de compte", en: "Account type" })}</legend>
