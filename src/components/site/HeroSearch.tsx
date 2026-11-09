@@ -2,7 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Search } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { CATEGORIES, GOVERNORATES } from "@/data/catalog";
+import { CATEGORIES, governorateLabel, GOVERNORATES } from "@/data/catalog";
 import { useI18n } from "@/hooks/use-i18n";
 
 const fieldClass =
@@ -16,6 +16,19 @@ export function HeroSearch() {
   const [gov, setGov] = useState("");
   const [min, setMin] = useState("");
   const [max, setMax] = useState("");
+
+  const L = {
+    q: t({ ar: "شنوّة تلوّج؟", fr: "Que recherchez-vous ?", en: "What are you looking for?" }),
+    cat: t({ ar: "الصنف", fr: "Catégorie", en: "Category" }),
+    allCat: t({ ar: "كل الأصناف", fr: "Toutes catégories", en: "All categories" }),
+    gov: t({ ar: "الولاية", fr: "Gouvernorat", en: "Governorate" }),
+    allGov: t({ ar: "كامل تونس", fr: "Toute la Tunisie", en: "All of Tunisia" }),
+    min: t({ ar: "أدنى سعر", fr: "Prix minimum", en: "Minimum price" }),
+    max: t({ ar: "أقصى سعر", fr: "Prix maximum", en: "Maximum price" }),
+    minPh: t({ ar: "من (د.ت)", fr: "Min DT", en: "Min TND" }),
+    maxPh: t({ ar: "إلى (د.ت)", fr: "Max DT", en: "Max TND" }),
+    go: t({ ar: "ابحث", fr: "Rechercher", en: "Search" }),
+  };
 
   function submit(e: FormEvent) {
     e.preventDefault();
@@ -36,28 +49,28 @@ export function HeroSearch() {
       onSubmit={submit}
       className="grid gap-2 rounded-xl border border-border bg-background/95 p-2 shadow-lift backdrop-blur md:grid-cols-[2fr_1.3fr_1.2fr_0.8fr_0.8fr_auto]"
     >
-      <label className="sr-only" htmlFor="hs-q">Que recherchez-vous ?</label>
-      <input id="hs-q" className={fieldClass} placeholder="Que recherchez-vous ?" value={q} onChange={(e) => setQ(e.target.value)} />
-      <label className="sr-only" htmlFor="hs-cat">Catégorie</label>
+      <label className="sr-only" htmlFor="hs-q">{L.q}</label>
+      <input id="hs-q" className={fieldClass} placeholder={L.q} value={q} onChange={(e) => setQ(e.target.value)} />
+      <label className="sr-only" htmlFor="hs-cat">{L.cat}</label>
       <select id="hs-cat" className={fieldClass} value={cat} onChange={(e) => setCat(e.target.value)}>
-        <option value="">Toutes catégories</option>
+        <option value="">{L.allCat}</option>
         {CATEGORIES.map((c) => (
           <option key={c.slug} value={c.slug}>{t(c.name)}</option>
         ))}
       </select>
-      <label className="sr-only" htmlFor="hs-gov">Gouvernorat</label>
+      <label className="sr-only" htmlFor="hs-gov">{L.gov}</label>
       <select id="hs-gov" className={fieldClass} value={gov} onChange={(e) => setGov(e.target.value)}>
-        <option value="">Toute la Tunisie</option>
+        <option value="">{L.allGov}</option>
         {GOVERNORATES.map((g) => (
-          <option key={g} value={g}>{g}</option>
+          <option key={g} value={g}>{t(governorateLabel(g))}</option>
         ))}
       </select>
-      <label className="sr-only" htmlFor="hs-min">Prix minimum</label>
-      <input id="hs-min" type="number" min={0} inputMode="decimal" className={fieldClass} placeholder="Min DT" value={min} onChange={(e) => setMin(e.target.value)} />
-      <label className="sr-only" htmlFor="hs-max">Prix maximum</label>
-      <input id="hs-max" type="number" min={0} inputMode="decimal" className={fieldClass} placeholder="Max DT" value={max} onChange={(e) => setMax(e.target.value)} />
+      <label className="sr-only" htmlFor="hs-min">{L.min}</label>
+      <input id="hs-min" type="number" min={0} inputMode="decimal" className={fieldClass} placeholder={L.minPh} value={min} onChange={(e) => setMin(e.target.value)} />
+      <label className="sr-only" htmlFor="hs-max">{L.max}</label>
+      <input id="hs-max" type="number" min={0} inputMode="decimal" className={fieldClass} placeholder={L.maxPh} value={max} onChange={(e) => setMax(e.target.value)} />
       <Button type="submit" variant="rust" className="h-12 px-6">
-        <Search /> Rechercher
+        <Search /> {L.go}
       </Button>
     </form>
   );

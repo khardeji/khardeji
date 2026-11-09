@@ -1,22 +1,41 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { Building2, Store, User } from "lucide-react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { Building2, Loader2, LogOut, MailCheck, Plus, Store, User } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import heroImg from "@/assets/listing-lathe.jpg";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { rememberAfterLogin, safeRedirect, useAuth } from "@/hooks/use-auth";
+import { useI18n } from "@/hooks/use-i18n";
+import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
+import { pageMeta, type Msg } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
 
+type Mode = "connexion" | "inscription";
+
+interface ConnexionSearch {
+  redirect?: string | undefined;
+  raison?: string | undefined;
+  mode?: Mode | undefined;
+}
+
 export const Route = createFileRoute("/connexion")({
-  head: () => ({
-    meta: [
-      { title: "Connexion et inscription | Khardeji" },
-      { name: "description", content: "Connectez-vous ou créez votre compte Khardeji : particulier, professionnel ferrailleur ou entreprise." },
-      { property: "og:title", content: "Connexion Khardeji" },
-      { property: "og:description", content: "Créez votre compte pour acheter, vendre et enchérir." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-    ],
+  validateSearch: (s: Record<string, unknown>): ConnexionSearch => ({
+    redirect: typeof s["redirect"] === "string" ? s["redirect"] : undefined,
+    raison: typeof s["raison"] === "string" ? s["raison"] : undefined,
+    mode: s["mode"] === "inscription" || s["mode"] === "connexion" ? s["mode"] : undefined,
+  }),
+  head: ({ match }) => ({
+    meta: pageMeta(match.context.locale, {
+      title: { ar: "الدخول والتسجيل | خردجي", fr: "Connexion et inscription | Khardeji", en: "Sign in and sign up | Khardeji" },
+      description: {
+        ar: "ادخل ولا اعمل حساب خردجي: خاص، محترف خردة ولا شركة.",
+        fr: "Connectez-vous ou créez votre compte Khardeji : particulier, professionnel ferrailleur ou entreprise.",
+        en: "Sign in or create your Khardeji account: private seller, scrap professional or company.",
+      },
+      card: "summary",
+    }),
   }),
   component: AuthPage,
 });
@@ -25,100 +44,269 @@ const field =
   "h-11 w-full rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-rust focus:ring-2 focus:ring-rust/25";
 
 const ACCOUNT_TYPES = [
-  { id: "particulier", label: "Particulier", icon: User },
-  { id: "pro", label: "Professionnel / Ferrailleur", icon: Store },
-  { id: "entreprise", label: "Entreprise", icon: Building2 },
-];
+  { id: "particulier", label: { ar: "خاص", fr: "Particulier", en: "Private" }, icon: User },
+  { id: "pro", label: { ar: "محترف / صاحب خردة", fr: "Professionnel / Ferrailleur", en: "Professional / Scrap dealer" }, icon: Store },
+  { id: "entreprise", label: { ar: "شركة", fr: "Entreprise", en: "Company" }, icon: Building2 },
+] as const;
 
-function soon(e: FormEvent) {
-  e.preventDefault();
-  toast("Comptes bientôt disponibles", { description: "L'inscription ouvrira très prochainement." });
+function authErrorMessage(message: string): Msg {
+  const m = message.toLowerCase();
+  if (m.includes("invalid login")) return { ar: "الإيميل ولا كلمة السر غالطين.", fr: "Email ou mot de passe incorrect.", en: "Wrong email or password." };
+  if (m.includes("not confirmed")) return { ar: "أكّد الإيميل متاعك قبل ما تدخل (شوف البريد).", fr: "Confirmez votre email avant de vous connecter (vérifiez votre boîte mail).", en: "Confirm your email before signing in (check your inbox)." };
+  if (m.includes("already registered") || m.includes("already been registered")) return { ar: "هذا الإيميل عندو حساب. ادخل بيه.", fr: "Cet email a déjà un compte. Connectez-vous.", en: "This email already has an account. Sign in instead." };
+  if (m.includes("password") && (m.includes("weak") || m.includes("pwned") || m.includes("least"))) return { ar: "كلمة السر ضعيفة برشا. اختار وحدة أطول وأصعب.", fr: "Mot de passe trop faible. Choisissez-en un plus long et plus difficile.", en: "Password too weak. Choose a longer, harder one." };
+  if (m.includes("rate limit") || m.includes("too many")) return { ar: "برشا محاولات. استنّى شوية وعاود.", fr: "Trop de tentatives. Patientez un peu puis réessayez.", en: "Too many attempts. Wait a moment and try again." };
+  return { ar: "صار مشكل. عاود جرّب.", fr: "Une erreur est survenue. Réessayez.", en: "Something went wrong. Please try again." };
+}
+
+function GoogleButton({ label, onClick, busy }: { label: string; onClick: () => void; busy: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={busy}
+      className="inline-flex h-11 w-full items-center justify-center gap-2.5 rounded-md border border-[#747775] bg-[#FFFFFF] px-3 text-sm font-medium leading-5 text-[#1F1F1F] transition hover:bg-[#F8F8F8] disabled:opacity-60"
+    >
+      <svg aria-hidden="true" width="18" height="18" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47c-.29 1.48-1.14 2.73-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82z"/><path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09C3.26 21.3 7.31 24 12 24z"/><path fill="#FBBC05" d="M5.27 14.29c-.25-.72-.38-1.49-.38-2.29s.14-1.57.38-2.29V6.62H1.29C.47 8.24 0 10.06 0 12s.47 3.76 1.29 5.38l3.98-3.09z"/><path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.31 0 3.26 2.7 1.29 6.62l3.98 3.09c.95-2.85 3.6-4.96 6.73-4.96z"/></svg>
+      {label}
+    </button>
+  );
+}
+
+function Divider({ text }: { text: string }) {
+  return (
+    <div className="my-5 flex items-center gap-3 text-xs text-muted-foreground">
+      <span className="h-px flex-1 bg-border" /> {text} <span className="h-px flex-1 bg-border" />
+    </div>
+  );
 }
 
 function AuthPage() {
-  const [kind, setKind] = useState("particulier");
+  const search = Route.useSearch();
+  const navigate = useNavigate();
+  const { t } = useI18n();
+  const { user, loading } = useAuth();
+  const redirectTo = safeRedirect(search.redirect);
+
+  const [tab, setTab] = useState<Mode>(search.mode ?? "connexion");
+  const [kind, setKind] = useState<(typeof ACCOUNT_TYPES)[number]["id"]>("particulier");
+  const [busy, setBusy] = useState(false);
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [forgot, setForgot] = useState(false);
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [phone, setPhone] = useState("");
+
+  const goNext = () => navigate({ to: redirectTo, replace: true });
+
+  async function signIn(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    setBusy(false);
+    if (error) return void toast.error(t(authErrorMessage(error.message)));
+    toast.success(t({ ar: "مرحبا بيك!", fr: "Bienvenue !", en: "Welcome back!" }));
+    goNext();
+  }
+
+  async function signUp(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: { full_name: name.trim(), phone: `+216 ${phone.trim()}`, account_type: kind },
+      },
+    });
+    setBusy(false);
+    if (error) return void toast.error(t(authErrorMessage(error.message)));
+    if (data.session) return goNext();
+    setSentTo(email.trim());
+  }
+
+  async function sendReset(e: FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setBusy(false);
+    if (error) return void toast.error(t(authErrorMessage(error.message)));
+    toast.success(t({ ar: "بعثنالك رابط لتبديل كلمة السر.", fr: "Lien de réinitialisation envoyé.", en: "Reset link sent." }), {
+      description: t({ ar: "شوف البريد متاعك.", fr: "Vérifiez votre boîte mail.", en: "Check your inbox." }),
+    });
+    setForgot(false);
+  }
+
+  async function google() {
+    setBusy(true);
+    rememberAfterLogin(redirectTo);
+    const result = await lovable.auth.signInWithOAuth("google", { redirect_uri: window.location.origin });
+    setBusy(false);
+    if (result.error) {
+      toast.error(t({ ar: "الدخول بغوغل ما نجحش. عاود جرّب.", fr: "La connexion Google a échoué. Réessayez.", en: "Google sign-in failed. Please try again." }));
+    }
+  }
+
+  const spinner = busy ? <Loader2 className="animate-spin" /> : null;
+
+  let panel;
+  if (!loading && user) {
+    panel = (
+      <div className="py-6 text-center">
+        <h1 className="text-3xl font-semibold">{t({ ar: "إنت داخل", fr: "Vous êtes connecté", en: "You're signed in" })}</h1>
+        <p className="mt-2 text-muted-foreground">{user.email}</p>
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <Button asChild variant="rust"><Link to="/publier"><Plus /> {t({ ar: "انشر إعلان", fr: "Publier une annonce", en: "Post a listing" })}</Link></Button>
+          <Button variant="outline" onClick={() => void supabase.auth.signOut()}><LogOut /> {t({ ar: "تسجيل الخروج", fr: "Se déconnecter", en: "Sign out" })}</Button>
+        </div>
+      </div>
+    );
+  } else if (sentTo) {
+    panel = (
+      <div className="py-6 text-center">
+        <MailCheck className="mx-auto size-12 text-olive" />
+        <h1 className="mt-4 text-3xl font-semibold">{t({ ar: "أكّد الإيميل متاعك", fr: "Confirmez votre email", en: "Confirm your email" })}</h1>
+        <p className="mt-3 text-muted-foreground">
+          {t({ ar: "بعثنا رابط تأكيد إلى", fr: "Nous avons envoyé un lien de confirmation à", en: "We sent a confirmation link to" })}{" "}
+          <span className="font-semibold text-foreground">{sentTo}</span>.{" "}
+          {t({ ar: "انزل عليه وبعد ادخل.", fr: "Cliquez dessus puis connectez-vous.", en: "Click it, then sign in." })}
+        </p>
+        <Button variant="outline" className="mt-6" onClick={() => { setSentTo(null); setTab("connexion"); }}>
+          {t({ ar: "ارجع للدخول", fr: "Retour à la connexion", en: "Back to sign in" })}
+        </Button>
+      </div>
+    );
+  } else if (forgot) {
+    panel = (
+      <div>
+        <h1 className="text-3xl font-semibold">{t({ ar: "نسيت كلمة السر؟", fr: "Mot de passe oublié ?", en: "Forgot your password?" })}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          {t({ ar: "اكتب الإيميل متاعك ونبعثولك رابط باش تختار كلمة سر جديدة.", fr: "Saisissez votre email, nous vous enverrons un lien pour choisir un nouveau mot de passe.", en: "Enter your email and we'll send you a link to choose a new password." })}
+        </p>
+        <form onSubmit={sendReset} className="mt-6 space-y-4">
+          <div>
+            <label htmlFor="fp-email" className="text-sm font-medium">{t({ ar: "الإيميل", fr: "Email", en: "Email" })}</label>
+            <input id="fp-email" type="email" required dir="ltr" className={`${field} mt-1.5`} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.tn" />
+          </div>
+          <Button type="submit" variant="rust" size="lg" className="w-full" disabled={busy}>{spinner} {t({ ar: "ابعث الرابط", fr: "Envoyer le lien", en: "Send link" })}</Button>
+          <button type="button" onClick={() => setForgot(false)} className="text-sm text-rust hover:underline">
+            {t({ ar: "ارجع للدخول", fr: "Retour à la connexion", en: "Back to sign in" })}
+          </button>
+        </form>
+      </div>
+    );
+  } else {
+    panel = (
+      <Tabs value={tab} onValueChange={(v) => setTab(v as Mode)}>
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="connexion">{t({ ar: "دخول", fr: "Connexion", en: "Sign in" })}</TabsTrigger>
+          <TabsTrigger value="inscription">{t({ ar: "تسجيل", fr: "Inscription", en: "Sign up" })}</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="connexion">
+          <h1 className="mt-6 text-3xl font-semibold">{t({ ar: "مرحبا بيك من جديد", fr: "Bon retour", en: "Welcome back" })}</h1>
+          <div className="mt-6">
+            <GoogleButton label={t({ ar: "ادخل بحساب Google", fr: "Se connecter avec Google", en: "Sign in with Google" })} onClick={() => void google()} busy={busy} />
+          </div>
+          <Divider text={t({ ar: "ولا بالإيميل", fr: "ou par email", en: "or with email" })} />
+          <form onSubmit={signIn} className="space-y-4">
+            <div>
+              <label htmlFor="li-email" className="text-sm font-medium">{t({ ar: "الإيميل", fr: "Email", en: "Email" })}</label>
+              <input id="li-email" type="email" required dir="ltr" autoComplete="email" className={`${field} mt-1.5`} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.tn" />
+            </div>
+            <div>
+              <label htmlFor="li-pw" className="text-sm font-medium">{t({ ar: "كلمة السر", fr: "Mot de passe", en: "Password" })}</label>
+              <input id="li-pw" type="password" required dir="ltr" autoComplete="current-password" className={`${field} mt-1.5`} value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <button type="button" onClick={() => setForgot(true)} className="text-sm text-rust hover:underline">
+              {t({ ar: "نسيت كلمة السر؟", fr: "Mot de passe oublié ?", en: "Forgot password?" })}
+            </button>
+            <Button type="submit" variant="rust" size="lg" className="w-full" disabled={busy}>{spinner} {t({ ar: "ادخل", fr: "Se connecter", en: "Sign in" })}</Button>
+          </form>
+        </TabsContent>
+
+        <TabsContent value="inscription">
+          <h1 className="mt-6 text-3xl font-semibold">{t({ ar: "اعمل حساب", fr: "Créer un compte", en: "Create an account" })}</h1>
+          <div className="mt-6">
+            <GoogleButton label={t({ ar: "سجّل بحساب Google", fr: "S'inscrire avec Google", en: "Sign up with Google" })} onClick={() => void google()} busy={busy} />
+          </div>
+          <Divider text={t({ ar: "ولا بالإيميل", fr: "ou par email", en: "or with email" })} />
+          <form onSubmit={signUp} className="space-y-4">
+            <fieldset>
+              <legend className="text-sm font-medium">{t({ ar: "نوع الحساب", fr: "Type de compte", en: "Account type" })}</legend>
+              <div className="mt-2 grid gap-2 sm:grid-cols-3">
+                {ACCOUNT_TYPES.map((a) => (
+                  <button
+                    key={a.id}
+                    type="button"
+                    onClick={() => setKind(a.id)}
+                    aria-pressed={kind === a.id}
+                    className={cn(
+                      "flex flex-col items-center gap-2 rounded-lg border p-3 text-center text-xs font-medium transition",
+                      kind === a.id ? "border-rust bg-rust/10 text-rust" : "border-border hover:border-rust/50",
+                    )}
+                  >
+                    <a.icon className="size-5" /> {t(a.label)}
+                  </button>
+                ))}
+              </div>
+            </fieldset>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <label htmlFor="su-name" className="text-sm font-medium">
+                  {kind === "particulier" ? t({ ar: "الاسم واللقب", fr: "Nom complet", en: "Full name" }) : t({ ar: "اسم الشركة", fr: "Raison sociale", en: "Company name" })}
+                </label>
+                <input id="su-name" required maxLength={120} autoComplete="name" className={`${field} mt-1.5`} value={name} onChange={(e) => setName(e.target.value)} />
+              </div>
+              <div>
+                <label htmlFor="su-phone" className="text-sm font-medium">{t({ ar: "التلفون", fr: "Téléphone", en: "Phone" })}</label>
+                <div className="mt-1.5 flex" dir="ltr">
+                  <span className="grid place-items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm">+216</span>
+                  <input id="su-phone" type="tel" required pattern="[0-9 ]{8,10}" autoComplete="tel-national" className={`${field} rounded-l-none`} value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="22 123 456" />
+                </div>
+              </div>
+            </div>
+            <div>
+              <label htmlFor="su-email" className="text-sm font-medium">{t({ ar: "الإيميل", fr: "Email", en: "Email" })}</label>
+              <input id="su-email" type="email" required dir="ltr" autoComplete="email" className={`${field} mt-1.5`} value={email} onChange={(e) => setEmail(e.target.value)} />
+            </div>
+            <div>
+              <label htmlFor="su-pw" className="text-sm font-medium">{t({ ar: "كلمة السر (8 حروف على الأقل)", fr: "Mot de passe (8 caractères min.)", en: "Password (min. 8 characters)" })}</label>
+              <input id="su-pw" type="password" required minLength={8} dir="ltr" autoComplete="new-password" className={`${field} mt-1.5`} value={password} onChange={(e) => setPassword(e.target.value)} />
+            </div>
+            <Button type="submit" variant="rust" size="lg" className="w-full" disabled={busy}>{spinner} {t({ ar: "اعمل الحساب متاعي", fr: "Créer mon compte", en: "Create my account" })}</Button>
+          </form>
+        </TabsContent>
+      </Tabs>
+    );
+  }
+
   return (
     <div className="mx-auto grid max-w-6xl gap-0 px-4 py-12 sm:px-6 lg:grid-cols-2">
-      <div className="relative isolate hidden overflow-hidden rounded-l-2xl lg:block">
+      <div className="relative isolate hidden overflow-hidden rounded-s-2xl lg:block">
         <img src={heroImg} alt="" width={1024} height={768} className="absolute inset-0 -z-20 size-full object-cover" />
         <div className="absolute inset-0 -z-10 bg-gradient-to-t from-charcoal via-charcoal/60 to-transparent" />
         <div className="flex h-full flex-col justify-end p-10 text-on-dark">
-          <p className="label-stamp text-xs text-brass">Un seul compte</p>
-          <h2 className="mt-2 text-4xl font-semibold">Acheteur et vendeur à la fois.</h2>
-          <p className="mt-3 text-on-dark-muted">Publiez vos lots, enchérissez et suivez vos demandes depuis un même espace.</p>
+          <p className="label-stamp text-xs text-brass">{t({ ar: "حساب واحد", fr: "Un seul compte", en: "One account" })}</p>
+          <h2 className="mt-2 text-4xl font-semibold">{t({ ar: "مشتري وبائع في نفس الوقت.", fr: "Acheteur et vendeur à la fois.", en: "Buyer and seller at once." })}</h2>
+          <p className="mt-3 text-on-dark-muted">
+            {t({ ar: "انشر الدفعات متاعك، زايد وتابع طلباتك من بلاصة وحدة.", fr: "Publiez vos lots, enchérissez et suivez vos demandes depuis un même espace.", en: "Post your lots, bid and follow your requests from one place." })}
+          </p>
         </div>
       </div>
 
-      <div className="surface-card rounded-2xl p-8 lg:rounded-l-none">
-        <Tabs defaultValue="connexion">
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="connexion">Connexion</TabsTrigger>
-            <TabsTrigger value="inscription">Inscription</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="connexion">
-            <h1 className="mt-6 text-3xl font-semibold">Bon retour</h1>
-            <form onSubmit={soon} className="mt-6 space-y-4">
-              <div>
-                <label htmlFor="li-email" className="text-sm font-medium">Email</label>
-                <input id="li-email" type="email" required className={`${field} mt-1.5`} placeholder="vous@exemple.tn" />
-              </div>
-              <div>
-                <label htmlFor="li-pw" className="text-sm font-medium">Mot de passe</label>
-                <input id="li-pw" type="password" required className={`${field} mt-1.5`} />
-              </div>
-              <button type="button" onClick={() => toast("Réinitialisation bientôt disponible")} className="text-sm text-rust hover:underline">Mot de passe oublié ?</button>
-              <Button type="submit" variant="rust" size="lg" className="w-full">Se connecter</Button>
-            </form>
-          </TabsContent>
-
-          <TabsContent value="inscription">
-            <h1 className="mt-6 text-3xl font-semibold">Créer un compte</h1>
-            <form onSubmit={soon} className="mt-6 space-y-4">
-              <fieldset>
-                <legend className="text-sm font-medium">Type de compte</legend>
-                <div className="mt-2 grid gap-2 sm:grid-cols-3">
-                  {ACCOUNT_TYPES.map((t) => (
-                    <button
-                      key={t.id}
-                      type="button"
-                      onClick={() => setKind(t.id)}
-                      aria-pressed={kind === t.id}
-                      className={cn(
-                        "flex flex-col items-center gap-2 rounded-lg border p-3 text-center text-xs font-medium transition",
-                        kind === t.id ? "border-rust bg-rust/10 text-rust" : "border-border hover:border-rust/50",
-                      )}
-                    >
-                      <t.icon className="size-5" /> {t.label}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="su-name" className="text-sm font-medium">{kind === "particulier" ? "Nom complet" : "Raison sociale"}</label>
-                  <input id="su-name" required className={`${field} mt-1.5`} />
-                </div>
-                <div>
-                  <label htmlFor="su-phone" className="text-sm font-medium">Téléphone</label>
-                  <div className="mt-1.5 flex">
-                    <span className="grid place-items-center rounded-l-md border border-r-0 border-input bg-muted px-3 text-sm">+216</span>
-                    <input id="su-phone" type="tel" required pattern="[0-9 ]{8,10}" className={`${field} rounded-l-none`} placeholder="22 123 456" />
-                  </div>
-                </div>
-              </div>
-              <div>
-                <label htmlFor="su-email" className="text-sm font-medium">Email</label>
-                <input id="su-email" type="email" required className={`${field} mt-1.5`} />
-              </div>
-              <div>
-                <label htmlFor="su-pw" className="text-sm font-medium">Mot de passe</label>
-                <input id="su-pw" type="password" required minLength={8} className={`${field} mt-1.5`} />
-              </div>
-              <Button type="submit" variant="rust" size="lg" className="w-full">Créer mon compte</Button>
-            </form>
-          </TabsContent>
-        </Tabs>
+      <div className="surface-card rounded-2xl p-8 lg:rounded-s-none">
+        {search.raison === "publier" && !user && (
+          <p className="mb-5 rounded-md border border-brass/50 bg-brass/10 p-3 text-sm">
+            {t({ ar: "لازمك حساب باش تنشر إعلان. ادخل ولا اعمل حساب بلاش.", fr: "Un compte est nécessaire pour publier une annonce. Connectez-vous ou créez un compte gratuit.", en: "You need an account to post a listing. Sign in or create a free account." })}
+          </p>
+        )}
+        {panel}
       </div>
     </div>
   );

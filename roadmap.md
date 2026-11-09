@@ -14,8 +14,8 @@
 - [x] Arabe par défaut (RTL) avec choix FR / EN
 - [x] Publication réservée aux comptes (redirection vers Connexion)
 - [x] Filtres /annonces : colonne gauche entièrement visible au défilement
-- [ ] Brancher la page Connexion (inscription, connexion, Google, mot de passe oublié)
-- [ ] Traduire le reste des textes des pages (accueil, fiche, enchères, services, guide, publication, connexion)
+- [x] Brancher la page Connexion (inscription, connexion, Google, mot de passe oublié)
+- [x] Traduire le reste des textes des pages (accueil, fiche, enchères, services, guide, publication, connexion)
 
 ## Phase 2 — Comptes et données réelles (à faire, nécessite Lovable Cloud)
 - [ ] Activer Lovable Cloud : comptes, rôles, tables annonces / enchères / offres / stocks / commandes
