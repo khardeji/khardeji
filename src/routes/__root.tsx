@@ -17,7 +17,7 @@ import { Footer } from "@/components/site/Footer";
 import { Toaster } from "@/components/ui/sonner";
 import { AuthProvider } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
-import { dirOf, localeFromCookieString, pageMeta, type Locale } from "@/lib/i18n";
+import { clientLocale, dirOf, pageMeta, type Locale } from "@/lib/i18n";
 import { getServerLocale } from "@/lib/locale.functions";
 
 function NotFoundComponent() {
@@ -95,7 +95,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
 export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()({
   beforeLoad: async (): Promise<{ locale: Locale }> => {
     // Server render reads the saved-language cookie from the request; the browser reads it directly.
-    const locale = typeof document === "undefined" ? await getServerLocale() : localeFromCookieString(document.cookie);
+    const locale = typeof document === "undefined" ? await getServerLocale() : clientLocale();
     return { locale };
   },
   head: ({ match }) => ({

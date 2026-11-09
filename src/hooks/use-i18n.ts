@@ -1,6 +1,6 @@
 import { useRouteContext, useRouter } from "@tanstack/react-router";
 import { useCallback } from "react";
-import { dirOf, LOCALE_COOKIE, type Locale, type Msg } from "@/lib/i18n";
+import { dirOf, rememberLocale, type Locale, type Msg } from "@/lib/i18n";
 import { formatDate, formatDT, formatNumber, formatRemaining } from "@/lib/format";
 
 export function useI18n() {
@@ -10,7 +10,7 @@ export function useI18n() {
 
   const setLocale = useCallback(
     (next: Locale) => {
-      document.cookie = `${LOCALE_COOKIE}=${next}; path=/; max-age=31536000; samesite=lax`;
+      rememberLocale(next);
       document.documentElement.lang = next;
       document.documentElement.dir = dirOf(next);
       void router.invalidate();
