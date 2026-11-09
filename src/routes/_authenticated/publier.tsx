@@ -9,7 +9,7 @@ import { formatDT, formatNumber } from "@/lib/format";
 import { UNIT_LABEL, type SaleUnit } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
-export const Route = createFileRoute("/publier")({
+export const Route = createFileRoute("/_authenticated/publier")({
   head: () => ({
     meta: [
       { title: "Publier une annonce — Vendez votre ferraille | Khardeji" },

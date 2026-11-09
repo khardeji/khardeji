@@ -21,13 +21,14 @@ export function minimumNextBid(a: AuctionState): number {
   return a.bids.length ? currentPrice(a) + a.increment : a.startPrice;
 }
 
-export type BidCheck = { ok: true } | { ok: false; reason: string };
+export type BidRejection = "closed" | "invalid" | "too_low";
+export type BidCheck = { ok: true } | { ok: false; code: BidRejection; min: number };
 
 export function validateBid(a: AuctionState, amount: number, now: number): BidCheck {
-  if (now >= a.endsAt) return { ok: false, reason: "L'enchère est clôturée." };
-  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, reason: "Montant invalide." };
   const min = minimumNextBid(a);
-  if (amount < min) return { ok: false, reason: `L'offre minimale est de ${min} DT.` };
+  if (now >= a.endsAt) return { ok: false, code: "closed", min };
+  if (!Number.isFinite(amount) || amount <= 0) return { ok: false, code: "invalid", min };
+  if (amount < min) return { ok: false, code: "too_low", min };
   return { ok: true };
 }
 
