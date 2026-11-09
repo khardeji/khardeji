@@ -6,9 +6,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ListingCard } from "@/components/site/ListingCard";
 import { AuctionPanel, FixedPricePanel, OfferPanel } from "@/components/site/PurchasePanels";
-import { getCategory, getListing, LISTINGS, SALE_TYPE_LABEL } from "@/data/catalog";
+import { getCategory, getListing, governorateLabel, LISTINGS, SALE_TYPE_LABEL, SELLER_KIND_LABEL, subcategoryLabel } from "@/data/catalog";
+import { useI18n } from "@/hooks/use-i18n";
+import { translator } from "@/lib/i18n";
 import { useFavorites } from "@/lib/favorites";
-import { formatDateFr, formatDT, formatNumber } from "@/lib/format";
+import { formatDT } from "@/lib/format";
 import { UNIT_LABEL } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
@@ -18,10 +20,12 @@ export const Route = createFileRoute("/annonces/$id")({
     if (!listing) throw notFound();
     return { listing };
   },
-  head: ({ loaderData }) => {
+  head: ({ loaderData, match }) => {
     const l = loaderData?.listing;
-    const title = l ? `${l.title} — ${l.governorate} | Khardeji` : "Annonce introuvable | Khardeji";
-    const desc = l ? `${l.title} : ${formatDT(l.price)} / ${UNIT_LABEL[l.unit].short} à ${l.city}, ${l.governorate}.` : "Cette annonce n'existe pas ou a été retirée.";
+    const locale = match.context.locale;
+    const tr = translator(locale);
+    const title = l ? `${tr(l.title)} — ${tr(governorateLabel(l.governorate))} | Khardeji` : tr({ ar: "إعلان غير موجود | خردجي", fr: "Annonce introuvable | Khardeji", en: "Listing not found | Khardeji" });
+    const desc = l ? `${tr(l.title)} : ${formatDT(l.price, locale)} / ${tr(UNIT_LABEL[l.unit].short)} — ${tr(l.city)}, ${tr(governorateLabel(l.governorate))}.` : tr({ ar: "هذا الإعلان غير موجود أو تم سحبه.", fr: "Cette annonce n'existe pas ou a été retirée.", en: "This listing doesn't exist or was removed." });
     return {
       meta: [
         { title },
@@ -49,13 +53,14 @@ function ListingDetail() {
   const [active, setActive] = useState(0);
   const { isFavorite, toggle } = useFavorites();
   const fav = isFavorite(listing.id);
+  const { t, dt: formatDT, num: formatNumber, date: formatDateFr } = useI18n();
   const cat = getCategory(listing.category);
-  const unit = UNIT_LABEL[listing.unit];
+  const unit = { short: t(UNIT_LABEL[listing.unit].short), long: t(UNIT_LABEL[listing.unit].long) };
   const similar = LISTINGS.filter((l) => l.category === listing.category && l.id !== listing.id).slice(0, 4);
 
   const share = async () => {
     const url = window.location.href;
-    if (navigator.share) await navigator.share({ title: listing.title, url }).catch(() => {});
+    if (navigator.share) await navigator.share({ title: t(listing.title), url }).catch(() => {});
     else {
       await navigator.clipboard.writeText(url);
       toast.success("Lien copié");
@@ -67,15 +72,15 @@ function ListingDetail() {
       <nav className="mb-6 flex flex-wrap items-center gap-2 text-sm text-muted-foreground" aria-label="Fil d'Ariane">
         <Link to="/annonces" className="hover:text-foreground">Annonces</Link>
         <span>/</span>
-        {cat && <Link to="/annonces" search={{ cat: cat.slug }} className="hover:text-foreground">{cat.name}</Link>}
+        {cat && <Link to="/annonces" search={{ cat: cat.slug }} className="hover:text-foreground">{t(cat.name)}</Link>}
         <span>/</span>
-        <span className="text-foreground">{listing.subcategory}</span>
+        <span className="text-foreground">{t(subcategoryLabel(listing.subcategory))}</span>
       </nav>
 
       <div className="grid gap-8 lg:grid-cols-[1.35fr_1fr]">
         <div>
           <div className="overflow-hidden rounded-xl border border-border bg-muted">
-            <img src={listing.images[active]} alt={listing.title} width={1024} height={768} className="aspect-[4/3] w-full object-cover" />
+            <img src={listing.images[active]} alt={t(listing.title)} width={1024} height={768} className="aspect-[4/3] w-full object-cover" />
           </div>
           {listing.images.length > 1 && (
             <div className="mt-3 flex gap-3">
@@ -89,13 +94,13 @@ function ListingDetail() {
 
           <section className="surface-card mt-8 p-6">
             <h2 className="text-2xl font-semibold">Description</h2>
-            <p className="mt-3 leading-relaxed text-foreground/85">{listing.description}</p>
+            <p className="mt-3 leading-relaxed text-foreground/85">{t(listing.description)}</p>
             <dl className="mt-6 grid gap-4 sm:grid-cols-2">
               {[
-                { icon: Tag, label: "Type de vente", value: SALE_TYPE_LABEL[listing.saleType] },
+                { icon: Tag, label: "Type de vente", value: t(SALE_TYPE_LABEL[listing.saleType]) },
                 { icon: Package, label: "Unité de vente", value: unit.long },
                 { icon: Package, label: "Quantité disponible", value: `${formatNumber(listing.stock)} ${unit.short}` },
-                { icon: MapPin, label: "Localisation", value: `${listing.city}, ${listing.governorate}` },
+                { icon: MapPin, label: "Localisation", value: `${t(listing.city)}, ${t(governorateLabel(listing.governorate))}` },
                 { icon: CalendarDays, label: "Publiée le", value: formatDateFr(listing.publishedAt) },
               ].map((r) => (
                 <div key={r.label} className="flex items-start gap-3">
@@ -113,10 +118,10 @@ function ListingDetail() {
         <aside className="space-y-5">
           <div className="surface-card p-6">
             <div className="flex flex-wrap gap-1.5">
-              <Badge variant={listing.saleType === "enchere" ? "rust" : listing.saleType === "negociable" ? "brass" : "olive"}>{SALE_TYPE_LABEL[listing.saleType]}</Badge>
+              <Badge variant={listing.saleType === "enchere" ? "rust" : listing.saleType === "negociable" ? "brass" : "olive"}>{t(SALE_TYPE_LABEL[listing.saleType])}</Badge>
               {listing.urgent && <Badge variant="dark">Urgent</Badge>}
             </div>
-            <h1 className="mt-3 text-3xl font-semibold leading-tight">{listing.title}</h1>
+            <h1 className="mt-3 text-3xl font-semibold leading-tight">{t(listing.title)}</h1>
             {listing.saleType !== "enchere" && (
               <p className="mt-3 flex items-baseline gap-2">
                 <span className="font-display text-4xl font-semibold text-rust">{formatDT(listing.price)}</span>
@@ -150,7 +155,7 @@ function ListingDetail() {
                   {listing.seller.name}
                   {listing.seller.verified && <BadgeCheck className="size-4 text-olive" aria-label="Vendeur vérifié" />}
                 </p>
-                <p className="text-sm text-muted-foreground">{listing.seller.kind} · membre depuis {listing.seller.memberSince}</p>
+                <p className="text-sm text-muted-foreground">{t(SELLER_KIND_LABEL[listing.seller.kind])} · membre depuis {listing.seller.memberSince}</p>
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">

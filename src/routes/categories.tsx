@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight } from "lucide-react";
 import { PageHeader } from "@/components/site/SectionHeading";
-import { CATEGORIES, LISTINGS } from "@/data/catalog";
+import { CATEGORIES, LISTINGS, subcategoryLabel } from "@/data/catalog";
+import { useI18n } from "@/hooks/use-i18n";
 
 export const Route = createFileRoute("/categories")({
   head: () => ({
@@ -18,6 +19,7 @@ export const Route = createFileRoute("/categories")({
 });
 
 function Categories() {
+  const { t } = useI18n();
   return (
     <>
       <PageHeader eyebrow="Catalogue" title="Toutes les catégories" intro="Choisissez une famille de produits puis affinez par sous-catégorie." />
@@ -32,14 +34,14 @@ function Categories() {
                 <div className="flex h-full flex-col justify-end p-5 text-on-dark">
                   <p className="label-stamp text-[0.68rem] text-brass">{count} annonce{count > 1 ? "s" : ""}</p>
                   <h2 className="flex items-center gap-2 text-2xl font-semibold">
-                    {c.name} <ArrowRight className="size-5 transition-transform group-hover:translate-x-1" />
+                    {t(c.name)} <ArrowRight className="size-5 transition-transform group-hover:translate-x-1 rtl:rotate-180 rtl:group-hover:-translate-x-1" />
                   </h2>
                 </div>
               </Link>
               <div className="flex flex-wrap gap-2 p-5">
                 {c.subcategories.map((s) => (
                   <Link key={s} to="/annonces" search={{ cat: c.slug, sub: s }} className="rounded-full border border-border bg-background px-3 py-1.5 text-sm transition hover:border-rust hover:text-rust">
-                    {s}
+                    {t(subcategoryLabel(s))}
                   </Link>
                 ))}
               </div>

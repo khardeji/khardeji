@@ -4,8 +4,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/site/SectionHeading";
-import { CATEGORIES, GOVERNORATES, SALE_TYPE_LABEL, type SaleType } from "@/data/catalog";
-import { formatDT, formatNumber } from "@/lib/format";
+import { CATEGORIES, governorateLabel, GOVERNORATES, SALE_TYPE_LABEL, subcategoryLabel, type SaleType } from "@/data/catalog";
+import { useI18n } from "@/hooks/use-i18n";
 import { UNIT_LABEL, type SaleUnit } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
@@ -65,8 +65,9 @@ function Publish() {
   const [step, setStep] = useState(0);
   const [d, setD] = useState<Draft>(EMPTY);
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }));
+  const { t, dt: formatDT, num: formatNumber } = useI18n();
   const cat = CATEGORIES.find((c) => c.slug === d.category);
-  const unit = UNIT_LABEL[d.unit];
+  const unit = { step: UNIT_LABEL[d.unit].step, short: t(UNIT_LABEL[d.unit].short), long: t(UNIT_LABEL[d.unit].long) };
 
   function validate(s: number): string | null {
     if (s === 0) {
@@ -130,19 +131,19 @@ function Publish() {
                 <Field label="Catégorie" htmlFor="p-cat">
                   <select id="p-cat" className={field} value={d.category} onChange={(e) => setD((p) => ({ ...p, category: e.target.value, subcategory: "" }))}>
                     <option value="">Choisir…</option>
-                    {CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{c.name}</option>)}
+                    {CATEGORIES.map((c) => <option key={c.slug} value={c.slug}>{t(c.name)}</option>)}
                   </select>
                 </Field>
                 <Field label="Sous-catégorie" htmlFor="p-sub">
                   <select id="p-sub" className={field} value={d.subcategory} disabled={!cat} onChange={(e) => set("subcategory", e.target.value)}>
                     <option value="">Choisir…</option>
-                    {cat?.subcategories.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {cat?.subcategories.map((s) => <option key={s} value={s}>{t(subcategoryLabel(s))}</option>)}
                   </select>
                 </Field>
                 <Field label="Gouvernorat" htmlFor="p-gov">
                   <select id="p-gov" className={field} value={d.governorate} onChange={(e) => set("governorate", e.target.value)}>
                     <option value="">Choisir…</option>
-                    {GOVERNORATES.map((g) => <option key={g} value={g}>{g}</option>)}
+                    {GOVERNORATES.map((g) => <option key={g} value={g}>{t(governorateLabel(g))}</option>)}
                   </select>
                 </Field>
                 <Field label="Ville / délégation" htmlFor="p-city">
@@ -160,7 +161,7 @@ function Publish() {
                   {d.photos.map((p, i) => (
                     <div key={p} className="relative aspect-square overflow-hidden rounded-md border border-border">
                       <img src={p} alt={`Photo ${i + 1}`} className="size-full object-cover" />
-                      <button type="button" aria-label="Retirer" onClick={() => set("photos", d.photos.filter((x) => x !== p))} className="absolute right-1 top-1 grid size-6 place-items-center rounded-full bg-charcoal/80 text-on-dark">
+                      <button type="button" aria-label="Retirer" onClick={() => set("photos", d.photos.filter((x) => x !== p))} className="absolute end-1 top-1 grid size-6 place-items-center rounded-full bg-charcoal/80 text-on-dark">
                         <X className="size-3.5" />
                       </button>
                     </div>
@@ -188,10 +189,10 @@ function Publish() {
                   type="button"
                   onClick={() => set("saleType", o.id)}
                   aria-pressed={d.saleType === o.id}
-                  className={cn("rounded-xl border-2 p-5 text-left transition", d.saleType === o.id ? "border-rust bg-rust/5" : "border-border hover:border-rust/50")}
+                  className={cn("rounded-xl border-2 p-5 text-start transition", d.saleType === o.id ? "border-rust bg-rust/5" : "border-border hover:border-rust/50")}
                 >
                   <o.icon className={cn("size-7", d.saleType === o.id ? "text-rust" : "text-brass")} />
-                  <h3 className="mt-3 text-lg font-semibold">{SALE_TYPE_LABEL[o.id]}</h3>
+                  <h3 className="mt-3 text-lg font-semibold">{t(SALE_TYPE_LABEL[o.id])}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">{o.text}</p>
                 </button>
               ))}
@@ -205,7 +206,7 @@ function Publish() {
                 <div className="mt-2 flex flex-wrap gap-2">
                   {(Object.keys(UNIT_LABEL) as SaleUnit[]).map((u) => (
                     <button key={u} type="button" onClick={() => set("unit", u)} aria-pressed={d.unit === u} className={cn("rounded-full border px-4 py-2 text-sm transition", d.unit === u ? "border-rust bg-rust text-rust-foreground" : "border-border bg-card hover:border-rust/50")}>
-                      {UNIT_LABEL[u].long}
+                      {t(UNIT_LABEL[u].long)}
                     </button>
                   ))}
                 </div>
@@ -246,9 +247,9 @@ function Publish() {
               <h2 className="text-2xl font-semibold">{d.title}</h2>
               <dl className="grid gap-3 text-sm sm:grid-cols-2">
                 {[
-                  ["Catégorie", `${cat?.name ?? ""} › ${d.subcategory}`],
-                  ["Localisation", `${d.city ? d.city + ", " : ""}${d.governorate}`],
-                  ["Type de vente", SALE_TYPE_LABEL[d.saleType]],
+                  ["Catégorie", `${cat ? t(cat.name) : ""} › ${d.subcategory ? t(subcategoryLabel(d.subcategory)) : ""}`],
+                  ["Localisation", `${d.city ? d.city + ", " : ""}${d.governorate ? t(governorateLabel(d.governorate)) : ""}`],
+                  ["Type de vente", t(SALE_TYPE_LABEL[d.saleType])],
                   ["Unité", unit.long],
                   d.saleType === "enchere"
                     ? ["Prix de départ", `${formatDT(Number(d.startPrice))} · +${formatDT(Number(d.increment))} min.`]
@@ -268,10 +269,10 @@ function Publish() {
 
           <div className="mt-8 flex justify-between gap-3 border-t border-border pt-6">
             <Button variant="outline" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0}>
-              <ChevronLeft /> Précédent
+              <ChevronLeft className="rtl:rotate-180" /> Précédent
             </Button>
             {step < STEPS.length - 1 ? (
-              <Button variant="default" onClick={next}>Suivant <ChevronRight /></Button>
+              <Button variant="default" onClick={next}>Suivant <ChevronRight className="rtl:rotate-180" /></Button>
             ) : (
               <Button variant="rust" onClick={() => toast("Connexion requise", { description: "La publication ouvrira avec les comptes vendeurs.", action: { label: "Connexion", onClick: () => (window.location.href = "/connexion") } })}>
                 <Check /> Publier l'annonce

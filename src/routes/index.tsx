@@ -7,6 +7,7 @@ import { HeroSearch } from "@/components/site/HeroSearch";
 import { ListingCard } from "@/components/site/ListingCard";
 import { SectionHeading } from "@/components/site/SectionHeading";
 import { CATEGORIES, LISTINGS } from "@/data/catalog";
+import { useI18n } from "@/hooks/use-i18n";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -43,6 +44,7 @@ const STATS = [
 ];
 
 function Home() {
+  const { t } = useI18n();
   const recent = [...LISTINGS].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, 8);
   const auctions = LISTINGS.filter((l) => l.saleType === "enchere").slice(0, 4);
 
@@ -110,8 +112,8 @@ function Home() {
               <img src={c.image} alt="" loading="lazy" width={1024} height={768} className="absolute inset-0 -z-20 size-full object-cover transition-transform duration-700 group-hover:scale-105" />
               <div className="absolute inset-0 -z-10 bg-gradient-to-t from-charcoal via-charcoal/55 to-transparent" />
               <span className="label-stamp text-[0.68rem] text-brass">{String(i + 1).padStart(2, "0")}</span>
-              <h3 className="mt-1 text-2xl font-semibold">{c.name}</h3>
-              <p className="mt-1 text-sm text-on-dark-muted">{c.tagline}</p>
+              <h3 className="mt-1 text-2xl font-semibold">{t(c.name)}</h3>
+              <p className="mt-1 text-sm text-on-dark-muted">{t(c.tagline)}</p>
             </Link>
           ))}
         </div>
@@ -163,7 +165,7 @@ function Home() {
         <ol className="grid gap-5 md:grid-cols-3">
           {STEPS.map((s, i) => (
             <li key={s.title} className="surface-card relative p-6">
-              <span className="absolute right-5 top-4 font-display text-6xl font-semibold text-beige">{i + 1}</span>
+              <span className="absolute end-5 top-4 font-display text-6xl font-semibold text-beige">{i + 1}</span>
               <span className="grid size-12 place-items-center rounded-lg bg-charcoal text-brass">
                 <s.icon className="size-6" />
               </span>

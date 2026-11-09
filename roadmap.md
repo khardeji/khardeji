@@ -9,6 +9,14 @@
 - [x] Formulaire de publication en 4 étapes (interface)
 - [x] Page Connexion / Inscription (interface)
 
+## En cours — langues, logo, compte obligatoire
+- [x] Logo Khardeji + favicon à partir de l'image fournie
+- [x] Arabe par défaut (RTL) avec choix FR / EN
+- [x] Publication réservée aux comptes (redirection vers Connexion)
+- [x] Filtres /annonces : colonne gauche entièrement visible au défilement
+- [ ] Brancher la page Connexion (inscription, connexion, Google, mot de passe oublié)
+- [ ] Traduire le reste des textes des pages (accueil, fiche, enchères, services, guide, publication, connexion)
+
 ## Phase 2 — Comptes et données réelles (à faire, nécessite Lovable Cloud)
 - [ ] Activer Lovable Cloud : comptes, rôles, tables annonces / enchères / offres / stocks / commandes
 - [ ] Inscription, connexion, mot de passe oublié, vérification email et téléphone
@@ -20,4 +28,3 @@
 - [ ] Espace acheteur, espace vendeur, messagerie, notifications
 - [ ] Jetons : achat, solde, historique ; paiement
 - [ ] Administration : modération, signalements, vérification vendeurs, catégories, tarifs
-- [ ] Interface en arabe (RTL)
