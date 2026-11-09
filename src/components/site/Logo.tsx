@@ -1,26 +1,24 @@
 import { Link } from "@tanstack/react-router";
-import { Cog } from "lucide-react";
+import logoMark from "@/assets/brand/khardeji-logo-mark.webp.asset.json";
+import logoFull from "@/assets/brand/khardeji-logo-full.webp.asset.json";
+import { useI18n } from "@/hooks/use-i18n";
 import { cn } from "@/lib/utils";
 
-export function Logo({ tone = "dark", className }: { tone?: "dark" | "light"; className?: string }) {
+/** Header mark: gear emblem + "Khardeji" wordmark from the brand logo. */
+export function Logo({ className }: { className?: string }) {
+  const { t } = useI18n();
   return (
-    <Link to="/" className={cn("group flex items-center gap-2.5", className)} aria-label="Khardeji — accueil">
-      <span className="relative grid size-10 place-items-center rounded-full bg-rust text-rust-foreground shadow-sm ring-2 ring-brass/60">
-        <Cog className="size-6 transition-transform duration-700 group-hover:rotate-90" strokeWidth={1.6} />
-      </span>
-      <span className="flex flex-col leading-none">
-        <span
-          className={cn(
-            "font-display text-[1.45rem] font-semibold tracking-tight",
-            tone === "light" ? "text-on-dark" : "text-foreground",
-          )}
-        >
-          Khardeji
-        </span>
-        <span className={cn("label-stamp text-[0.62rem]", tone === "light" ? "text-brass" : "text-rust")}>
-          خردجي · Scrap Market
-        </span>
-      </span>
+    <Link to="/" className={cn("flex shrink-0 items-center", className)} aria-label={t({ ar: "خردجي — الرئيسية", fr: "Khardeji — accueil", en: "Khardeji — home" })}>
+      <img src={logoMark.url} alt="Khardeji" width={432} height={200} className="h-12 w-auto sm:h-14" />
     </Link>
+  );
+}
+
+/** Full brand logo with tagline and sale-mode pills, on a light plate (for dark areas). */
+export function LogoFull({ className }: { className?: string }) {
+  return (
+    <div className={cn("inline-block rounded-2xl bg-ivory p-4 shadow-card", className)}>
+      <img src={logoFull.url} alt="Khardeji — إشتري، بع، و إربح أكثر" width={900} height={601} loading="lazy" className="h-auto w-56 sm:w-64" />
+    </div>
   );
 }
