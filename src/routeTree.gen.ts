@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CategoriesRouteImport } from './routes/categories'
 import { Route as CommentCaMarcheRouteImport } from './routes/comment-ca-marche'
+import { Route as ConnexionRouteImport } from './routes/connexion'
 import { Route as EncheresRouteImport } from './routes/encheres'
+import { Route as ServicesRouteImport } from './routes/services'
 import { Route as AnnoncesIndexRouteImport } from './routes/annonces.index'
 import { Route as AnnoncesIdRouteImport } from './routes/annonces.$id'
 
@@ -31,9 +33,19 @@ const CommentCaMarcheRoute = CommentCaMarcheRouteImport.update({
   path: '/comment-ca-marche',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ConnexionRoute = ConnexionRouteImport.update({
+  id: '/connexion',
+  path: '/connexion',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EncheresRoute = EncheresRouteImport.update({
   id: '/encheres',
   path: '/encheres',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServicesRoute = ServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AnnoncesIndexRoute = AnnoncesIndexRouteImport.update({
@@ -51,7 +63,9 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/categories': typeof CategoriesRoute
   '/comment-ca-marche': typeof CommentCaMarcheRoute
+  '/connexion': typeof ConnexionRoute
   '/encheres': typeof EncheresRoute
+  '/services': typeof ServicesRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces/': typeof AnnoncesIndexRoute
 }
@@ -59,7 +73,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/categories': typeof CategoriesRoute
   '/comment-ca-marche': typeof CommentCaMarcheRoute
+  '/connexion': typeof ConnexionRoute
   '/encheres': typeof EncheresRoute
+  '/services': typeof ServicesRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces': typeof AnnoncesIndexRoute
 }
@@ -68,7 +84,9 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/categories': typeof CategoriesRoute
   '/comment-ca-marche': typeof CommentCaMarcheRoute
+  '/connexion': typeof ConnexionRoute
   '/encheres': typeof EncheresRoute
+  '/services': typeof ServicesRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces/': typeof AnnoncesIndexRoute
 }
@@ -78,7 +96,9 @@ export interface FileRouteTypes {
     | '/'
     | '/categories'
     | '/comment-ca-marche'
+    | '/connexion'
     | '/encheres'
+    | '/services'
     | '/annonces/$id'
     | '/annonces/'
   fileRoutesByTo: FileRoutesByTo
@@ -86,7 +106,9 @@ export interface FileRouteTypes {
     | '/'
     | '/categories'
     | '/comment-ca-marche'
+    | '/connexion'
     | '/encheres'
+    | '/services'
     | '/annonces/$id'
     | '/annonces'
   id:
@@ -94,7 +116,9 @@ export interface FileRouteTypes {
     | '/'
     | '/categories'
     | '/comment-ca-marche'
+    | '/connexion'
     | '/encheres'
+    | '/services'
     | '/annonces/$id'
     | '/annonces/'
   fileRoutesById: FileRoutesById
@@ -103,7 +127,9 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   CategoriesRoute: typeof CategoriesRoute
   CommentCaMarcheRoute: typeof CommentCaMarcheRoute
+  ConnexionRoute: typeof ConnexionRoute
   EncheresRoute: typeof EncheresRoute
+  ServicesRoute: typeof ServicesRoute
   AnnoncesIdRoute: typeof AnnoncesIdRoute
   AnnoncesIndexRoute: typeof AnnoncesIndexRoute
 }
@@ -131,11 +157,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CommentCaMarcheRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/connexion': {
+      id: '/connexion'
+      path: '/connexion'
+      fullPath: '/connexion'
+      preLoaderRoute: typeof ConnexionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/encheres': {
       id: '/encheres'
       path: '/encheres'
       fullPath: '/encheres'
       preLoaderRoute: typeof EncheresRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/services': {
+      id: '/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/annonces/': {
@@ -159,7 +199,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   CategoriesRoute: CategoriesRoute,
   CommentCaMarcheRoute: CommentCaMarcheRoute,
+  ConnexionRoute: ConnexionRoute,
   EncheresRoute: EncheresRoute,
+  ServicesRoute: ServicesRoute,
   AnnoncesIdRoute: AnnoncesIdRoute,
   AnnoncesIndexRoute: AnnoncesIndexRoute,
 }
