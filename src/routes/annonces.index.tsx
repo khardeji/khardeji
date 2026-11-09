@@ -13,11 +13,12 @@ import {
   GOVERNORATES,
   listingSearchText,
   LISTINGS,
-  subcategoryLabel,
   SALE_TYPE_LABEL,
+  subcategoryLabel,
   type SaleType,
 } from "@/data/catalog";
 import { useI18n } from "@/hooks/use-i18n";
+import { pageMeta } from "@/lib/i18n";
 
 type Sort = "recent" | "prix-asc" | "prix-desc";
 
@@ -49,15 +50,19 @@ export const Route = createFileRoute("/annonces/")({
     type: s["type"] === "fixe" || s["type"] === "negociable" || s["type"] === "enchere" ? s["type"] : undefined,
     sort: s["sort"] === "prix-asc" || s["sort"] === "prix-desc" || s["sort"] === "recent" ? s["sort"] : undefined,
   }),
-  head: () => ({
-    meta: [
-      { title: "Annonces — Ferraille, pièces auto et récupération | Khardeji" },
-      { name: "description", content: "Parcourez les annonces de ferraille, métaux, pièces automobiles et matériel industriel en Tunisie. Filtrez par catégorie, gouvernorat et prix." },
-      { property: "og:title", content: "Annonces Khardeji" },
-      { property: "og:description", content: "Ferraille, métaux et pièces auto à vendre partout en Tunisie." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-    ],
+  head: ({ match }) => ({
+    meta: pageMeta(match.context.locale, {
+      title: {
+        ar: "الإعلانات — خردة، قطع غيار ومواد رسكلة | خردجي",
+        fr: "Annonces — Ferraille, pièces auto et récupération | Khardeji",
+        en: "Listings — Scrap, car parts and salvage | Khardeji",
+      },
+      description: {
+        ar: "تصفّح إعلانات الخردة، المعادن، قطع غيار السيارات والمعدات الصناعية في تونس. فلتر حسب الصنف، الولاية والسعر.",
+        fr: "Parcourez les annonces de ferraille, métaux, pièces automobiles et matériel industriel en Tunisie. Filtrez par catégorie, gouvernorat et prix.",
+        en: "Browse scrap, metal, car part and industrial equipment listings in Tunisia. Filter by category, governorate and price.",
+      },
+    }),
   }),
   component: Catalogue,
 });
@@ -67,7 +72,7 @@ const field =
 
 function Filters({ search, onDone }: { search: AnnoncesSearch; onDone?: () => void }) {
   const navigate = useNavigate({ from: "/annonces/" });
-  const { t: tr } = useI18n();
+  const { t } = useI18n();
   const [q, setQ] = useState(search.q ?? "");
   const [min, setMin] = useState(search.min?.toString() ?? "");
   const [max, setMax] = useState(search.max?.toString() ?? "");
@@ -84,22 +89,22 @@ function Filters({ search, onDone }: { search: AnnoncesSearch; onDone?: () => vo
   return (
     <div className="space-y-6">
       <form onSubmit={applyText} className="space-y-3">
-        <p className="label-stamp text-xs text-muted-foreground">Recherche</p>
-        <input className={field} placeholder="Cuivre, moteur, jantes…" value={q} onChange={(e) => setQ(e.target.value)} />
+        <p className="label-stamp text-xs text-muted-foreground">{t({ ar: "بحث", fr: "Recherche", en: "Search" })}</p>
+        <input className={field} placeholder={t({ ar: "نحاس، محرك، جنط…", fr: "Cuivre, moteur, jantes…", en: "Copper, engine, rims…" })} value={q} onChange={(e) => setQ(e.target.value)} />
         <div className="grid grid-cols-2 gap-2">
-          <input className={field} type="number" min={0} placeholder="Prix min" value={min} onChange={(e) => setMin(e.target.value)} />
-          <input className={field} type="number" min={0} placeholder="Prix max" value={max} onChange={(e) => setMax(e.target.value)} />
+          <input className={field} type="number" min={0} placeholder={t({ ar: "أدنى سعر", fr: "Prix min", en: "Min price" })} value={min} onChange={(e) => setMin(e.target.value)} />
+          <input className={field} type="number" min={0} placeholder={t({ ar: "أقصى سعر", fr: "Prix max", en: "Max price" })} value={max} onChange={(e) => setMax(e.target.value)} />
         </div>
-        <Button type="submit" className="w-full">Appliquer</Button>
+        <Button type="submit" className="w-full">{t({ ar: "طبّق", fr: "Appliquer", en: "Apply" })}</Button>
       </form>
 
       <div>
-        <p className="label-stamp mb-2 text-xs text-muted-foreground">Catégorie</p>
+        <p className="label-stamp mb-2 text-xs text-muted-foreground">{t({ ar: "الصنف", fr: "Catégorie", en: "Category" })}</p>
         <div className="flex flex-col gap-0.5">
-          <FilterChip active={!search.cat} onClick={() => set({ cat: undefined, sub: undefined })}>Toutes</FilterChip>
+          <FilterChip active={!search.cat} onClick={() => set({ cat: undefined, sub: undefined })}>{t({ ar: "الكل", fr: "Toutes", en: "All" })}</FilterChip>
           {CATEGORIES.map((c) => (
             <FilterChip key={c.slug} active={search.cat === c.slug} onClick={() => set({ cat: c.slug, sub: undefined })}>
-              {tr(c.name)}
+              {t(c.name)}
             </FilterChip>
           ))}
         </div>
@@ -107,7 +112,7 @@ function Filters({ search, onDone }: { search: AnnoncesSearch; onDone?: () => vo
 
       {cat && (
         <div>
-          <p className="label-stamp mb-2 text-xs text-muted-foreground">Sous-catégorie</p>
+          <p className="label-stamp mb-2 text-xs text-muted-foreground">{t({ ar: "الصنف الفرعي", fr: "Sous-catégorie", en: "Subcategory" })}</p>
           <div className="flex flex-wrap gap-1.5">
             {cat.subcategories.map((s) => (
               <button
@@ -116,7 +121,7 @@ function Filters({ search, onDone }: { search: AnnoncesSearch; onDone?: () => vo
                 onClick={() => set({ sub: search.sub === s ? undefined : s })}
                 className={`rounded-full border px-3 py-1 text-xs transition ${search.sub === s ? "border-rust bg-rust text-rust-foreground" : "border-border bg-card hover:border-rust/60"}`}
               >
-                {tr(subcategoryLabel(s))}
+                {t(subcategoryLabel(s))}
               </button>
             ))}
           </div>
@@ -124,23 +129,23 @@ function Filters({ search, onDone }: { search: AnnoncesSearch; onDone?: () => vo
       )}
 
       <div>
-        <p className="label-stamp mb-2 text-xs text-muted-foreground">Type de vente</p>
+        <p className="label-stamp mb-2 text-xs text-muted-foreground">{t({ ar: "طريقة البيع", fr: "Type de vente", en: "Sale type" })}</p>
         <div className="flex flex-col gap-0.5">
-          <FilterChip active={!search.type} onClick={() => set({ type: undefined })}>Tous</FilterChip>
-          {(Object.keys(SALE_TYPE_LABEL) as SaleType[]).map((t) => (
-            <FilterChip key={t} active={search.type === t} onClick={() => set({ type: t })}>
-              {tr(SALE_TYPE_LABEL[t])}
+          <FilterChip active={!search.type} onClick={() => set({ type: undefined })}>{t({ ar: "الكل", fr: "Tous", en: "All" })}</FilterChip>
+          {(Object.keys(SALE_TYPE_LABEL) as SaleType[]).map((st) => (
+            <FilterChip key={st} active={search.type === st} onClick={() => set({ type: st })}>
+              {t(SALE_TYPE_LABEL[st])}
             </FilterChip>
           ))}
         </div>
       </div>
 
       <div>
-        <p className="label-stamp mb-2 text-xs text-muted-foreground">Gouvernorat</p>
+        <p className="label-stamp mb-2 text-xs text-muted-foreground">{t({ ar: "الولاية", fr: "Gouvernorat", en: "Governorate" })}</p>
         <select className={field} value={search.gov ?? ""} onChange={(e) => set({ gov: e.target.value || undefined })}>
-          <option value="">Toute la Tunisie</option>
+          <option value="">{t({ ar: "كامل تونس", fr: "Toute la Tunisie", en: "All of Tunisia" })}</option>
           {GOVERNORATES.map((g) => (
-            <option key={g} value={g}>{tr(governorateLabel(g))}</option>
+            <option key={g} value={g}>{t(governorateLabel(g))}</option>
           ))}
         </select>
       </div>
@@ -164,7 +169,7 @@ function Catalogue() {
   const search = Route.useSearch();
   const navigate = useNavigate({ from: "/annonces/" });
   const [open, setOpen] = useState(false);
-  const { t, dir } = useI18n();
+  const { t, dir, locale } = useI18n();
 
   const q = search.q?.toLowerCase();
   let results = LISTINGS.filter((l) => {
@@ -185,16 +190,22 @@ function Catalogue() {
 
   const activeCat = search.cat ? getCategory(search.cat) : undefined;
   const hasFilters = Object.values(search).some((v) => v !== undefined && v !== "recent");
+  const n = results.length;
 
   return (
     <>
       <PageHeader
-        eyebrow="Catalogue"
+        eyebrow={t({ ar: "الكتالوج", fr: "Catalogue", en: "Catalogue" })}
         title={activeCat ? t(activeCat.name) : t({ ar: "كل الإعلانات", fr: "Toutes les annonces", en: "All listings" })}
-        intro="Ferraille, métaux, pièces automobiles et matériel industriel — prix en dinars tunisiens, partout en Tunisie."
+        intro={t({
+          ar: "خردة، معادن، قطع غيار السيارات ومعدات صناعية — الأسعار بالدينار التونسي، في كامل تونس.",
+          fr: "Ferraille, métaux, pièces automobiles et matériel industriel — prix en dinars tunisiens, partout en Tunisie.",
+          en: "Scrap, metals, car parts and industrial equipment — prices in Tunisian dinars, across Tunisia.",
+        })}
       />
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:px-6 lg:grid-cols-[260px_1fr]">
         <aside className="hidden lg:block">
+          {/* Fits the screen and scrolls on its own, so the bottom filters are always reachable. */}
           <div className="surface-card sticky top-24 max-h-[calc(100vh-7rem)] overflow-y-auto overscroll-contain p-5">
             <Filters key={JSON.stringify(search)} search={search} />
           </div>
@@ -203,34 +214,35 @@ function Catalogue() {
         <div>
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
             <p className="text-sm text-muted-foreground">
-              <span className="font-semibold text-foreground">{results.length}</span> annonce{results.length > 1 ? "s" : ""}
+              <span className="font-semibold text-foreground">{n}</span>{" "}
+              {locale === "ar" ? "إعلان" : locale === "fr" ? (n > 1 ? "annonces" : "annonce") : n === 1 ? "listing" : "listings"}
             </p>
             <div className="flex items-center gap-2">
               {hasFilters && (
                 <Button asChild variant="ghost" size="sm">
-                  <Link to="/annonces"><X /> Effacer les filtres</Link>
+                  <Link to="/annonces"><X /> {t({ ar: "امسح الفلاتر", fr: "Effacer les filtres", en: "Clear filters" })}</Link>
                 </Button>
               )}
               <Sheet open={open} onOpenChange={setOpen}>
                 <SheetTrigger asChild>
-                  <Button variant="outline" size="sm" className="lg:hidden"><SlidersHorizontal /> Filtres</Button>
+                  <Button variant="outline" size="sm" className="lg:hidden"><SlidersHorizontal /> {t({ ar: "الفلاتر", fr: "Filtres", en: "Filters" })}</Button>
                 </SheetTrigger>
                 <SheetContent side={dir === "rtl" ? "right" : "left"} dir={dir} className="w-80 overflow-y-auto bg-background">
-                  <SheetTitle className="font-display">Filtres</SheetTitle>
+                  <SheetTitle className="font-display">{t({ ar: "الفلاتر", fr: "Filtres", en: "Filters" })}</SheetTitle>
                   <div className="mt-4">
                     <Filters search={search} onDone={() => setOpen(false)} />
                   </div>
                 </SheetContent>
               </Sheet>
               <select
-                aria-label="Trier"
+                aria-label={t({ ar: "رتّب", fr: "Trier", en: "Sort" })}
                 className="h-8 rounded-md border border-input bg-card px-2 text-sm"
                 value={sort}
                 onChange={(e) => navigate({ search: (prev) => ({ ...prev, sort: e.target.value as Sort }) })}
               >
-                <option value="recent">Plus récentes</option>
-                <option value="prix-asc">Prix croissant</option>
-                <option value="prix-desc">Prix décroissant</option>
+                <option value="recent">{t({ ar: "الأحدث", fr: "Plus récentes", en: "Newest" })}</option>
+                <option value="prix-asc">{t({ ar: "السعر من الأرخص", fr: "Prix croissant", en: "Price: low to high" })}</option>
+                <option value="prix-desc">{t({ ar: "السعر من الأغلى", fr: "Prix décroissant", en: "Price: high to low" })}</option>
               </select>
             </div>
           </div>
@@ -243,10 +255,12 @@ function Catalogue() {
             </div>
           ) : (
             <div className="surface-card p-12 text-center">
-              <h2 className="text-2xl font-semibold">Aucune annonce trouvée</h2>
-              <p className="mt-2 text-muted-foreground">Essayez d'élargir votre recherche ou de changer de gouvernorat.</p>
+              <h2 className="text-2xl font-semibold">{t({ ar: "ما لقينا حتى إعلان", fr: "Aucune annonce trouvée", en: "No listings found" })}</h2>
+              <p className="mt-2 text-muted-foreground">
+                {t({ ar: "جرّب توسّع البحث ولا بدّل الولاية.", fr: "Essayez d'élargir votre recherche ou de changer de gouvernorat.", en: "Try widening your search or changing governorate." })}
+              </p>
               <Button asChild variant="rust" className="mt-6">
-                <Link to="/annonces">Voir toutes les annonces</Link>
+                <Link to="/annonces">{t({ ar: "شوف كل الإعلانات", fr: "Voir toutes les annonces", en: "See all listings" })}</Link>
               </Button>
             </div>
           )}
