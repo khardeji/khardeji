@@ -11,7 +11,6 @@ export function Countdown({ endsInHours, className }: { endsInHours: number; cla
 
   return (
     <span
-      dir="ltr"
       className={cn(
         "inline-flex items-center gap-1.5 font-label text-sm font-semibold tabular-nums tracking-wide",
         urgent ? "text-rust" : "text-foreground",

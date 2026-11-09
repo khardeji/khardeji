@@ -25,7 +25,6 @@ export function formatDate(iso: string, locale: Locale = "fr"): string {
 }
 
 const CLOSED: Record<Locale, string> = { ar: "مغلقة", fr: "Clôturée", en: "Closed" };
-const DAY: Record<Locale, string> = { ar: "ي", fr: "j", en: "d" };
 
 export function formatRemaining(ms: number, locale: Locale = "fr"): string {
   if (ms <= 0) return CLOSED[locale];
@@ -35,6 +34,9 @@ export function formatRemaining(ms: number, locale: Locale = "fr"): string {
   const m = Math.floor((s % 3600) / 60);
   const sec = s % 60;
   const pad = (n: number) => String(n).padStart(2, "0");
-  if (d > 0) return `${d}${DAY[locale]} ${pad(h)}h ${pad(m)}m`;
+  if (d > 0) {
+    if (locale === "ar") return `${d} يوم و ${pad(h)}:${pad(m)}`;
+    return `${d}${locale === "fr" ? "j" : "d"} ${pad(h)}h ${pad(m)}m`;
+  }
   return `${pad(h)}:${pad(m)}:${pad(sec)}`;
 }
