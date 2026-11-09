@@ -177,7 +177,7 @@ function AuthPage() {
 
         <TabsContent value="connexion">
           <h1 className="mt-6 text-3xl font-semibold">{t({ ar: "مرحبا بيك من جديد", fr: "Bon retour", en: "Welcome back" })}</h1>
-          <form onSubmit={signIn} className="space-y-4">
+          <form onSubmit={signIn} className="mt-6 space-y-4">
             <div>
               <label htmlFor="li-email" className="text-sm font-medium">{t({ ar: "الإيميل", fr: "Email", en: "Email" })}</label>
               <input id="li-email" type="email" required dir="ltr" autoComplete="email" className={`${field} mt-1.5`} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="vous@exemple.tn" />
@@ -195,7 +195,7 @@ function AuthPage() {
 
         <TabsContent value="inscription">
           <h1 className="mt-6 text-3xl font-semibold">{t({ ar: "اعمل حساب", fr: "Créer un compte", en: "Create an account" })}</h1>
-          <form onSubmit={signUp} className="space-y-4">
+          <form onSubmit={signUp} className="mt-6 space-y-4">
             <fieldset>
               <legend className="text-sm font-medium">{t({ ar: "نوع الحساب", fr: "Type de compte", en: "Account type" })}</legend>
               <div className="mt-2 grid gap-2 sm:grid-cols-3">
