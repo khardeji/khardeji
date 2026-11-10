@@ -658,7 +658,7 @@ export function DashboardPage() {
       {/* Subscribe / Renew Plan Modal */}
       <SubscribePlanDialog
         plan={planDialog}
-        isRenewal={planDialog?.isRenewal}
+        isRenewal={planDialog?.isRenewal ?? false}
         open={!!planDialog}
         onClose={() => setPlanDialog(null)}
         onSuccess={() => {

@@ -60,10 +60,10 @@ export function BoostDialog({
   onClose,
   onRecharge,
 }: {
-  initialListingId?: string;
+  initialListingId?: string | undefined;
   open: boolean;
   onClose: () => void;
-  onRecharge?: () => void;
+  onRecharge?: (() => void) | undefined;
 }) {
   const { t, num, dir } = useI18n();
   const qc = useQueryClient();
@@ -80,7 +80,7 @@ export function BoostDialog({
   const [busy, setBusy] = useState(false);
 
   const currentTokens = overview?.tokensBalance ?? 0;
-  const cost = BOOST_COSTS[selectedBoost];
+  const cost = BOOST_COSTS[selectedBoost] ?? 2;
   const hasEnough = currentTokens >= cost;
 
   const handleApply = async () => {
@@ -167,7 +167,7 @@ export function BoostDialog({
                   })}
                 </p>
               ) : (
-                <Select value={selectedListingId || approvedListings[0]?.id} onValueChange={setSelectedListingId}>
+                <Select value={selectedListingId || approvedListings[0]?.id || ""} onValueChange={setSelectedListingId}>
                   <SelectTrigger>
                     <SelectValue placeholder={t({ ar: "اختار إعلان…", fr: "Sélectionner une annonce…", en: "Select a listing…" })} />
                   </SelectTrigger>

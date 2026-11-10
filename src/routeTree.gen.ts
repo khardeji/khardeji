@@ -166,6 +166,7 @@ export interface FileRouteTypes {
     | '/mes-annonces'
     | '/mes-favoris'
     | '/publier'
+    | '/tableau-de-bord'
     | '/annonces/$id'
     | '/annonces/'
   fileRoutesByTo: FileRoutesByTo
@@ -181,6 +182,7 @@ export interface FileRouteTypes {
     | '/mes-annonces'
     | '/mes-favoris'
     | '/publier'
+    | '/tableau-de-bord'
     | '/annonces/$id'
     | '/annonces'
   id:
@@ -197,6 +199,7 @@ export interface FileRouteTypes {
     | '/_authenticated/mes-annonces'
     | '/_authenticated/mes-favoris'
     | '/_authenticated/publier'
+    | '/_authenticated/tableau-de-bord'
     | '/annonces/$id'
     | '/annonces/'
   fileRoutesById: FileRoutesById

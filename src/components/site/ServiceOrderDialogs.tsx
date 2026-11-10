@@ -18,10 +18,10 @@ export function BuyTokensDialog({
   onClose,
   onSuccess,
 }: {
-  pack: { id: string; tokens: number; price: number; tag?: Msg | null } | null;
+  pack: { id: string; tokens: number; price: number; tag?: Msg | null | undefined } | null;
   open: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (() => void) | undefined;
 }) {
   const { t, dt, num, dir } = useI18n();
   const { user } = useAuth();
@@ -123,11 +123,11 @@ export function SubscribePlanDialog({
   onClose,
   onSuccess,
 }: {
-  plan: { id: "pro" | "entreprise"; name: Msg; price: number; features?: Msg[] } | null;
-  isRenewal?: boolean;
+  plan: { id: "pro" | "entreprise"; name: Msg; price: number; features?: Msg[] | undefined; isRenewal?: boolean | undefined } | null;
+  isRenewal?: boolean | undefined;
   open: boolean;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (() => void) | undefined;
 }) {
   const { t, dt, dir } = useI18n();
   const { user } = useAuth();
