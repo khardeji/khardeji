@@ -229,3 +229,4 @@ DROP POLICY IF EXISTS "listing_boosts_insert" ON public.listing_boosts;
 CREATE POLICY "listing_boosts_insert" ON public.listing_boosts
   FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id AND NOT public.is_blocked(auth.uid()));
+
