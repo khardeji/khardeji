@@ -3,6 +3,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Countdown } from "./Countdown";
+import { AccountRequiredDialog, ConfirmActionDialog, ContactSellerDialog, useBuyFlow } from "./ActionDialogs";
 import type { Listing } from "@/data/catalog";
 import { minimumNextBid, participantCount, validateBid, type AuctionState } from "@/lib/auction";
 import { auctionEndsAt } from "@/lib/demo-clock";
@@ -58,6 +59,7 @@ export function FixedPricePanel({ listing }: { listing: Listing }) {
   const short = t(UNIT_LABEL[listing.unit].short);
   const [qty, setQty] = useState(() => clampQuantity(listing.unit === "kg" ? 25 : 1, listing.stock, step));
   const total = quantityTotal(listing.price, qty);
+  const flow = useBuyFlow();
 
   return (
     <div className="space-y-5">
@@ -70,18 +72,31 @@ export function FixedPricePanel({ listing }: { listing: Listing }) {
           <dd className="font-display text-2xl font-semibold text-rust">{dt(total)}</dd>
         </div>
       </dl>
-      <Button
-        variant="rust"
-        size="lg"
-        className="w-full"
-        onClick={() =>
-          toast.success(`${t({ ar: "تبعث طلب", fr: "Demande envoyée :", en: "Request sent:" })} ${num(qty)} ${short}`, {
-            description: t({ ar: "البائع ينجم يقبل ولا يرفض طلبك.", fr: "Le vendeur pourra confirmer ou refuser votre demande.", en: "The seller can confirm or decline your request." }),
-          })
-        }
-      >
+      <Button variant="rust" size="lg" className="w-full" onClick={flow.start}>
         <ShoppingCart /> {t({ ar: "اطلب هذه الكمية", fr: "Demander cette quantité", en: "Request this quantity" })}
       </Button>
+      <AccountRequiredDialog open={flow.step === "account"} onClose={flow.close} />
+      <ConfirmActionDialog
+        open={flow.step === "confirm"}
+        onClose={flow.close}
+        title={{ ar: "تأكّد الطلب؟", fr: "Confirmer la demande ?", en: "Confirm the request?" }}
+        description={{ ar: "راجع التفاصيل قبل ما تأكّد.", fr: "Vérifiez les détails avant de confirmer.", en: "Check the details before confirming." }}
+        rows={[
+          { label: { ar: "المنتوج", fr: "Article", en: "Item" }, value: t(listing.title) },
+          { label: { ar: "البائع", fr: "Vendeur", en: "Seller" }, value: listing.seller.name },
+          { label: { ar: "سعر الوحدة", fr: "Prix unitaire", en: "Unit price" }, value: `${dt(listing.price)} / ${short}` },
+          { label: { ar: "الكمية", fr: "Quantité", en: "Quantity" }, value: `${num(qty)} ${short}` },
+          { label: { ar: "المجموع التقريبي", fr: "Total estimé", en: "Estimated total" }, value: dt(total), strong: true },
+        ]}
+        confirmLabel={{ ar: "نأكّد الطلب", fr: "Je confirme", en: "Confirm" }}
+        onConfirm={() => flow.setStep("done")}
+      />
+      <ContactSellerDialog
+        open={flow.step === "done"}
+        onClose={flow.close}
+        title={{ ar: "تأكّد الطلب", fr: "Demande confirmée", en: "Request confirmed" }}
+        phone={listing.seller.phone}
+      />
     </div>
   );
 }
@@ -93,6 +108,7 @@ export function OfferPanel({ listing }: { listing: Listing }) {
   const [qty, setQty] = useState(() => clampQuantity(listing.unit === "kg" ? 50 : 1, listing.stock, step));
   const [offer, setOffer] = useState(String(Math.round(listing.price * 0.9 * 100) / 100));
   const offerNum = Number(offer);
+  const flow = useBuyFlow();
 
   return (
     <form
@@ -103,9 +119,7 @@ export function OfferPanel({ listing }: { listing: Listing }) {
           toast.error(t({ ar: "اكتب سعر صحيح.", fr: "Indiquez un prix valide.", en: "Enter a valid price." }));
           return;
         }
-        toast.success(t({ ar: "تبعث العرض للبائع", fr: "Offre envoyée au vendeur", en: "Offer sent to the seller" }), {
-          description: `${dt(offerNum)} / ${short} — ${num(qty)} ${short}`,
-        });
+        flow.start();
       }}
     >
       <p className="text-sm text-muted-foreground">
@@ -127,6 +141,28 @@ export function OfferPanel({ listing }: { listing: Listing }) {
       <Button type="submit" variant="rust" size="lg" className="w-full">
         <HandCoins /> {t({ ar: "قدّم عرض", fr: "Faire une offre", en: "Make an offer" })}
       </Button>
+      <AccountRequiredDialog open={flow.step === "account"} onClose={flow.close} />
+      <ConfirmActionDialog
+        open={flow.step === "confirm"}
+        onClose={flow.close}
+        title={{ ar: "تأكّد العرض؟", fr: "Confirmer l'offre ?", en: "Confirm the offer?" }}
+        description={{ ar: "راجع العرض متاعك قبل ما تأكّد.", fr: "Vérifiez votre offre avant de confirmer.", en: "Check your offer before confirming." }}
+        rows={[
+          { label: { ar: "المنتوج", fr: "Article", en: "Item" }, value: t(listing.title) },
+          { label: { ar: "البائع", fr: "Vendeur", en: "Seller" }, value: listing.seller.name },
+          { label: { ar: "السعر متاعك", fr: "Votre prix", en: "Your price" }, value: `${dt(offerNum || 0)} / ${short}` },
+          { label: { ar: "الكمية", fr: "Quantité", en: "Quantity" }, value: `${num(qty)} ${short}` },
+          { label: { ar: "المجموع المقترح", fr: "Total proposé", en: "Offered total" }, value: dt(quantityTotal(offerNum || 0, qty)), strong: true },
+        ]}
+        confirmLabel={{ ar: "نأكّد العرض", fr: "Je confirme", en: "Confirm" }}
+        onConfirm={() => flow.setStep("done")}
+      />
+      <ContactSellerDialog
+        open={flow.step === "done"}
+        onClose={flow.close}
+        title={{ ar: "تأكّد العرض", fr: "Offre confirmée", en: "Offer confirmed" }}
+        phone={listing.seller.phone}
+      />
     </form>
   );
 }
@@ -145,6 +181,7 @@ export function AuctionPanel({ listing }: { listing: Listing }) {
   const [amount, setAmount] = useState(String(minNext));
   const current = bids.length ? Math.max(...bids.map((b) => b.amount)) : a.startPrice;
   const history = [...bids].sort((x, y) => y.amount - x.amount);
+  const flow = useBuyFlow();
 
   const bidderName = (b: string) =>
     b === ME ? t({ ar: "إنت", fr: "Vous", en: "You" }) : `${t({ ar: "مشتري", fr: "Acheteur", en: "Buyer" })} ${b}`;
@@ -169,6 +206,11 @@ export function AuctionPanel({ listing }: { listing: Listing }) {
       );
       return;
     }
+    flow.start();
+  }
+
+  function commitBid() {
+    flow.close();
     const next = [...bids, { bidder: ME, amount: Number(amount), minutesAgo: 0 }];
     setBids(next);
     setAmount(String(Number(amount) + a.increment));
@@ -214,6 +256,20 @@ export function AuctionPanel({ listing }: { listing: Listing }) {
           {t({ ar: "العرض المسجّل ما يتبدّلش وما يتلغاش.", fr: "Une enchère validée ne peut pas être modifiée ni annulée.", en: "A placed bid cannot be changed or cancelled." })}
         </p>
       </form>
+      <AccountRequiredDialog open={flow.step === "account"} onClose={flow.close} />
+      <ConfirmActionDialog
+        open={flow.step === "confirm"}
+        onClose={flow.close}
+        title={{ ar: "تأكّد المزايدة؟", fr: "Confirmer l'enchère ?", en: "Confirm the bid?" }}
+        description={{ ar: "العرض المسجّل ما يتبدّلش وما يتلغاش.", fr: "Une enchère validée ne peut pas être modifiée ni annulée.", en: "A placed bid cannot be changed or cancelled." }}
+        rows={[
+          { label: { ar: "المنتوج", fr: "Article", en: "Item" }, value: t(listing.title) },
+          { label: { ar: "السعر الحالي", fr: "Prix actuel", en: "Current price" }, value: dt(current) },
+          { label: { ar: "عرضك", fr: "Votre enchère", en: "Your bid" }, value: dt(Number(amount)), strong: true },
+        ]}
+        confirmLabel={{ ar: "نزايد", fr: "J'enchéris", en: "Place bid" }}
+        onConfirm={commitBid}
+      />
 
       <div>
         <p className="label-stamp mb-2 text-xs text-muted-foreground">{t({ ar: "تاريخ العروض", fr: "Historique des enchères", en: "Bid history" })}</p>

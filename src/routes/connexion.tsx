@@ -266,6 +266,11 @@ function AuthPage() {
             {t({ ar: "لازمك حساب باش تنشر إعلان. ادخل ولا اعمل حساب بلاش.", fr: "Un compte est nécessaire pour publier une annonce. Connectez-vous ou créez un compte gratuit.", en: "You need an account to post a listing. Sign in or create a free account." })}
           </p>
         )}
+        {search.raison === "acheter" && !user && (
+          <p className="mb-5 rounded-md border border-brass/50 bg-brass/10 p-3 text-sm">
+            {t({ ar: "لازمك حساب باش تطلب ولا تقدّم عرض ولا تزايد. ادخل ولا اعمل حساب بلاش، ومبعد ترجع للإعلان.", fr: "Un compte est nécessaire pour commander, faire une offre ou enchérir. Connectez-vous ou créez un compte gratuit, puis vous reviendrez à l'annonce.", en: "You need an account to order, make an offer or bid. Sign in or create a free account, then you'll return to the listing." })}
+          </p>
+        )}
         {panel}
       </div>
     </div>
