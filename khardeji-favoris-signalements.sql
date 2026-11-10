@@ -93,3 +93,4 @@ DROP POLICY IF EXISTS "reports_delete_admin" ON public.listing_reports;
 CREATE POLICY "reports_delete_admin" ON public.listing_reports
   FOR DELETE TO authenticated
   USING (public.has_role(auth.uid(), 'admin'::public.app_role));
+
