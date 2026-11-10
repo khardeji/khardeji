@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowDown, ArrowUpCircle, BadgeCheck, Building2, Check, Coins, Flame, Home, Rocket, Sparkles, Star } from "lucide-react";
+import { ArrowDown, ArrowUpCircle, BadgeCheck, Building2, Check, Coins, Flame, Home, Gift, Rocket, Star } from "lucide-react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -28,7 +28,7 @@ export const Route = createFileRoute("/services")({
 
 const OVERVIEW = [
   {
-    icon: Sparkles,
+    icon: Gift,
     href: "#basique",
     title: { ar: "ابدا بلاش", fr: "Commencez gratuitement", en: "Start for free" },
     text: { ar: "اعمل البروفيل متاعك وانشر أول إعلاناتك بلاش.", fr: "Créez votre profil et publiez vos premières annonces sans frais.", en: "Create your profile and post your first listings at no cost." },
