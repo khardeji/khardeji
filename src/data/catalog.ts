@@ -175,7 +175,11 @@ export const DEMO_IMAGES: Record<string, string> = {
 
 /** Image reference from the database → displayable URL (demo key, or an already-signed/absolute URL). */
 export function resolveImage(ref: string): string {
-  return DEMO_IMAGES[ref] ?? ref;
+  if (DEMO_IMAGES[ref]) return DEMO_IMAGES[ref];
+  // Demo photos saved as Lovable-hosted links (SQL export) → bundled copy, so they also show on other hosts.
+  const m = /\/__l5e\/assets-v1\/[^/]+\/([\w-]+)\.\w+$/.exec(ref);
+  if (m && DEMO_IMAGES[m[1]!]) return DEMO_IMAGES[m[1]!]!;
+  return ref;
 }
 
 export function auctionCurrentPrice(l: Listing): number {
