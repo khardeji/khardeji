@@ -41,9 +41,9 @@ export function Footer() {
           <span>{t({ ar: "© 2026 خردجي — تونس", fr: "© 2026 Khardeji — Tunisie", en: "© 2026 Khardeji — Tunisia" })}</span>
           <span>
             {t({
-              ar: "الأسعار بالدينار التونسي (د.ت). معطيات تجريبية.",
-              fr: "Prix affichés en dinars tunisiens (DT). Données de démonstration.",
-              en: "Prices in Tunisian dinars (TND). Demo data.",
+              ar: "الأسعار بالدينار التونسي (د.ت).",
+              fr: "Prix affichés en dinars tunisiens (DT).",
+              en: "Prices in Tunisian dinars (TND).",
             })}
           </span>
         </div>

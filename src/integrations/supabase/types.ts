@@ -334,6 +334,7 @@ export type Database = {
         Returns: boolean
       }
       is_blocked: { Args: { _user_id: string }; Returns: boolean }
+      site_stats: { Args: never; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

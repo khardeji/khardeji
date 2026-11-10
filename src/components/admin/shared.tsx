@@ -36,7 +36,7 @@ export const A = {
 /** Refresh admin data plus the public catalogue/prices that admin edits affect. */
 export function useRefresh() {
   const qc = useQueryClient();
-  return (...keys: string[][]) => Promise.all([...keys, ["catalog"], ["pricing"]].map((k) => qc.invalidateQueries({ queryKey: k })));
+  return (...keys: string[][]) => Promise.all([...keys, ["catalog"], ["pricing"], ["stats"]].map((k) => qc.invalidateQueries({ queryKey: k })));
 }
 
 /** Run an admin action, show the outcome, refresh the given data. */

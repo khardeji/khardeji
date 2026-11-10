@@ -6,12 +6,14 @@ import { AuctionCard } from "@/components/site/AuctionCard";
 import { HeroSearch } from "@/components/site/HeroSearch";
 import { ListingCard } from "@/components/site/ListingCard";
 import { SectionHeading } from "@/components/site/SectionHeading";
-import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { catalogQuery, statsQuery, useCatalog } from "@/lib/catalog-queries";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
-  loader: ({ context }) => context.queryClient.ensureQueryData(catalogQuery),
+  loader: ({ context }) =>
+    Promise.all([context.queryClient.ensureQueryData(catalogQuery), context.queryClient.ensureQueryData(statsQuery)]),
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
       title: {
@@ -62,15 +64,16 @@ const STEPS = [
 ];
 
 const STATS = [
-  { value: 12480, label: { ar: "إعلان منشور", fr: "Annonces publiées", en: "Listings posted" } },
-  { value: 3260, label: { ar: "بائع مسجّل", fr: "Vendeurs inscrits", en: "Registered sellers" } },
-  { value: 8900, label: { ar: "مشتري نشيط", fr: "Acheteurs actifs", en: "Active buyers" } },
-  { value: 5140, label: { ar: "عملية بيع", fr: "Transactions réalisées", en: "Completed sales" } },
-];
+  { key: "listings", label: { ar: "إعلان منشور", fr: "Annonces en ligne", en: "Live listings" } },
+  { key: "members", label: { ar: "حساب مسجّل", fr: "Membres inscrits", en: "Registered members" } },
+  { key: "auctions", label: { ar: "مزايدة جارية", fr: "Enchères en cours", en: "Live auctions" } },
+  { key: "sales", label: { ar: "عملية بيع", fr: "Ventes réalisées", en: "Completed sales" } },
+] as const;
 
 function Home() {
   const { t, num } = useI18n();
   const { listings, categories } = useCatalog();
+  const { data: stats } = useSuspenseQuery(statsQuery);
   const recent = [...listings].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, 8);
   const auctions = listings.filter((l) => l.saleType === "enchere" && l.auction).slice(0, 4);
 
@@ -218,7 +221,7 @@ function Home() {
           <div className="grid divide-border sm:grid-cols-2 sm:divide-x lg:grid-cols-4 rtl:sm:divide-x-reverse">
             {STATS.map((s) => (
               <div key={s.label.fr} className="p-8 text-center">
-                <p className="font-display text-4xl font-semibold text-foreground">{num(s.value)}</p>
+                <p className="font-display text-4xl font-semibold text-foreground">{num(stats[s.key])}</p>
                 <p className="label-stamp mt-2 text-xs text-muted-foreground">{t(s.label)}</p>
               </div>
             ))}
@@ -226,7 +229,6 @@ function Home() {
           <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-2 border-t border-border bg-card/60 px-6 py-4 text-sm text-muted-foreground">
             <span className="flex items-center gap-2"><ShieldCheck className="size-4 text-olive" /> {t({ ar: "بائعين محترفين متثبّت منهم", fr: "Vendeurs professionnels vérifiés", en: "Verified professional sellers" })}</span>
             <span className="flex items-center gap-2"><ShieldCheck className="size-4 text-olive" /> {t({ ar: "التثبّت من ملكية العربات", fr: "Contrôle de propriété des véhicules", en: "Vehicle ownership checks" })}</span>
-            <span className="label-stamp text-[0.68rem] text-rust">{t({ ar: "أرقام تجريبية", fr: "Chiffres de démonstration", en: "Demo figures" })}</span>
           </div>
         </div>
       </section>

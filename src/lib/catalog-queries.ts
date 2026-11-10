@@ -1,8 +1,9 @@
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
-import { getCatalog, getPricing } from "./catalog.functions";
+import { getCatalog, getPricing, getSiteStats } from "./catalog.functions";
 
 export const catalogQuery = queryOptions({ queryKey: ["catalog"], queryFn: () => getCatalog() });
+export const statsQuery = queryOptions({ queryKey: ["stats"], queryFn: () => getSiteStats() });
 export const pricingQuery = queryOptions({ queryKey: ["pricing"], queryFn: () => getPricing() });
 
 /** Live catalogue: approved listings and active categories. Routes must preload `catalogQuery` in their loader. */

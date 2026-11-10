@@ -194,9 +194,17 @@ function ListingDetail() {
               >
                 <MessageSquare /> {t({ ar: "راسل", fr: "Contacter", en: "Contact" })}
               </Button>
-              <Button variant="outline" onClick={() => toast(listing.seller.phone, { description: t({ ar: "رقم تجريبي", fr: "Numéro de démonstration", en: "Demo number" }) })}>
-                <Phone /> {t({ ar: "اتصل", fr: "Appeler", en: "Call" })}
-              </Button>
+              {listing.seller.phone ? (
+                <Button variant="outline" asChild>
+                  <a href={`tel:${listing.seller.phone.replace(/[^+\d]/g, "")}`} dir="ltr">
+                    <Phone /> {listing.seller.phone}
+                  </a>
+                </Button>
+              ) : (
+                <Button variant="outline" disabled>
+                  <Phone /> {t({ ar: "ما فمّاش رقم", fr: "Pas de numéro", en: "No number" })}
+                </Button>
+              )}
             </div>
           </div>
         </aside>

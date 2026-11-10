@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import heroImg from "@/assets/listing-lathe.jpg";
 import { Button } from "@/components/ui/button";
+import { PasswordInput } from "@/components/site/PasswordInput";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { safeRedirect, useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
@@ -184,7 +185,7 @@ function AuthPage() {
             </div>
             <div>
               <label htmlFor="li-pw" className="text-sm font-medium">{t({ ar: "كلمة السر", fr: "Mot de passe", en: "Password" })}</label>
-              <input id="li-pw" type="password" required dir="ltr" autoComplete="current-password" className={`${field} mt-1.5`} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <div className="mt-1.5"><PasswordInput id="li-pw" required dir="ltr" autoComplete="current-password" className={field} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
             </div>
             <button type="button" onClick={() => setForgot(true)} className="text-sm text-rust hover:underline">
               {t({ ar: "نسيت كلمة السر؟", fr: "Mot de passe oublié ?", en: "Forgot password?" })}
@@ -236,7 +237,7 @@ function AuthPage() {
             </div>
             <div>
               <label htmlFor="su-pw" className="text-sm font-medium">{t({ ar: "كلمة السر (8 حروف على الأقل)", fr: "Mot de passe (8 caractères min.)", en: "Password (min. 8 characters)" })}</label>
-              <input id="su-pw" type="password" required minLength={8} dir="ltr" autoComplete="new-password" className={`${field} mt-1.5`} value={password} onChange={(e) => setPassword(e.target.value)} />
+              <div className="mt-1.5"><PasswordInput id="su-pw" required minLength={8} dir="ltr" autoComplete="new-password" className={field} value={password} onChange={(e) => setPassword(e.target.value)} /></div>
             </div>
             <Button type="submit" variant="rust" size="lg" className="w-full" disabled={busy}>{spinner} {t({ ar: "اعمل الحساب متاعي", fr: "Créer mon compte", en: "Create my account" })}</Button>
           </form>

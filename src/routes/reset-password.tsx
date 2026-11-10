@@ -3,6 +3,7 @@ import { KeyRound, Loader2 } from "lucide-react";
 import { useEffect, useState, type FormEvent } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { PasswordInput } from "@/components/site/PasswordInput";
 import { useI18n } from "@/hooks/use-i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { pageMeta } from "@/lib/i18n";
@@ -71,11 +72,11 @@ function ResetPassword() {
           <form onSubmit={save} className="mt-6 space-y-4">
             <div>
               <label htmlFor="np-1" className="text-sm font-medium">{t({ ar: "كلمة السر الجديدة (8 حروف على الأقل)", fr: "Nouveau mot de passe (8 caractères min.)", en: "New password (min. 8 characters)" })}</label>
-              <input id="np-1" type="password" required minLength={8} dir="ltr" autoComplete="new-password" className={`${field} mt-1.5`} value={pw} onChange={(e) => setPw(e.target.value)} />
+              <div className="mt-1.5"><PasswordInput id="np-1" required minLength={8} dir="ltr" autoComplete="new-password" className={field} value={pw} onChange={(e) => setPw(e.target.value)} /></div>
             </div>
             <div>
               <label htmlFor="np-2" className="text-sm font-medium">{t({ ar: "عاود اكتبها", fr: "Confirmez-le", en: "Confirm it" })}</label>
-              <input id="np-2" type="password" required minLength={8} dir="ltr" autoComplete="new-password" className={`${field} mt-1.5`} value={pw2} onChange={(e) => setPw2(e.target.value)} />
+              <div className="mt-1.5"><PasswordInput id="np-2" required minLength={8} dir="ltr" autoComplete="new-password" className={field} value={pw2} onChange={(e) => setPw2(e.target.value)} /></div>
             </div>
             <Button type="submit" variant="rust" size="lg" className="w-full" disabled={busy || ready === null}>
               {busy && <Loader2 className="animate-spin" />} {t({ ar: "سجّل", fr: "Enregistrer", en: "Save" })}

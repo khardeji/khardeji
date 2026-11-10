@@ -50,6 +50,15 @@ export const getCatalog = createServerFn({ method: "GET" }).handler(async () => 
   };
 });
 
+/** Live home-page figures (counts only). */
+export const getSiteStats = createServerFn({ method: "GET" }).handler(async () => {
+  const { data, error } = await publicClient().rpc("site_stats");
+  if (error) console.error("site stats read failed", error.message);
+  const o = (data && typeof data === "object" && !Array.isArray(data) ? data : {}) as Record<string, unknown>;
+  const n = (k: string) => (typeof o[k] === "number" ? (o[k] as number) : 0);
+  return { listings: n("listings"), members: n("members"), auctions: n("auctions"), sales: n("sales") };
+});
+
 export const getPricing = createServerFn({ method: "GET" }).handler(async () => {
   const sb = publicClient();
   const [packs, boosts, plans] = await Promise.all([
