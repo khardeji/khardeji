@@ -5,6 +5,7 @@ import { ExternalLink, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { STATUS_BADGE } from "@/components/admin/Listings";
 import { A, Confirm, Loading } from "@/components/admin/shared";
+import { AccountNav } from "@/components/site/AccountNav";
 import { PageHeader } from "@/components/site/SectionHeading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,6 +63,7 @@ function MyListings() {
         title={t({ ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" })}
         intro={t({ ar: "كل إعلان جديد يتراجع من فريقنا قبل ما يتنشر.", fr: "Chaque nouvelle annonce est vérifiée par notre équipe avant d'être mise en ligne.", en: "Every new listing is reviewed by our team before it goes live." })}
       />
+      <AccountNav current="annonces" />
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
         <div className="mb-6 flex justify-end">
           <Button asChild variant="rust"><Link to="/publier"><Plus /> {t({ ar: "انشر إعلان", fr: "Publier une annonce", en: "Post a listing" })}</Link></Button>
@@ -101,6 +103,20 @@ function MyListings() {
                     {st === "approved" && (
                       <Button asChild size="sm" variant="outline">
                         <Link to="/annonces/$id" params={{ id: l.id }}><ExternalLink /> {t({ ar: "شوف", fr: "Voir", en: "View" })}</Link>
+                      </Button>
+                    )}
+                    {l.saleType === "negociable" && (
+                      <Button asChild size="sm" variant="ghost" className="text-xs">
+                        <Link to="/mes-offres">
+                          {t({ ar: "العروض", fr: "Offres", en: "Offers" })}
+                        </Link>
+                      </Button>
+                    )}
+                    {l.saleType === "fixe" && (
+                      <Button asChild size="sm" variant="ghost" className="text-xs">
+                        <Link to="/mes-demandes">
+                          {t({ ar: "الطلبات", fr: "Commandes", en: "Orders" })}
+                        </Link>
                       </Button>
                     )}
                     <Confirm

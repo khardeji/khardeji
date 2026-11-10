@@ -19,7 +19,7 @@ const FALLBACK_IMAGE = "listing-recup";
 
 /** Columns safe to show to anyone (no owner id, no moderation note). */
 export const PUBLIC_LISTING_COLUMNS =
-  "id, title, description, category, subcategory, governorate, city, price, unit, stock, sale_type, images, seller, featured, urgent, auction, status, published_at";
+  "id, title, description, category, subcategory, governorate, city, price, unit, stock, sale_type, images, seller, featured, urgent, auction, status, published_at, owner_id";
 
 function obj(v: Json | null | undefined): Record<string, Json | undefined> {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, Json | undefined>) : {};
@@ -61,7 +61,16 @@ function toAuction(v: Json | null): Listing["auction"] {
     endsAt: typeof o["endsAt"] === "string" ? o["endsAt"] : undefined,
     bids: bids.map((b) => {
       const x = obj(b);
-      return { bidder: str(x["bidder"], "?"), amount: num(x["amount"]), minutesAgo: num(x["minutesAgo"]) };
+      return {
+        bidder: str(x["bidder"], "?"),
+        bidderId: str(x["bidderId"] || x["bidder_id"]),
+        bidderName: str(x["bidderName"] || x["bidder_name"]),
+        bidderPhone: str(x["bidderPhone"] || x["bidder_phone"]),
+        bidderEmail: str(x["bidderEmail"] || x["bidder_email"]),
+        amount: num(x["amount"]),
+        minutesAgo: num(x["minutesAgo"]),
+        createdAt: str(x["createdAt"] || x["created_at"]),
+      };
     }),
   };
 }

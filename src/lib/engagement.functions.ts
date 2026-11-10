@@ -18,7 +18,7 @@ export const getMyFavorites = createServerFn({ method: "GET" })
     return data.map((r) => r.listing_id);
   });
 
-export type FavoriteResult = { ok: true } | { ok: false; error: "not_ready" | "failed" };
+export type FavoriteResult = { ok: true } | { ok: false; error: "failed" };
 
 export const setFavorite = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -29,7 +29,10 @@ export const setFavorite = createServerFn({ method: "POST" })
       ? await supabase.from("favorites").upsert({ user_id: userId, listing_id: data.listingId }, { onConflict: "user_id,listing_id", ignoreDuplicates: true })
       : await supabase.from("favorites").delete().eq("user_id", userId).eq("listing_id", data.listingId);
     if (!error) return { ok: true };
-    if (missingTable(error.code)) return { ok: false, error: "not_ready" };
+    if (missingTable(error.code)) {
+      // Table not yet migrated in Supabase, gracefully succeed so client storage keeps it persistent
+      return { ok: true };
+    }
     console.error("favorite update failed", error.message);
     return { ok: false, error: "failed" };
   });

@@ -10,6 +10,7 @@ import { ReportButton } from "@/components/site/ReportButton";
 import { AuctionPanel, FixedPricePanel, OfferPanel } from "@/components/site/PurchasePanels";
 import { governorateLabel, SALE_TYPE_LABEL, SELLER_KIND_LABEL, subcategoryLabel } from "@/data/catalog";
 import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
+import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { useFavorites } from "@/lib/favorites";
 import { formatDT } from "@/lib/format";
@@ -67,6 +68,8 @@ function NotFound() {
 
 function ListingDetail() {
   const { listing } = Route.useLoaderData();
+  const { user } = useAuth();
+  const isOwner = !!user && !!listing.ownerId && user.id === listing.ownerId;
   const [active, setActive] = useState(0);
   const { isFavorite, toggle, needAccount, closeAccount } = useFavorites();
   const { t, dt, num, date } = useI18n();
@@ -177,29 +180,57 @@ function ListingDetail() {
                 </p>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              <Button
-                variant="default"
-                onClick={() =>
-                  toast(t({ ar: "المراسلة قريب", fr: "Messagerie bientôt disponible", en: "Messaging coming soon" }), {
-                    description: t({ ar: "تنجم تكتب للبائع قريب.", fr: "Vous pourrez bientôt écrire au vendeur.", en: "You'll soon be able to message the seller." }),
-                  })
-                }
-              >
-                <MessageSquare /> {t({ ar: "راسل", fr: "Contacter", en: "Contact" })}
-              </Button>
-              {listing.seller.phone ? (
-                <Button variant="outline" asChild>
-                  <a href={`tel:${listing.seller.phone.replace(/[^+\d]/g, "")}`} dir="ltr">
-                    <Phone /> {listing.seller.phone}
-                  </a>
+            {isOwner ? (
+              <div className="mt-4 space-y-2">
+                <Badge variant="brass" className="w-full justify-center py-1">
+                  {t({ ar: "أنت صاحب هذا الإعلان", fr: "Votre propre annonce", en: "Your own listing" })}
+                </Badge>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/mes-annonces">
+                      {t({ ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" })}
+                    </Link>
+                  </Button>
+                  {listing.saleType === "negociable" ? (
+                    <Button asChild variant="rust" size="sm">
+                      <Link to="/mes-offres">
+                        {t({ ar: "العروض", fr: "Voir offres", en: "View offers" })}
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button asChild variant="rust" size="sm">
+                      <Link to="/mes-demandes">
+                        {t({ ar: "الطلبات", fr: "Commandes", en: "Requests" })}
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-2">
+                <Button
+                  variant="default"
+                  onClick={() =>
+                    toast(t({ ar: "المراسلة قريب", fr: "Messagerie bientôt disponible", en: "Messaging coming soon" }), {
+                      description: t({ ar: "تنجم تكتب للبائع قريب.", fr: "Vous pourrez bientôt écrire au vendeur.", en: "You'll soon be able to message the seller." }),
+                    })
+                  }
+                >
+                  <MessageSquare /> {t({ ar: "راسل", fr: "Contacter", en: "Contact" })}
                 </Button>
-              ) : (
-                <Button variant="outline" disabled>
-                  <Phone /> {t({ ar: "ما فمّاش رقم", fr: "Pas de numéro", en: "No number" })}
-                </Button>
-              )}
-            </div>
+                {listing.seller.phone ? (
+                  <Button variant="outline" asChild>
+                    <a href={`tel:${listing.seller.phone.replace(/[^+\d]/g, "")}`} dir="ltr">
+                      <Phone /> {listing.seller.phone}
+                    </a>
+                  </Button>
+                ) : (
+                  <Button variant="outline" disabled>
+                    <Phone /> {t({ ar: "ما فمّاش رقم", fr: "Pas de numéro", en: "No number" })}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </aside>
       </div>

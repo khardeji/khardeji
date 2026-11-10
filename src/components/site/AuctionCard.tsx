@@ -1,13 +1,19 @@
 import { Link } from "@tanstack/react-router";
-import { Gavel, Users } from "lucide-react";
+import { Gavel, Heart, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auctionCurrentPrice, governorateLabel, subcategoryLabel, type Listing } from "@/data/catalog";
 import { useI18n } from "@/hooks/use-i18n";
+import { useFavorites } from "@/lib/favorites";
+import { AccountRequiredDialog } from "./ActionDialogs";
+import { cn } from "@/lib/utils";
 import { Countdown } from "./Countdown";
 
 export function AuctionCard({ listing }: { listing: Listing }) {
   const a = listing.auction!;
   const { t, dt } = useI18n();
+  const { isFavorite, toggle, needAccount, closeAccount } = useFavorites();
+  const fav = isFavorite(listing.id);
+
   return (
     <article className="group flex flex-col overflow-hidden rounded-xl border border-on-dark/10 bg-charcoal-soft text-on-dark shadow-lg sm:flex-row">
       <div className="relative aspect-[4/3] overflow-hidden sm:aspect-auto sm:w-2/5">
@@ -22,6 +28,16 @@ export function AuctionCard({ listing }: { listing: Listing }) {
         <span className="label-stamp absolute start-3 top-3 inline-flex items-center gap-1 rounded bg-rust px-2 py-1 text-[0.65rem] text-rust-foreground">
           <span className="size-1.5 animate-pulse-dot rounded-full bg-rust-foreground" /> {t({ ar: "مباشر", fr: "En direct", en: "Live" })}
         </span>
+        <button
+          type="button"
+          onClick={() => void toggle(listing.id)}
+          aria-label={fav ? t({ ar: "نحّي من المفضلة", fr: "Retirer des favoris", en: "Remove from favourites" }) : t({ ar: "زيد للمفضلة", fr: "Ajouter aux favoris", en: "Add to favourites" })}
+          aria-pressed={fav}
+          className="absolute end-3 top-3 grid size-9 place-items-center rounded-full bg-charcoal/80 text-foreground backdrop-blur-sm shadow-sm transition hover:scale-105"
+        >
+          <Heart className={cn("size-4", fav ? "fill-rust text-rust" : "text-white")} />
+        </button>
+        <AccountRequiredDialog open={needAccount} onClose={closeAccount} reason="favori" />
       </div>
       <div className="flex flex-1 flex-col p-5">
         <p className="label-stamp text-[0.68rem] text-brass">
