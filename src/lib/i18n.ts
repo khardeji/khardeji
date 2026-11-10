@@ -53,9 +53,27 @@ export function translator(locale: Locale) {
 /** Localized <head> meta for a page. */
 export function pageMeta(
   locale: Locale,
-  p: { title: Msg; description: Msg; ogTitle?: Msg; ogDescription?: Msg; ogType?: string; card?: string },
+  p: {
+    title: Msg;
+    description: Msg;
+    ogTitle?: Msg;
+    ogDescription?: Msg;
+    ogType?: string;
+    card?: string;
+    /** Absolute https URL of the link-preview picture (leaf routes only, never __root). */
+    image?: string;
+  },
 ) {
   const t = translator(locale);
+  const image = p.image
+    ? [
+        { property: "og:image", content: p.image },
+        { property: "og:image:width", content: "1200" },
+        { property: "og:image:height", content: "630" },
+        { property: "og:image:alt", content: "Khardeji" },
+        { name: "twitter:image", content: p.image },
+      ]
+    : [];
   return [
     { title: t(p.title) },
     { name: "description", content: t(p.description) },
@@ -63,5 +81,9 @@ export function pageMeta(
     { property: "og:description", content: t(p.ogDescription ?? p.description) },
     { property: "og:type", content: p.ogType ?? "website" },
     { name: "twitter:card", content: p.card ?? "summary_large_image" },
+    ...image,
   ];
 }
+
+/** Wide brand picture for shared links: the whole logo sits in the middle so square crops keep it intact. */
+export const SHARE_IMAGE = "https://khardeji.vercel.app/og-image.png";

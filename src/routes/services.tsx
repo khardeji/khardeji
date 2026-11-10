@@ -5,12 +5,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/hooks/use-i18n";
 import { pricingQuery } from "@/lib/catalog-queries";
-import { pageMeta, type Msg } from "@/lib/i18n";
+import { pageMeta, SHARE_IMAGE, type Msg } from "@/lib/i18n";
 
 export const Route = createFileRoute("/services")({
   loader: ({ context }) => context.queryClient.ensureQueryData(pricingQuery),
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
+      image: SHARE_IMAGE,
       title: {
         ar: "العروض والخدمات — نقاط، ترويج الإعلانات وباقات محترفين | خردجي",
         fr: "Offres et services — Jetons, boosts et forfaits Pro | Khardeji",

@@ -16,7 +16,7 @@ import {
 } from "@/data/catalog";
 import { useI18n } from "@/hooks/use-i18n";
 import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
-import { pageMeta } from "@/lib/i18n";
+import { pageMeta, SHARE_IMAGE } from "@/lib/i18n";
 
 type Sort = "recent" | "prix-asc" | "prix-desc";
 
@@ -50,6 +50,7 @@ export const Route = createFileRoute("/annonces/")({
   }),
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
+      image: SHARE_IMAGE,
       title: {
         ar: "الإعلانات — خردة، قطع غيار ومواد رسكلة | خردجي",
         fr: "Annonces — Ferraille, pièces auto et récupération | Khardeji",

@@ -3,11 +3,12 @@ import { Calculator, Gavel, HandCoins, Megaphone, Scale, ShieldCheck, Truck } fr
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/site/SectionHeading";
 import { useI18n } from "@/hooks/use-i18n";
-import { pageMeta } from "@/lib/i18n";
+import { pageMeta, SHARE_IMAGE } from "@/lib/i18n";
 
 export const Route = createFileRoute("/comment-ca-marche")({
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
+      image: SHARE_IMAGE,
       title: {
         ar: "كيفاش تخدم؟ — بيع وشري الخردة | خردجي",
         fr: "Comment ça marche ? — Vendre et acheter de la ferraille | Khardeji",

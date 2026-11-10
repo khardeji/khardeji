@@ -5,12 +5,13 @@ import { PageHeader } from "@/components/site/SectionHeading";
 import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
 import { auctionSortKey } from "@/lib/demo-clock";
 import { useI18n } from "@/hooks/use-i18n";
-import { pageMeta } from "@/lib/i18n";
+import { pageMeta, SHARE_IMAGE } from "@/lib/i18n";
 
 export const Route = createFileRoute("/encheres")({
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQuery),
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
+      image: SHARE_IMAGE,
       title: {
         ar: "المزايدات الجارية — عربات، خردة، آلات | خردجي",
         fr: "Enchères en cours — Véhicules, ferraille, machines | Khardeji",

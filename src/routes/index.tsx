@@ -9,13 +9,14 @@ import { SectionHeading } from "@/components/site/SectionHeading";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { catalogQuery, statsQuery, useCatalog } from "@/lib/catalog-queries";
 import { useI18n } from "@/hooks/use-i18n";
-import { pageMeta } from "@/lib/i18n";
+import { pageMeta, SHARE_IMAGE } from "@/lib/i18n";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) =>
     Promise.all([context.queryClient.ensureQueryData(catalogQuery), context.queryClient.ensureQueryData(statsQuery)]),
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
+      image: SHARE_IMAGE,
       title: {
         ar: "خردجي — الخردة عندها قيمة | سوق تونسية",
         fr: "Khardeji — La ferraille a de la valeur | Marketplace Tunisie",

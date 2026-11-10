@@ -4,12 +4,13 @@ import { PageHeader } from "@/components/site/SectionHeading";
 import { subcategoryLabel } from "@/data/catalog";
 import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
 import { useI18n } from "@/hooks/use-i18n";
-import { pageMeta } from "@/lib/i18n";
+import { pageMeta, SHARE_IMAGE } from "@/lib/i18n";
 
 export const Route = createFileRoute("/categories")({
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQuery),
   head: ({ match }) => ({
     meta: pageMeta(match.context.locale, {
+      image: SHARE_IMAGE,
       title: {
         ar: "الأصناف — معادن، قطع غيار، عربات، معدات | خردجي",
         fr: "Catégories — Métaux, pièces auto, véhicules, industriel | Khardeji",
