@@ -152,6 +152,8 @@ export function SubscriptionsPanel() {
                               en: `This user will be upgraded to plan ${r.planId}.`,
                             })
                       }
+                      confirmLabel={t({ ar: "تأكيد وتفعيل", fr: "Valider", en: "Approve" })}
+                      variant="rust"
                       onConfirm={() => void handleAction(r.id, "approve")}
                       trigger={
                         <Button size="sm" variant="rust" className="gap-1.5">
@@ -163,6 +165,13 @@ export function SubscriptionsPanel() {
 
                     <Confirm
                       title={t({ ar: "رفض الطلب؟", fr: "Rejeter cette demande ?", en: "Reject this request?" })}
+                      description={t({
+                        ar: "هل أنت متأكد من رفض هذا الطلب؟",
+                        fr: "Êtes-vous sûr de vouloir rejeter cette demande ?",
+                        en: "Are you sure you want to reject this request?",
+                      })}
+                      confirmLabel={t({ ar: "رفض الطلب", fr: "Rejeter", en: "Reject" })}
+                      variant="destructive"
                       onConfirm={() => void handleAction(r.id, "reject")}
                       trigger={
                         <Button size="sm" variant="outline" className="gap-1.5 text-destructive hover:bg-destructive/10">

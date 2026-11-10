@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ExternalLink, Gauge, Plus, Rocket, Trash2 } from "lucide-react";
+import { BadgeCheck, ExternalLink, Flame, Gauge, Plus, Rocket, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { STATUS_BADGE } from "@/components/admin/Listings";
@@ -99,6 +99,21 @@ function MyListings() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={STATUS_BADGE[st]}>{t(LISTING_STATUS_LABEL[st])}</Badge>
                       <Badge variant="outline">{t(SALE_TYPE_LABEL[l.saleType])}</Badge>
+                      {l.urgent && (
+                        <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
+                          <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                        </Badge>
+                      )}
+                      {l.featured && (
+                        <Badge className="bg-brass text-brass-foreground font-semibold text-[0.65rem] gap-1 px-1.5 py-0">
+                          <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
+                        </Badge>
+                      )}
+                      {l.boostedAt && (
+                        <Badge variant="outline" className="border-olive text-olive text-[0.65rem] gap-1 px-1.5 py-0">
+                          <Rocket className="size-3" /> {t({ ar: "تم ترويجها", fr: "Remontée", en: "Bumped" })}
+                        </Badge>
+                      )}
                     </div>
                     <h2 className="mt-2 truncate text-lg font-semibold">{t(l.title)}</h2>
                     <p className="text-sm text-muted-foreground">

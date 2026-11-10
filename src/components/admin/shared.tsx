@@ -93,9 +93,30 @@ export function MsgFields({ label, value, onChange, multiline }: { label: string
   );
 }
 
-export function Confirm({ trigger, onConfirm, title, description }: { trigger: ReactNode; onConfirm: () => void; title?: string; description?: string }) {
+export function Confirm({
+  trigger,
+  onConfirm,
+  title,
+  description,
+  confirmLabel,
+  variant = "destructive",
+}: {
+  trigger: ReactNode;
+  onConfirm: () => void;
+  title?: string | undefined;
+  description?: string | undefined;
+  confirmLabel?: string | undefined;
+  variant?: "destructive" | "default" | "rust" | undefined;
+}) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const actionClass =
+    variant === "rust"
+      ? "bg-rust text-rust-foreground hover:bg-rust/90"
+      : variant === "default"
+      ? "bg-primary text-primary-foreground hover:bg-primary/90"
+      : "bg-destructive text-destructive-foreground hover:bg-destructive/90";
+
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
@@ -107,13 +128,13 @@ export function Confirm({ trigger, onConfirm, title, description }: { trigger: R
         <AlertDialogFooter>
           <AlertDialogCancel>{t(A.cancel)}</AlertDialogCancel>
           <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className={actionClass}
             onClick={() => {
               setOpen(false);
               onConfirm();
             }}
           >
-            {t(A.delete)}
+            {confirmLabel ?? t(A.delete)}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -377,3 +377,40 @@ export const getMyRequests = createServerFn({ method: "GET" })
     }
   });
 
+export interface UserBoostItem {
+  id: string;
+  listingId: string;
+  listingTitle: Msg;
+  boostId: string;
+  cost: number;
+  createdAt: string;
+}
+
+/** Get member's boost history. */
+export const getMyBoosts = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<UserBoostItem[]> => {
+    try {
+      const { supabase, userId } = context;
+      const { data, error } = await supabase
+        .from("listing_boosts")
+        .select("id, listing_id, boost_id, cost, created_at, listings(id, title)")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50);
+
+      if (error || !data) return [];
+      return data.map((b: any) => ({
+        id: String(b.id),
+        listingId: String(b.listing_id),
+        listingTitle: b.listings?.title ?? { ar: "إعلان", fr: "Annonce", en: "Listing" },
+        boostId: String(b.boost_id),
+        cost: Number(b.cost ?? 0),
+        createdAt: String(b.created_at ?? ""),
+      }));
+    } catch (e) {
+      console.warn("getMyBoosts error", e);
+      return [];
+    }
+  });
+

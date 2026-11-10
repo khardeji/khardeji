@@ -138,6 +138,7 @@ export interface Listing {
   seller: Seller;
   featured?: boolean;
   urgent?: boolean;
+  boostedAt?: string | null;
   auction?: {
     startPrice: number;
     increment: number;

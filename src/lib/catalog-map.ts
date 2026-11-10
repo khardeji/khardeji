@@ -94,6 +94,7 @@ export function rowToListing(r: Partial<ListingRow> & Pick<ListingRow, "id">): L
     seller: toSeller(r.seller ?? {}),
     featured: r.featured ?? false,
     urgent: r.urgent ?? false,
+    boostedAt: (r as any).boosted_at ?? null,
     auction: toAuction(r.auction ?? null),
     status: (r.status ?? "approved") as ListingStatus,
     ownerId: r.owner_id ?? null,

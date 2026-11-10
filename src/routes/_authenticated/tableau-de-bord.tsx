@@ -39,11 +39,13 @@ import { pageMeta, type Msg } from "@/lib/i18n";
 import { deleteMyListing, getMyListings } from "@/lib/listings.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 import {
+  getMyBoosts,
   getMyMessages,
   getMyOverview,
   getMyRequests,
   markMessageRead,
   type MessageItem,
+  type UserBoostItem,
   type UserRequestItem,
 } from "@/lib/services.functions";
 
@@ -87,6 +89,7 @@ export function DashboardPage() {
   const fetchListings = useServerFn(getMyListings);
   const fetchMessages = useServerFn(getMyMessages);
   const fetchRequests = useServerFn(getMyRequests);
+  const fetchBoosts = useServerFn(getMyBoosts);
   const removeListing = useServerFn(deleteMyListing);
   const setRead = useServerFn(markMessageRead);
 
@@ -111,6 +114,12 @@ export function DashboardPage() {
   const { data: requests } = useQuery({
     queryKey: ["me", "requests"],
     queryFn: () => fetchRequests(),
+    enabled: !!user,
+    retry: false,
+  });
+  const { data: boosts } = useQuery({
+    queryKey: ["me", "boosts"],
+    queryFn: () => fetchBoosts(),
     enabled: !!user,
     retry: false,
   });
@@ -427,6 +436,26 @@ export function DashboardPage() {
                           <div>
                             <p className="font-semibold text-foreground">{t(l.title)}</p>
                             <p className="text-xs text-muted-foreground">{dt(l.price)} · {t(SALE_TYPE_LABEL[l.saleType])}</p>
+                            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                              {l.urgent && (
+                                <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
+                                  <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                                </Badge>
+                              )}
+                              {l.featured && (
+                                <Badge className="bg-brass text-brass-foreground font-semibold text-[0.65rem] gap-1 px-1.5 py-0">
+                                  <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
+                                </Badge>
+                              )}
+                              {l.boostedAt && (
+                                <Badge variant="outline" className="border-olive text-olive text-[0.65rem] gap-1 px-1.5 py-0">
+                                  <Rocket className="size-3" /> {t({ ar: "تم ترويجها", fr: "Remontée", en: "Bumped" })}
+                                </Badge>
+                              )}
+                              {!l.urgent && !l.featured && !l.boostedAt && (
+                                <span className="text-[0.65rem] text-muted-foreground">{t({ ar: "بدون ترويج حالياً", fr: "Aucun boost actif", en: "No active boost" })}</span>
+                              )}
+                            </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
@@ -450,6 +479,80 @@ export function DashboardPage() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* History of Applied Boosts */}
+              <div className="surface-card p-6">
+                <h3 className="text-lg font-semibold flex items-center gap-2">
+                  <Rocket className="size-5 text-rust" />
+                  {t({ ar: "سجل الترويج والإعلانات المعززة", fr: "Historique de vos boosts appliqués", en: "Your boost history" })}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t({
+                    ar: "قائمة الإعلانات التي قمت بترويجها وطريقة الترويج المطبقة.",
+                    fr: "Retrouvez ici toutes vos annonces boostées et la méthode de boost choisie.",
+                    en: "List of all boosted listings and their applied boost method.",
+                  })}
+                </p>
+
+                {!boosts || boosts.length === 0 ? (
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    {t({ ar: "لم تقم بترويج أي إعلان بعد.", fr: "Aucun boost appliqué pour le moment.", en: "No boosts applied yet." })}
+                  </p>
+                ) : (
+                  <div className="mt-4 divide-y divide-border">
+                    {boosts.map((b: UserBoostItem) => {
+                      const isUrgent = b.boostId === "urgent";
+                      const isFeatured = b.boostId === "a-la-une";
+                      const isPremium = b.boostId === "premium-7j";
+                      return (
+                        <div key={b.id} className="flex flex-col justify-between gap-2 py-3 sm:flex-row sm:items-center">
+                          <div>
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold text-foreground text-sm">{t(b.listingTitle)}</span>
+                              <Badge
+                                className={`text-[0.65rem] gap-1 px-1.5 py-0 ${
+                                  isUrgent
+                                    ? "bg-rust text-white"
+                                    : isFeatured || isPremium
+                                    ? "bg-brass text-brass-foreground font-semibold"
+                                    : "bg-olive text-white"
+                                }`}
+                              >
+                                {isUrgent ? (
+                                  <>
+                                    <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Annonce urgente", en: "Urgent" })}
+                                  </>
+                                ) : isPremium ? (
+                                  <>
+                                    <BadgeCheck className="size-3" /> {t({ ar: "مميّز — 7 أيام", fr: "Premium — 7 jours", en: "Premium 7d" })}
+                                  </>
+                                ) : isFeatured ? (
+                                  <>
+                                    <Home className="size-3" /> {t({ ar: "في الواجهة الرئيسية", fr: "À la une accueil", en: "Featured on home" })}
+                                  </>
+                                ) : (
+                                  <>
+                                    <Rocket className="size-3" /> {t({ ar: "طلّع الإعلان للفوق", fr: "Remonter l'annonce", en: "Bump listing" })}
+                                  </>
+                                )}
+                              </Badge>
+                            </div>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {date(b.createdAt)} · {b.cost} {t({ ar: "نقاط", fr: "jetons déduits", en: "tokens deducted" })}
+                            </p>
+                          </div>
+                          <Button asChild size="sm" variant="ghost" className="h-8 text-xs">
+                            <Link to="/annonces/$id" params={{ id: b.listingId }}>
+                              <ExternalLink className="size-3.5 me-1" />
+                              {t({ ar: "عرض الإعلان", fr: "Voir l'annonce", en: "View listing" })}
+                            </Link>
+                          </Button>
+                        </div>
+                      );
+                    })}
                   </div>
                 )}
               </div>
@@ -482,9 +585,24 @@ export function DashboardPage() {
                           <div className="size-20 shrink-0 rounded-md bg-muted grid place-items-center text-muted-foreground"><ShoppingBag className="size-8" /></div>
                         )}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <Badge variant={STATUS_BADGE[st]}>{t(LISTING_STATUS_LABEL[st])}</Badge>
                             <Badge variant="outline">{t(SALE_TYPE_LABEL[l.saleType])}</Badge>
+                            {l.urgent && (
+                              <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
+                                <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                              </Badge>
+                            )}
+                            {l.featured && (
+                              <Badge className="bg-brass text-brass-foreground font-semibold text-[0.65rem] gap-1 px-1.5 py-0">
+                                <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
+                              </Badge>
+                            )}
+                            {l.boostedAt && (
+                              <Badge variant="outline" className="border-olive text-olive text-[0.65rem] gap-1 px-1.5 py-0">
+                                <Rocket className="size-3" /> {t({ ar: "تم ترويجها", fr: "Remontée", en: "Bumped" })}
+                              </Badge>
+                            )}
                           </div>
                           <h4 className="mt-1 truncate font-semibold text-foreground">{t(l.title)}</h4>
                           <p className="text-xs text-muted-foreground">{dt(l.price)} / {t(UNIT_LABEL[l.unit].short)}</p>
