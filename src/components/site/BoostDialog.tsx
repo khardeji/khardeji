@@ -115,6 +115,7 @@ export function BoostDialog({
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["me", "listings"] }),
         qc.invalidateQueries({ queryKey: ["me", "overview"] }),
+        qc.invalidateQueries({ queryKey: ["me", "boosts"] }),
         qc.invalidateQueries({ queryKey: ["catalog"] }),
       ]);
       onClose();

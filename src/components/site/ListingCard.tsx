@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { Gavel, Heart, MapPin, Package } from "lucide-react";
+import { BadgeCheck, Flame, Gavel, Heart, MapPin, Package } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { auctionCurrentPrice, governorateLabel, SALE_TYPE_LABEL, subcategoryLabel, type Listing } from "@/data/catalog";
@@ -20,7 +20,7 @@ export function ListingCard({ listing }: { listing: Listing }) {
   const price = isAuction ? auctionCurrentPrice(listing) : listing.price;
 
   return (
-    <article className="surface-card card-lift group flex flex-col overflow-hidden">
+    <article className={cn("surface-card card-lift group flex flex-col overflow-hidden", listing.featured && "ring-2 ring-brass shadow-md")}>
       <div className="relative aspect-[4/3] overflow-hidden bg-muted">
         <img
           src={listing.images[0]}
@@ -38,7 +38,16 @@ export function ListingCard({ listing }: { listing: Listing }) {
             </Badge>
           )}
           {listing.saleType === "negociable" && <Badge variant="brass">{t(SALE_TYPE_LABEL.negociable)}</Badge>}
-          {listing.urgent && <Badge variant="dark">{t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}</Badge>}
+          {listing.urgent && (
+            <Badge variant="dark" className="bg-rust text-white border-transparent">
+              <Flame className="me-1 size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+            </Badge>
+          )}
+          {listing.featured && (
+            <Badge variant="brass" className="bg-brass text-brass-foreground font-semibold">
+              <BadgeCheck className="me-1 size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
+            </Badge>
+          )}
         </div>
         <button
           type="button"
