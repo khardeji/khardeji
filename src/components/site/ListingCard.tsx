@@ -5,13 +5,14 @@ import { Button } from "@/components/ui/button";
 import { auctionCurrentPrice, governorateLabel, SALE_TYPE_LABEL, subcategoryLabel, type Listing } from "@/data/catalog";
 import { useI18n } from "@/hooks/use-i18n";
 import { useFavorites } from "@/lib/favorites";
+import { AccountRequiredDialog } from "./ActionDialogs";
 import { UNIT_LABEL } from "@/lib/quantity";
 import { cn } from "@/lib/utils";
 
 const NEW_SINCE = "2026-11-08";
 
 export function ListingCard({ listing }: { listing: Listing }) {
-  const { isFavorite, toggle } = useFavorites();
+  const { isFavorite, toggle, needAccount, closeAccount } = useFavorites();
   const { t, dt, num, date } = useI18n();
   const fav = isFavorite(listing.id);
   const unit = t(UNIT_LABEL[listing.unit].short);
@@ -41,13 +42,14 @@ export function ListingCard({ listing }: { listing: Listing }) {
         </div>
         <button
           type="button"
-          onClick={() => toggle(listing.id)}
+          onClick={() => void toggle(listing.id)}
           aria-label={fav ? t({ ar: "نحّي من المفضلة", fr: "Retirer des favoris", en: "Remove from favourites" }) : t({ ar: "زيد للمفضلة", fr: "Ajouter aux favoris", en: "Add to favourites" })}
           aria-pressed={fav}
           className="absolute end-3 top-3 grid size-9 place-items-center rounded-full bg-card/90 text-foreground shadow-sm transition hover:scale-105"
         >
           <Heart className={cn("size-4", fav && "fill-rust text-rust")} />
         </button>
+        <AccountRequiredDialog open={needAccount} onClose={closeAccount} reason="favori" />
       </div>
 
       <div className="flex flex-1 flex-col p-4">

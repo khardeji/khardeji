@@ -257,3 +257,71 @@ export const savePlan = admin
       .eq("id", data.id);
     return error ? { ok: false as const } : { ok: true as const };
   });
+
+// ---------- Reports ----------
+export type ReportStatus = "open" | "resolved" | "dismissed";
+
+export const listAdminReports = adminGet.handler(async ({ context }) => {
+  const { supabase, userId } = context;
+  await assertAdmin(supabase, userId);
+  const { data, error } = await supabase.from("listing_reports").select("*").order("created_at", { ascending: false }).limit(500);
+  if (error) {
+    // Table not created yet (SQL file not run): show an explanation instead of an error.
+    if (error.code === "PGRST205" || error.code === "42P01") return { ready: false as const, reports: [] };
+    throw new Error("reports_unavailable");
+  }
+  const listingIds = [...new Set(data.map((r) => r.listing_id))];
+  const reporterIds = [...new Set(data.map((r) => r.reporter_id))];
+  const [listings, profiles] = await Promise.all([
+    listingIds.length ? supabase.from("listings").select("id, title, status").in("id", listingIds) : Promise.resolve({ data: [] }),
+    reporterIds.length ? supabase.from("profiles").select("id, email, full_name").in("id", reporterIds) : Promise.resolve({ data: [] }),
+  ]);
+  const listingById = new Map((listings.data ?? []).map((l) => [l.id, l]));
+  const profileById = new Map((profiles.data ?? []).map((p) => [p.id, p]));
+  return {
+    ready: true as const,
+    reports: data.map((r) => {
+      const l = listingById.get(r.listing_id);
+      const p = profileById.get(r.reporter_id);
+      return {
+        id: r.id,
+        listingId: r.listing_id,
+        listingTitle: (l?.title as Msg | undefined) ?? null,
+        listingStatus: (l?.status as ListingStatus | undefined) ?? null,
+        reporterEmail: p?.email ?? "",
+        reporterName: p?.full_name ?? "",
+        reason: r.reason,
+        details: r.details,
+        status: r.status as ReportStatus,
+        adminNote: r.admin_note,
+        createdAt: r.created_at,
+      };
+    }),
+  };
+});
+
+export const updateAdminReport = admin
+  .inputValidator((d: { id: string; status: ReportStatus; note?: string | undefined }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    if (!["open", "resolved", "dismissed"].includes(data.status)) return { ok: false as const };
+    const { error } = await supabase
+      .from("listing_reports")
+      .update({
+        status: data.status,
+        reviewed_at: data.status === "open" ? null : new Date().toISOString(),
+        ...(data.note !== undefined ? { admin_note: data.note.trim().slice(0, 500) } : {}),
+      })
+      .eq("id", data.id);
+    return error ? { ok: false as const } : { ok: true as const };
+  });
+
+export const deleteAdminReport = admin
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+    const { error } = await supabase.from("listing_reports").delete().eq("id", data.id);
+    return error ? { ok: false as const } : { ok: true as const };
+  });

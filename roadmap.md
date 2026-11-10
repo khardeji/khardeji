@@ -31,4 +31,7 @@
 - [ ] Jetons : achat, solde, historique ; paiement
 - [x] Administration : statistiques, comptes (bloquer, admin), modération, catégories, tarifs
 - [x] Fichier SQL complet de la base
-- [ ] Administration : signalements, vérification vendeurs
+- [x] Favoris liés au compte + page « Mes favoris »
+- [x] Signalements avec raison + onglet Administration « Signalements »
+- [ ] Administration : vérification vendeurs
+- [ ] Exécuter khardeji-favoris-signalements.sql dans Supabase (propriétaire)

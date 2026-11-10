@@ -19,6 +19,7 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedMesAnnoncesRouteImport } from './routes/_authenticated/mes-annonces'
+import { Route as AuthenticatedMesFavorisRouteImport } from './routes/_authenticated/mes-favoris'
 import { Route as AuthenticatedPublierRouteImport } from './routes/_authenticated/publier'
 import { Route as AnnoncesIndexRouteImport } from './routes/annonces.index'
 import { Route as AnnoncesIdRouteImport } from './routes/annonces.$id'
@@ -73,6 +74,11 @@ const AuthenticatedMesAnnoncesRoute =
     path: '/mes-annonces',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMesFavorisRoute = AuthenticatedMesFavorisRouteImport.update({
+  id: '/mes-favoris',
+  path: '/mes-favoris',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedPublierRoute = AuthenticatedPublierRouteImport.update({
   id: '/publier',
   path: '/publier',
@@ -99,6 +105,7 @@ export interface FileRoutesByFullPath {
   '/services': typeof ServicesRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
+  '/mes-favoris': typeof AuthenticatedMesFavorisRoute
   '/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces/': typeof AnnoncesIndexRoute
@@ -113,6 +120,7 @@ export interface FileRoutesByTo {
   '/services': typeof ServicesRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
+  '/mes-favoris': typeof AuthenticatedMesFavorisRoute
   '/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces': typeof AnnoncesIndexRoute
@@ -129,6 +137,7 @@ export interface FileRoutesById {
   '/services': typeof ServicesRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
+  '/_authenticated/mes-favoris': typeof AuthenticatedMesFavorisRoute
   '/_authenticated/publier': typeof AuthenticatedPublierRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces/': typeof AnnoncesIndexRoute
@@ -145,6 +154,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/admin'
     | '/mes-annonces'
+    | '/mes-favoris'
     | '/publier'
     | '/annonces/$id'
     | '/annonces/'
@@ -159,6 +169,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/admin'
     | '/mes-annonces'
+    | '/mes-favoris'
     | '/publier'
     | '/annonces/$id'
     | '/annonces'
@@ -174,6 +185,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/_authenticated/admin'
     | '/_authenticated/mes-annonces'
+    | '/_authenticated/mes-favoris'
     | '/_authenticated/publier'
     | '/annonces/$id'
     | '/annonces/'
@@ -264,6 +276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMesAnnoncesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/mes-favoris': {
+      id: '/_authenticated/mes-favoris'
+      path: '/mes-favoris'
+      fullPath: '/mes-favoris'
+      preLoaderRoute: typeof AuthenticatedMesFavorisRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/publier': {
       id: '/_authenticated/publier'
       path: '/publier'
@@ -291,12 +310,14 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedMesAnnoncesRoute: typeof AuthenticatedMesAnnoncesRoute
+  AuthenticatedMesFavorisRoute: typeof AuthenticatedMesFavorisRoute
   AuthenticatedPublierRoute: typeof AuthenticatedPublierRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedMesAnnoncesRoute: AuthenticatedMesAnnoncesRoute,
+  AuthenticatedMesFavorisRoute: AuthenticatedMesFavorisRoute,
   AuthenticatedPublierRoute: AuthenticatedPublierRoute,
 }
 

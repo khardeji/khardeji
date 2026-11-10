@@ -1,10 +1,12 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { BadgeCheck, CalendarDays, Flag, Heart, MapPin, MessageSquare, Package, Phone, Share2, Tag } from "lucide-react";
+import { BadgeCheck, CalendarDays, Heart, MapPin, MessageSquare, Package, Phone, Share2, Tag } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { AccountRequiredDialog } from "@/components/site/ActionDialogs";
 import { ListingCard } from "@/components/site/ListingCard";
+import { ReportButton } from "@/components/site/ReportButton";
 import { AuctionPanel, FixedPricePanel, OfferPanel } from "@/components/site/PurchasePanels";
 import { governorateLabel, SALE_TYPE_LABEL, SELLER_KIND_LABEL, subcategoryLabel } from "@/data/catalog";
 import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
@@ -66,7 +68,7 @@ function NotFound() {
 function ListingDetail() {
   const { listing } = Route.useLoaderData();
   const [active, setActive] = useState(0);
-  const { isFavorite, toggle } = useFavorites();
+  const { isFavorite, toggle, needAccount, closeAccount } = useFavorites();
   const { t, dt, num, date } = useI18n();
   const fav = isFavorite(listing.id);
   const { listings, getCategory } = useCatalog();
@@ -150,21 +152,13 @@ function ListingDetail() {
             {listing.saleType === "enchere" && <AuctionPanel listing={listing} />}
 
             <div className="mt-5 grid grid-cols-3 gap-2">
-              <Button variant="outline" onClick={() => toggle(listing.id)} aria-pressed={fav}>
+              <Button variant="outline" onClick={() => void toggle(listing.id)} aria-pressed={fav}>
                 <Heart className={cn(fav && "fill-rust text-rust")} /> {fav ? t({ ar: "في المفضلة", fr: "Favori", en: "Saved" }) : t({ ar: "المفضلة", fr: "Favoris", en: "Save" })}
               </Button>
               <Button variant="outline" onClick={share}><Share2 /> {t({ ar: "شارك", fr: "Partager", en: "Share" })}</Button>
-              <Button
-                variant="outline"
-                onClick={() =>
-                  toast(t({ ar: "وصلنا التبليغ", fr: "Signalement reçu", en: "Report received" }), {
-                    description: t({ ar: "فريق المراقبة باش يراجع الإعلان.", fr: "Notre équipe de modération va examiner l'annonce.", en: "Our moderation team will review the listing." }),
-                  })
-                }
-              >
-                <Flag /> {t({ ar: "بلّغ", fr: "Signaler", en: "Report" })}
-              </Button>
+              <ReportButton listingId={listing.id} listingTitle={t(listing.title)} />
             </div>
+            <AccountRequiredDialog open={needAccount} onClose={closeAccount} reason="favori" />
           </div>
 
           <div className="surface-card p-6">

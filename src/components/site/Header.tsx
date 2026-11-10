@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { LayoutDashboard, ListChecks, LogOut, Menu, Plus, UserRound } from "lucide-react";
+import { Heart, LayoutDashboard, ListChecks, LogOut, Menu, Plus, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -29,6 +29,7 @@ const NAV = [
 
 const PUBLISH = { ar: "انشر إعلان", fr: "Publier une annonce", en: "Post a listing" };
 const MY_LISTINGS = { ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" };
+const MY_FAVORITES = { ar: "مفضلتي", fr: "Mes favoris", en: "My favourites" };
 const ADMIN = { ar: "لوحة الإدارة", fr: "Administration", en: "Admin dashboard" };
 const SIGN_OUT = { ar: "تسجيل الخروج", fr: "Se déconnecter", en: "Sign out" };
 
@@ -74,6 +75,9 @@ function AccountMenu() {
         )}
         <DropdownMenuItem onSelect={() => navigate({ to: "/mes-annonces" })}>
           <ListChecks /> {t(MY_LISTINGS)}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate({ to: "/mes-favoris" })}>
+          <Heart /> {t(MY_FAVORITES)}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate({ to: "/publier" })}>
           <Plus /> {t(PUBLISH)}
@@ -154,8 +158,11 @@ export function Header() {
                         <LayoutDashboard className="size-5" /> {t(ADMIN)}
                       </Link>
                     )}
-                    <Link to="/mes-annonces" className="mb-2 flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
+                    <Link to="/mes-annonces" className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
                       <ListChecks className="size-5" /> {t(MY_LISTINGS)}
+                    </Link>
+                    <Link to="/mes-favoris" className="mb-2 flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
+                      <Heart className="size-5" /> {t(MY_FAVORITES)}
                     </Link>
                     <Button variant="outline" onClick={() => void signOut()}>
                       <LogOut /> {t(SIGN_OUT)}

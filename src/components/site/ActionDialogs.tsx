@@ -41,26 +41,40 @@ export function useBuyFlow() {
   };
 }
 
-export function AccountRequiredDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+export type AccountReason = "acheter" | "favori" | "signaler";
+
+const ACCOUNT_REASON: Record<AccountReason, Msg> = {
+  acheter: {
+    ar: "باش تطلب ولا تقدّم عرض ولا تزايد، لازم تدخل للحساب متاعك. التسجيل بلاش.",
+    fr: "Pour commander, faire une offre ou enchérir, connectez-vous à votre compte. L'inscription est gratuite.",
+    en: "To order, make an offer or bid, sign in to your account. Signing up is free.",
+  },
+  favori: {
+    ar: "باش تحفظ الإعلانات في المفضلة متاعك، لازم تدخل للحساب متاعك. التسجيل بلاش.",
+    fr: "Pour enregistrer des annonces dans vos favoris, connectez-vous à votre compte. L'inscription est gratuite.",
+    en: "To save listings to your favourites, sign in to your account. Signing up is free.",
+  },
+  signaler: {
+    ar: "باش تبلّغ على إعلان، لازم تدخل للحساب متاعك. هكا فريقنا ينجم يتبّع التبليغ.",
+    fr: "Pour signaler une annonce, connectez-vous à votre compte. Cela permet à notre équipe de suivre le signalement.",
+    en: "To report a listing, sign in to your account. This lets our team follow up on the report.",
+  },
+};
+
+export function AccountRequiredDialog({ open, onClose, reason = "acheter" }: { open: boolean; onClose: () => void; reason?: AccountReason }) {
   const { t } = useI18n();
   const navigate = useNavigate();
   const href = useLocation({ select: (l) => l.href });
   const go = (mode: "connexion" | "inscription") => {
     onClose();
-    void navigate({ to: "/connexion", search: { redirect: href, raison: "acheter", mode } });
+    void navigate({ to: "/connexion", search: { redirect: href, raison: reason, mode } });
   };
   return (
     <AlertDialog open={open} onOpenChange={(o) => !o && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t({ ar: "لازمك حساب", fr: "Compte nécessaire", en: "Account needed" })}</AlertDialogTitle>
-          <AlertDialogDescription>
-            {t({
-              ar: "باش تطلب ولا تقدّم عرض ولا تزايد، لازم تدخل للحساب متاعك. التسجيل بلاش.",
-              fr: "Pour commander, faire une offre ou enchérir, connectez-vous à votre compte. L'inscription est gratuite.",
-              en: "To order, make an offer or bid, sign in to your account. Signing up is free.",
-            })}
-          </AlertDialogDescription>
+          <AlertDialogDescription>{t(ACCOUNT_REASON[reason])}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="gap-2 sm:gap-2">
           <AlertDialogCancel>{t({ ar: "رجوع", fr: "Retour", en: "Back" })}</AlertDialogCancel>

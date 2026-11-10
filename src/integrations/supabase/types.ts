@@ -86,6 +86,60 @@ export type Database = {
         }
         Relationships: []
       }
+      favorites: {
+        Row: {
+          created_at: string
+          listing_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          listing_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          listing_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      listing_reports: {
+        Row: {
+          admin_note: string
+          created_at: string
+          details: string
+          id: string
+          listing_id: string
+          reason: string
+          reporter_id: string
+          reviewed_at: string | null
+          status: string
+        }
+        Insert: {
+          admin_note?: string
+          created_at?: string
+          details?: string
+          id?: string
+          listing_id: string
+          reason: string
+          reporter_id?: string
+          reviewed_at?: string | null
+          status?: string
+        }
+        Update: {
+          admin_note?: string
+          created_at?: string
+          details?: string
+          id?: string
+          listing_id?: string
+          reason?: string
+          reporter_id?: string
+          reviewed_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       listing_private: {
         Row: {
           created_at: string
