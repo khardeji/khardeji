@@ -27,11 +27,13 @@
 - [ ] Demandes de quantité avec confirmation vendeur et mise à jour du stock
 
 ## Phase 3 — Espaces et administration
-- [ ] Espace acheteur, espace vendeur, messagerie, notifications
-- [ ] Jetons : achat, solde, historique ; paiement
-- [x] Administration : statistiques, comptes (bloquer, admin), modération, catégories, tarifs
+- [x] Espace membre : tableau de bord, solde de jetons, historique des demandes
+- [x] Messagerie & bouton contacter le vendeur
+- [x] Achat de jetons & boosts d'annonces
+- [x] Demandes d'abonnements & renouvellements avec validation admin
+- [x] Administration : statistiques, comptes (bloquer, admin), modération, catégories, tarifs, demandes
 - [x] Fichier SQL complet de la base
 - [x] Favoris liés au compte + page « Mes favoris »
 - [x] Signalements avec raison + onglet Administration « Signalements »
 - [ ] Administration : vérification vendeurs
-- [ ] Exécuter khardeji-favoris-signalements.sql dans Supabase (propriétaire)
+- [ ] Exécuter khardeji-services-abonnements.sql dans Supabase (propriétaire)
