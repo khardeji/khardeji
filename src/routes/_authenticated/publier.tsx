@@ -178,6 +178,7 @@ function Publish() {
         const path = `${auth.user.id}/${crypto.randomUUID()}.${ext}`;
         const { error } = await supabase.storage.from(PHOTO_BUCKET).upload(path, p.file, { contentType: p.file.type, upsert: false });
         if (error) {
+          console.error("Erreur lors de l'envoi de la photo :", error);
           await cleanup();
           toast.error(t(PROBLEM_MSG.upload));
           return;
