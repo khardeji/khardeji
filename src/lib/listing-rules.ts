@@ -25,6 +25,8 @@ export interface ListingInput {
   /** ISO dates, auctions only. */
   startAt: string;
   endAt: string;
+  urgent?: boolean;
+  featured?: boolean;
 }
 
 export type ListingProblem =
@@ -37,7 +39,8 @@ export type ListingProblem =
   | "start_price"
   | "increment"
   | "dates"
-  | "stock";
+  | "stock"
+  | "insufficient_tokens";
 
 /** Problems found on the first step (details) vs. the pricing step. */
 export const DETAILS_PROBLEMS: ListingProblem[] = ["title", "category", "governorate", "photos"];

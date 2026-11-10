@@ -1,10 +1,11 @@
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, ChevronLeft, ChevronRight, Gavel, HandCoins, ImagePlus, Loader2, Tag, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Coins, Flame, Gavel, HandCoins, Home, ImagePlus, Loader2, Rocket, BadgeCheck, Tag, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/site/SectionHeading";
 import { governorateLabel, GOVERNORATES, SALE_TYPE_LABEL, subcategoryLabel, type SaleType } from "@/data/catalog";
 import { useI18n } from "@/hooks/use-i18n";
@@ -15,6 +16,7 @@ import { MAX_PHOTOS, type ListingProblem } from "@/lib/listing-rules";
 import { createListing } from "@/lib/listings.functions";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { UNIT_LABEL, type SaleUnit } from "@/lib/quantity";
+import { getMyOverview } from "@/lib/services.functions";
 import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/_authenticated/publier")({
@@ -59,11 +61,14 @@ interface Draft {
   increment: string;
   startAt: string;
   endAt: string;
+  urgent: boolean;
+  featured: boolean;
 }
 
 const EMPTY: Draft = {
   title: "", description: "", category: "", subcategory: "", governorate: "", city: "", photos: [],
   saleType: "fixe", unit: "kg", price: "", stock: "", startPrice: "", reservePrice: "", increment: "50", startAt: "", endAt: "",
+  urgent: false, featured: false,
 };
 
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024;
@@ -79,6 +84,7 @@ const PROBLEM_MSG: Record<ListingProblem | "blocked" | "failed" | "upload", Msg>
   increment: { ar: "اكتب أدنى زيادة.", fr: "Indiquez un incrément minimum.", en: "Enter a minimum increment." },
   dates: { ar: "تاريخ النهاية لازم يكون بعد تاريخ البداية.", fr: "La date de fin doit suivre la date de début.", en: "The end date must be after the start date." },
   stock: { ar: "اكتب الكمية المتوفرة.", fr: "Indiquez la quantité disponible.", en: "Enter the available quantity." },
+  insufficient_tokens: { ar: "رصيد النقاط غير كافٍ لخيارات الترويج المختارة. اشري نقاط من صفحة الخدمات.", fr: "Solde de jetons insuffisant pour les options de boost. Rechargez sur la page Services.", en: "Insufficient tokens for the chosen boosts. Buy tokens on Services page." },
   blocked: { ar: "حسابك مسكّر: ما تنجمش تنشر إعلانات. اتصل بالإدارة.", fr: "Votre compte est bloqué : vous ne pouvez pas publier. Contactez l'administration.", en: "Your account is blocked: you can't post. Contact the administrators." },
   failed: { ar: "ما نجمناش نسجّلو الإعلان. عاود جرّب.", fr: "L'annonce n'a pas pu être enregistrée. Réessayez.", en: "The listing could not be saved. Try again." },
   upload: { ar: "ما نجمناش نرفعو التصاور. ثبّت في الكونكسيون وعاود.", fr: "L'envoi des photos a échoué. Vérifiez votre connexion et réessayez.", en: "Photo upload failed. Check your connection and try again." },
@@ -109,6 +115,12 @@ function Publish() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const createListingFn = useServerFn(createListing);
+  const fetchOverview = useServerFn(getMyOverview);
+  const { data: overview } = useQuery({ queryKey: ["me", "overview"], queryFn: () => fetchOverview() });
+  const currentTokens = overview?.tokensBalance ?? 0;
+
+  const boostCost = (d.urgent ? 3 : 0) + (d.featured ? 15 : 0);
+  const hasEnoughTokens = currentTokens >= boostCost;
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }));
   const cat = CATEGORIES.find((c) => c.slug === d.category);
   const unit = { step: UNIT_LABEL[d.unit].step, short: t(UNIT_LABEL[d.unit].short), long: t(UNIT_LABEL[d.unit].long) };
@@ -204,6 +216,8 @@ function Publish() {
           increment: auction ? Number(d.increment) : 0,
           startAt: auction ? new Date(d.startAt).toISOString() : "",
           endAt: auction ? new Date(d.endAt).toISOString() : "",
+          urgent: d.urgent,
+          featured: d.featured,
         },
       });
       if (!res.ok) {
@@ -389,16 +403,98 @@ function Publish() {
           )}
 
           {step === 3 && (
-            <div className="space-y-4">
-              <h2 className="text-2xl font-semibold">{d.title}</h2>
-              <dl className="grid gap-3 text-sm sm:grid-cols-2">
-                {summary.map(([k, v]) => (
-                  <div key={k} className="rounded-md bg-muted/70 p-3">
-                    <dt className="label-stamp text-[0.68rem] text-muted-foreground">{k}</dt>
-                    <dd className="mt-0.5 font-medium">{v}</dd>
+            <div className="space-y-6">
+              <div>
+                <h2 className="text-2xl font-semibold">{d.title}</h2>
+                <dl className="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+                  {summary.map(([k, v]) => (
+                    <div key={k} className="rounded-md bg-muted/70 p-3">
+                      <dt className="label-stamp text-[0.68rem] text-muted-foreground">{k}</dt>
+                      <dd className="mt-0.5 font-medium">{v}</dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
+
+              {/* Visibility Boost options */}
+              <div className="rounded-xl border border-border bg-card p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
+                  <div>
+                    <h3 className="flex items-center gap-2 text-base font-semibold">
+                      <BadgeCheck className="size-4 text-rust" />
+                      {t({ ar: "خيارات الترويج والظهور (اختياري)", fr: "Options de visibilité & Boost (facultatif)", en: "Visibility & Boost options (optional)" })}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {t({ ar: "استعمل رصيدك من النقاط لجلب مشاهدات أكثر فور قبول الإعلان.", fr: "Utilisez vos jetons pour maximiser vos contacts dès la validation.", en: "Use tokens to maximize views upon approval." })}
+                    </p>
                   </div>
-                ))}
-              </dl>
+                  <div className="flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs font-medium">
+                    <Coins className="size-3.5 text-brass" />
+                    <span>{t({ ar: "رصيدك:", fr: "Votre solde :", en: "Your balance:" })}</span>
+                    <strong className="text-rust">{num(currentTokens)} {t({ ar: "نقطة", fr: "jetons", en: "tokens" })}</strong>
+                  </div>
+                </div>
+
+                <div className="mt-4 space-y-3">
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/80 p-3 transition hover:bg-muted/40 has-[[data-state=checked]]:border-rust has-[[data-state=checked]]:bg-rust/5">
+                    <Checkbox
+                      checked={d.urgent}
+                      onCheckedChange={(c) => set("urgent", Boolean(c))}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                          <Flame className="size-4 text-rust" />
+                          {t({ ar: "إعلان مستعجل", fr: "Annonce urgente", en: "Urgent listing" })}
+                        </span>
+                        <span className="rounded bg-brass/20 px-2 py-0.5 text-xs font-bold text-brass-foreground">+3 {t({ ar: "نقاط", fr: "jetons", en: "tokens" })}</span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {t({ ar: "علامة «مستعجل» تبان على البطاقة للفت انتباه المشترين.", fr: "Badge « Urgent » visible sur la carte et la fiche pour attirer l'attention.", en: "Urgent badge visible to catch buyers' attention." })}
+                      </p>
+                    </div>
+                  </label>
+
+                  <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-border/80 p-3 transition hover:bg-muted/40 has-[[data-state=checked]]:border-rust has-[[data-state=checked]]:bg-rust/5">
+                    <Checkbox
+                      checked={d.featured}
+                      onCheckedChange={(c) => set("featured", Boolean(c))}
+                      className="mt-0.5"
+                    />
+                    <div className="flex-1 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="flex items-center gap-1.5 font-semibold text-foreground">
+                          <Home className="size-4 text-brass" />
+                          {t({ ar: "في الواجهة — الصفحة الرئيسية", fr: "À la une — Page d'accueil", en: "Featured — Home page" })}
+                        </span>
+                        <span className="rounded bg-brass/20 px-2 py-0.5 text-xs font-bold text-brass-foreground">+15 {t({ ar: "نقطة", fr: "jetons", en: "tokens" })}</span>
+                      </div>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {t({ ar: "يظهر في اختيارات الصفحة الرئيسية لمدّة 3 أيام.", fr: "Affichage dans la sélection en vedette de la page d'accueil pendant 3 jours.", en: "Shown on homepage featured section for 3 days." })}
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {boostCost > 0 && !hasEnoughTokens && (
+                  <div className="mt-3 flex items-center justify-between rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                    <span>
+                      {t({
+                        ar: `يلزمك ${boostCost} نقطة (رصيدك الحالي: ${currentTokens}). يرجى شراء نقاط أو إلغاء الخيار.`,
+                        fr: `Coût : ${boostCost} jetons (votre solde : ${currentTokens}). Achetez des jetons ou décochez les options.`,
+                        en: `Cost: ${boostCost} tokens (balance: ${currentTokens}). Please buy tokens or uncheck.`,
+                      })}
+                    </span>
+                    <Button asChild size="sm" variant="outline" className="h-7 text-xs">
+                      <Link to="/services" target="_blank">
+                        {t({ ar: "شراء نقاط", fr: "Acheter des jetons", en: "Buy tokens" })}
+                      </Link>
+                    </Button>
+                  </div>
+                )}
+              </div>
+
               <p className="text-sm text-muted-foreground">
                 {t({ ar: "فريقنا يراجع الإعلان قبل ما يتنشر.", fr: "Votre annonce sera vérifiée par notre équipe avant publication.", en: "Our team will review your listing before it goes live." })}
               </p>
@@ -412,7 +508,7 @@ function Publish() {
             {step < STEPS.length - 1 ? (
               <Button variant="default" onClick={next}>{t({ ar: "التالي", fr: "Suivant", en: "Next" })} <ChevronRight className="rtl:rotate-180" /></Button>
             ) : (
-              <Button variant="rust" disabled={busy} onClick={() => void publish()}>
+              <Button variant="rust" disabled={busy || (boostCost > 0 && !hasEnoughTokens)} onClick={() => void publish()}>
                 {busy ? <Loader2 className="animate-spin" /> : <Check />}
                 {busy ? t({ ar: "قاعد يتبعث…", fr: "Envoi en cours…", en: "Sending…" }) : t({ ar: "انشر الإعلان", fr: "Publier l'annonce", en: "Publish listing" })}
               </Button>

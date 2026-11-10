@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AccountRequiredDialog } from "@/components/site/ActionDialogs";
+import { ContactSellerDialog } from "@/components/site/ContactSellerDialog";
 import { ListingCard } from "@/components/site/ListingCard";
 import { ReportButton } from "@/components/site/ReportButton";
 import { AuctionPanel, FixedPricePanel, OfferPanel } from "@/components/site/PurchasePanels";
@@ -208,16 +209,11 @@ function ListingDetail() {
               </div>
             ) : (
               <div className="mt-4 grid grid-cols-2 gap-2">
-                <Button
-                  variant="default"
-                  onClick={() =>
-                    toast(t({ ar: "المراسلة قريب", fr: "Messagerie bientôt disponible", en: "Messaging coming soon" }), {
-                      description: t({ ar: "تنجم تكتب للبائع قريب.", fr: "Vous pourrez bientôt écrire au vendeur.", en: "You'll soon be able to message the seller." }),
-                    })
-                  }
-                >
-                  <MessageSquare /> {t({ ar: "راسل", fr: "Contacter", en: "Contact" })}
-                </Button>
+                <ContactSellerDialog
+                  listingId={listing.id}
+                  listingTitle={t(listing.title)}
+                  sellerName={listing.seller.name}
+                />
                 {listing.seller.phone ? (
                   <Button variant="outline" asChild>
                     <a href={`tel:${listing.seller.phone.replace(/[^+\d]/g, "")}`} dir="ltr">

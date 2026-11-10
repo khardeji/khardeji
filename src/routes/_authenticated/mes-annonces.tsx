@@ -1,21 +1,25 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { ExternalLink, Plus, Trash2 } from "lucide-react";
+import { ExternalLink, Gauge, Plus, Rocket, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { STATUS_BADGE } from "@/components/admin/Listings";
 import { A, Confirm, Loading } from "@/components/admin/shared";
 import { AccountNav } from "@/components/site/AccountNav";
+import { BoostDialog } from "@/components/site/BoostDialog";
 import { PageHeader } from "@/components/site/SectionHeading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { governorateLabel, LISTING_STATUS_LABEL, SALE_TYPE_LABEL, type ListingStatus } from "@/data/catalog";
+import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { deleteMyListing, getMyListings } from "@/lib/listings.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 
 export const Route = createFileRoute("/_authenticated/mes-annonces")({
+  ssr: false,
   head: ({ match }) => ({
     meta: [
       ...pageMeta(match.context.locale, {
@@ -43,10 +47,14 @@ const STATUS_HELP: Record<ListingStatus, Msg> = {
 
 function MyListings() {
   const { t, dt, date } = useI18n();
+  const { user, loading: authLoading } = useAuth();
   const fetchMine = useServerFn(getMyListings);
   const remove = useServerFn(deleteMyListing);
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["me", "listings"], queryFn: () => fetchMine() });
+  const q = useQuery({ queryKey: ["me", "listings"], queryFn: () => fetchMine(), enabled: !!user, retry: false });
+
+  const [boostListingId, setBoostListingId] = useState<string | undefined>();
+  const [boostOpen, setBoostOpen] = useState(false);
 
   async function del(id: string) {
     const res = await remove({ data: { id } }).catch(() => ({ ok: false as const }));
@@ -65,7 +73,12 @@ function MyListings() {
       />
       <AccountNav current="annonces" />
       <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6">
-        <div className="mb-6 flex justify-end">
+        <div className="mb-6 flex flex-wrap justify-between items-center gap-3">
+          <Button asChild variant="outline">
+            <Link to="/tableau-de-bord">
+              <Gauge className="size-4" /> {t({ ar: "لوحة التحكم", fr: "Tableau de bord membre", en: "Dashboard" })}
+            </Link>
+          </Button>
           <Button asChild variant="rust"><Link to="/publier"><Plus /> {t({ ar: "انشر إعلان", fr: "Publier une annonce", en: "Post a listing" })}</Link></Button>
         </div>
         {!q.data ? (
@@ -101,9 +114,22 @@ function MyListings() {
                   </div>
                   <div className="flex gap-2 sm:flex-col">
                     {st === "approved" && (
-                      <Button asChild size="sm" variant="outline">
-                        <Link to="/annonces/$id" params={{ id: l.id }}><ExternalLink /> {t({ ar: "شوف", fr: "Voir", en: "View" })}</Link>
-                      </Button>
+                      <>
+                        <Button
+                          size="sm"
+                          variant="rust"
+                          className="gap-1.5"
+                          onClick={() => {
+                            setBoostListingId(l.id);
+                            setBoostOpen(true);
+                          }}
+                        >
+                          <Rocket className="size-3.5" /> {t({ ar: "ترويج", fr: "Booster", en: "Boost" })}
+                        </Button>
+                        <Button asChild size="sm" variant="outline">
+                          <Link to="/annonces/$id" params={{ id: l.id }}><ExternalLink /> {t({ ar: "شوف", fr: "Voir", en: "View" })}</Link>
+                        </Button>
+                      </>
                     )}
                     {l.saleType === "negociable" && (
                       <Button asChild size="sm" variant="ghost" className="text-xs">
@@ -130,6 +156,12 @@ function MyListings() {
           </ul>
         )}
       </div>
+
+      <BoostDialog
+        initialListingId={boostListingId}
+        open={boostOpen}
+        onClose={() => setBoostOpen(false)}
+      />
     </>
   );
 }

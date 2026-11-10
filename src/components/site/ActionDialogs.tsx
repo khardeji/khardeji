@@ -41,7 +41,7 @@ export function useBuyFlow() {
   };
 }
 
-export type AccountReason = "acheter" | "favori" | "signaler";
+export type AccountReason = "acheter" | "favori" | "signaler" | "contacter" | "publier";
 
 const ACCOUNT_REASON: Record<AccountReason, Msg> = {
   acheter: {
@@ -58,6 +58,16 @@ const ACCOUNT_REASON: Record<AccountReason, Msg> = {
     ar: "باش تبلّغ على إعلان، لازم تدخل للحساب متاعك. هكا فريقنا ينجم يتبّع التبليغ.",
     fr: "Pour signaler une annonce, connectez-vous à votre compte. Cela permet à notre équipe de suivre le signalement.",
     en: "To report a listing, sign in to your account. This lets our team follow up on the report.",
+  },
+  contacter: {
+    ar: "باش تراسل البائع، لازم تدخل للحساب متاعك. التسجيل بلاش.",
+    fr: "Pour contacter le vendeur, connectez-vous à votre compte. L'inscription est gratuite.",
+    en: "To contact the seller, sign in to your account. Signing up is free.",
+  },
+  publier: {
+    ar: "باش تنشر ولا تشري نقاط، لازم تدخل للحساب متاعك. التسجيل بلاش.",
+    fr: "Pour publier ou souscrire à une offre, connectez-vous à votre compte. L'inscription est gratuite.",
+    en: "To post or subscribe, sign in to your account. Signing up is free.",
   },
 };
 

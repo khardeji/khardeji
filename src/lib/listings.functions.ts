@@ -18,10 +18,25 @@ export const createListing = createServerFn({ method: "POST" })
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name, phone, account_type, is_blocked, created_at")
+      .select("full_name, phone, account_type, is_blocked, created_at, tokens_balance")
       .eq("id", userId)
       .maybeSingle();
     if (profile?.is_blocked) return { ok: false, error: "blocked" };
+
+    let tokenCost = 0;
+    if (data.urgent) tokenCost += 3;
+    if (data.featured) tokenCost += 15;
+
+    if (tokenCost > 0) {
+      const balance = (profile as any)?.tokens_balance ?? 0;
+      if (balance < tokenCost) {
+        return { ok: false, error: "insufficient_tokens" };
+      }
+      await supabase
+        .from("profiles")
+        .update({ tokens_balance: balance - tokenCost } as any)
+        .eq("id", userId);
+    }
 
     const { data: cat } = await supabase.from("categories").select("subcategories").eq("slug", data.category).eq("is_active", true).maybeSingle();
     if (!cat || !cat.subcategories.includes(data.subcategory)) return { ok: false, error: "category" };
@@ -43,6 +58,8 @@ export const createListing = createServerFn({ method: "POST" })
         stock: data.unit === "libre" ? 0 : data.stock,
         sale_type: data.saleType,
         images: data.photos.map((p) => STORAGE_PREFIX + p),
+        urgent: Boolean(data.urgent),
+        featured: Boolean(data.featured),
         seller: {
           name: profile?.full_name || "—",
           kind: profile?.account_type ?? "particulier",

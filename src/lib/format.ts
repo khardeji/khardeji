@@ -2,26 +2,33 @@ import { INTL_LOCALE, type Locale } from "./i18n";
 
 const CURRENCY: Record<Locale, string> = { ar: "د.ت", fr: "DT", en: "TND" };
 
-export function formatDT(value: number, locale: Locale = "fr"): string {
-  const hasDecimals = Math.round(value) !== value;
+export function formatDT(value?: number | null, locale: Locale = "fr"): string {
+  const safeVal = typeof value === "number" && !isNaN(value) ? value : 0;
+  const hasDecimals = Math.round(safeVal) !== safeVal;
   return (
     new Intl.NumberFormat(INTL_LOCALE[locale], {
       minimumFractionDigits: hasDecimals ? 1 : 0,
       maximumFractionDigits: 3,
-    }).format(value) +
+    }).format(safeVal) +
     " " +
     CURRENCY[locale]
   );
 }
 
-export function formatNumber(value: number, locale: Locale = "fr"): string {
-  return new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 3 }).format(value);
+export function formatNumber(value?: number | null, locale: Locale = "fr"): string {
+  const safeVal = typeof value === "number" && !isNaN(value) ? value : 0;
+  return new Intl.NumberFormat(INTL_LOCALE[locale], { maximumFractionDigits: 3 }).format(safeVal);
 }
 
-export function formatDate(iso: string, locale: Locale = "fr"): string {
-  return new Intl.DateTimeFormat(INTL_LOCALE[locale], { day: "numeric", month: "short", year: "numeric" }).format(
-    new Date(iso),
-  );
+export function formatDate(iso?: string | null, locale: Locale = "fr"): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    if (isNaN(d.getTime())) return "—";
+    return new Intl.DateTimeFormat(INTL_LOCALE[locale], { day: "numeric", month: "short", year: "numeric" }).format(d);
+  } catch {
+    return "—";
+  }
 }
 
 const CLOSED: Record<Locale, string> = { ar: "مغلقة", fr: "Clôturée", en: "Closed" };
