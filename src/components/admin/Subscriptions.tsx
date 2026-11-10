@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Coins, Layers, RotateCcw, Sparkles, X } from "lucide-react";
+import { Check, Coins, Layers, RotateCcw, ShieldCheck, X } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/hooks/use-i18n";
@@ -104,7 +104,7 @@ export function SubscriptionsPanel() {
                       {t(STATUS_LABEL[r.status] || { ar: r.status, fr: r.status, en: r.status })}
                     </Badge>
                     <Badge variant="outline" className="flex items-center gap-1">
-                      {r.type === "token_pack" ? <Coins className="size-3 text-brass" /> : <Sparkles className="size-3 text-olive" />}
+                      {r.type === "token_pack" ? <Coins className="size-3 text-brass" /> : <ShieldCheck className="size-3 text-olive" />}
                       {t(TYPE_LABEL[r.type] || { ar: r.type, fr: r.type, en: r.type })}
                     </Badge>
                     <span className="text-xs text-muted-foreground">{date(r.createdAt)}</span>

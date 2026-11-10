@@ -8,9 +8,11 @@ import {
   Calendar,
   Check,
   Coins,
+  CreditCard,
   ExternalLink,
   Flame,
   Home,
+  Layers,
   Mail,
   MessageSquare,
   Phone,
@@ -18,8 +20,6 @@ import {
   Rocket,
   ShieldCheck,
   ShoppingBag,
-  Sparkles,
-  Star,
   Trash2,
   User,
 } from "lucide-react";
@@ -33,6 +33,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LISTING_STATUS_LABEL, SALE_TYPE_LABEL, type ListingStatus } from "@/data/catalog";
+import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { deleteMyListing, getMyListings } from "@/lib/listings.functions";
@@ -47,6 +48,7 @@ import {
 } from "@/lib/services.functions";
 
 export const Route = createFileRoute("/_authenticated/tableau-de-bord")({
+  ssr: false,
   head: ({ match }) => ({
     meta: [
       ...pageMeta(match.context.locale, {
@@ -66,6 +68,7 @@ export const Route = createFileRoute("/_authenticated/tableau-de-bord")({
 
 export function DashboardPage() {
   const { t, dt, date, num, dir } = useI18n();
+  const { user, loading: authLoading } = useAuth();
   const qc = useQueryClient();
 
   const fetchOverview = useServerFn(getMyOverview);
@@ -78,18 +81,26 @@ export function DashboardPage() {
   const { data: overview, isLoading: overviewLoading } = useQuery({
     queryKey: ["me", "overview"],
     queryFn: () => fetchOverview(),
+    enabled: !!user,
+    retry: false,
   });
   const { data: listings, isLoading: listingsLoading } = useQuery({
     queryKey: ["me", "listings"],
     queryFn: () => fetchListings(),
+    enabled: !!user,
+    retry: false,
   });
   const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ["me", "messages"],
     queryFn: () => fetchMessages(),
+    enabled: !!user,
+    retry: false,
   });
   const { data: requests } = useQuery({
     queryKey: ["me", "requests"],
     queryFn: () => fetchRequests(),
+    enabled: !!user,
+    retry: false,
   });
 
   const [activeTab, setActiveTab] = useState<"overview" | "listings" | "messages" | "subscription">("overview");
@@ -122,10 +133,29 @@ export function DashboardPage() {
     ]);
   };
 
-  if (overviewLoading || listingsLoading) {
+  if (authLoading || (user && (overviewLoading || listingsLoading))) {
     return (
       <div className="mx-auto max-w-7xl px-4 py-16">
         <Loading />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-24 text-center">
+        <p className="text-muted-foreground">
+          {t({
+            ar: "الرجاء تسجيل الدخول للوصول إلى لوحة التحكم.",
+            fr: "Veuillez vous connecter pour accéder à votre tableau de bord.",
+            en: "Please sign in to access your dashboard.",
+          })}
+        </p>
+        <Button asChild variant="rust" className="mt-4">
+          <Link to="/connexion" search={{ redirect: "/tableau-de-bord" }}>
+            {t({ ar: "تسجيل الدخول", fr: "Se connecter", en: "Sign in" })}
+          </Link>
+        </Button>
       </div>
     );
   }
@@ -242,7 +272,7 @@ export function DashboardPage() {
                 </p>
               </div>
               <span className="grid size-10 place-items-center rounded-xl bg-rust/15 text-rust">
-                <Sparkles className="size-6" />
+                <ShieldCheck className="size-6" />
               </span>
             </div>
             <div className="mt-4 flex gap-2">
@@ -289,7 +319,7 @@ export function DashboardPage() {
                 )}
               </TabsTrigger>
               <TabsTrigger value="subscription" className="gap-2 px-4 py-2">
-                <Sparkles className="size-4" />
+                <Layers className="size-4" />
                 {t({ ar: "الاشتراكات والطلبات", fr: "Forfait & Demandes", en: "Plan & Requests" })}
               </TabsTrigger>
             </TabsList>
@@ -347,7 +377,7 @@ export function DashboardPage() {
 
                   <div className="rounded-xl border border-border bg-card p-4">
                     <span className="grid size-9 place-items-center rounded-lg bg-charcoal text-brass">
-                      <Star className="size-5" />
+                      <BadgeCheck className="size-5 text-olive" />
                     </span>
                     <h3 className="mt-3 text-base font-semibold">{t({ ar: "إعلان مميّز — 7 أيام", fr: "Premium — 7 jours", en: "Premium — 7 days" })}</h3>
                     <p className="mt-1 text-xs text-muted-foreground">{t({ ar: "إطار ذهبي وظهور ذو أولوية.", fr: "Cadre doré et priorité d'affichage.", en: "Gold frame and high priority." })}</p>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { ArrowUpCircle, Coins, Flame, Home, Loader2, Rocket, Star } from "lucide-react";
+import { ArrowUpCircle, BadgeCheck, Coins, Flame, Home, Loader2, Rocket } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,7 +17,7 @@ type BoostType = "remonter" | "urgent" | "premium-7j" | "a-la-une";
 
 interface BoostOption {
   id: BoostType;
-  icon: typeof Star;
+  icon: typeof BadgeCheck;
   title: Msg;
   desc: Msg;
   cost: number;
@@ -40,7 +40,7 @@ const BOOST_OPTIONS: BoostOption[] = [
   },
   {
     id: "premium-7j",
-    icon: Star,
+    icon: BadgeCheck,
     title: { ar: "إعلان مميّز — 7 أيام", fr: "Annonce Premium — 7 jours", en: "Premium listing — 7 days" },
     desc: { ar: "بلاصة في الأولوية وإطار ذهبي في القوائم.", fr: "Position prioritaire et cadre doré dans les listes.", en: "Priority position and gold border in search." },
     cost: 8,

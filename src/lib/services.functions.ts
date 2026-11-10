@@ -49,19 +49,19 @@ export const getMyOverview = createServerFn({ method: "GET" })
       // 1. Fetch Profile
       const { data: profile } = await supabase
         .from("profiles")
-        .select("full_name, phone, email, account_type, tokens_balance, subscription_plan, subscription_status, subscription_expires_at")
+        .select("*")
         .eq("id", userId)
         .maybeSingle();
 
       if (profile) {
-        fallback.fullName = profile.full_name || "";
-        fallback.phone = profile.phone || "";
-        fallback.email = profile.email || "";
-        fallback.accountType = profile.account_type || "particulier";
-        fallback.tokensBalance = (profile as any).tokens_balance ?? 0;
-        fallback.subscriptionPlan = (profile as any).subscription_plan ?? "basique";
-        fallback.subscriptionStatus = (profile as any).subscription_status ?? "active";
-        fallback.subscriptionExpiresAt = (profile as any).subscription_expires_at ?? null;
+        fallback.fullName = (profile as any).full_name || "";
+        fallback.phone = (profile as any).phone || "";
+        fallback.email = (profile as any).email || "";
+        fallback.accountType = (profile as any).account_type || "particulier";
+        fallback.tokensBalance = Number((profile as any).tokens_balance ?? 0);
+        fallback.subscriptionPlan = (profile as any).subscription_plan || "basique";
+        fallback.subscriptionStatus = (profile as any).subscription_status || "active";
+        fallback.subscriptionExpiresAt = (profile as any).subscription_expires_at || null;
       }
 
       // 2. Fetch Listings Counts
@@ -105,48 +105,53 @@ export interface MessageItem {
 export const getMyMessages = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<MessageItem[]> => {
-    const { supabase, userId } = context;
+    try {
+      const { supabase, userId } = context;
 
-    const { data: rawMessages, error } = await supabase
-      .from("messages")
-      .select("*")
-      .or(`recipient_id.eq.${userId},sender_id.eq.${userId}`)
-      .order("created_at", { ascending: false })
-      .limit(100);
+      const { data: rawMessages, error } = await supabase
+        .from("messages")
+        .select("*")
+        .or(`recipient_id.eq.${userId},sender_id.eq.${userId}`)
+        .order("created_at", { ascending: false })
+        .limit(100);
 
-    if (error || !rawMessages) {
-      if (!missingRelation(error?.code)) console.error("fetch messages failed", error?.message);
+      if (error || !rawMessages) {
+        if (!missingRelation(error?.code)) console.error("fetch messages failed", error?.message);
+        return [];
+      }
+
+      const listingIds = [...new Set(rawMessages.map((m) => m.listing_id).filter(Boolean))] as string[];
+      const userIds = [...new Set(rawMessages.map((m) => (m.sender_id === userId ? m.recipient_id : m.sender_id)))];
+
+      const [listingsRes, profilesRes] = await Promise.all([
+        listingIds.length ? supabase.from("listings").select("id, title").in("id", listingIds) : Promise.resolve({ data: [] }),
+        userIds.length ? supabase.from("profiles").select("id, full_name, phone, email").in("id", userIds) : Promise.resolve({ data: [] }),
+      ]);
+
+      const listingsMap = new Map((listingsRes.data ?? []).map((l) => [l.id, l.title as Msg]));
+      const profilesMap = new Map((profilesRes.data ?? []).map((p) => [p.id, p]));
+
+      return rawMessages.map((m) => {
+        const otherProfile = profilesMap.get(m.sender_id === userId ? m.recipient_id : m.sender_id);
+        return {
+          id: m.id,
+          listingId: m.listing_id,
+          listingTitle: m.listing_id ? listingsMap.get(m.listing_id) ?? null : null,
+          senderId: m.sender_id,
+          senderName: otherProfile?.full_name || (m.sender_id === userId ? "Moi" : "Visiteur"),
+          senderPhone: m.sender_phone || otherProfile?.phone || "",
+          senderEmail: m.sender_email || otherProfile?.email || "",
+          recipientId: m.recipient_id,
+          content: m.content,
+          isRead: m.is_read,
+          createdAt: m.created_at,
+          isMine: m.sender_id === userId,
+        };
+      });
+    } catch (e) {
+      console.warn("getMyMessages error", e);
       return [];
     }
-
-    const listingIds = [...new Set(rawMessages.map((m) => m.listing_id).filter(Boolean))] as string[];
-    const userIds = [...new Set(rawMessages.map((m) => (m.sender_id === userId ? m.recipient_id : m.sender_id)))];
-
-    const [listingsRes, profilesRes] = await Promise.all([
-      listingIds.length ? supabase.from("listings").select("id, title").in("id", listingIds) : Promise.resolve({ data: [] }),
-      userIds.length ? supabase.from("profiles").select("id, full_name, phone, email").in("id", userIds) : Promise.resolve({ data: [] }),
-    ]);
-
-    const listingsMap = new Map((listingsRes.data ?? []).map((l) => [l.id, l.title as Msg]));
-    const profilesMap = new Map((profilesRes.data ?? []).map((p) => [p.id, p]));
-
-    return rawMessages.map((m) => {
-      const otherProfile = profilesMap.get(m.sender_id === userId ? m.recipient_id : m.sender_id);
-      return {
-        id: m.id,
-        listingId: m.listing_id,
-        listingTitle: m.listing_id ? listingsMap.get(m.listing_id) ?? null : null,
-        senderId: m.sender_id,
-        senderName: otherProfile?.full_name || (m.sender_id === userId ? "Moi" : "Visiteur"),
-        senderPhone: m.sender_phone || otherProfile?.phone || "",
-        senderEmail: m.sender_email || otherProfile?.email || "",
-        recipientId: m.recipient_id,
-        content: m.content,
-        isRead: m.is_read,
-        createdAt: m.created_at,
-        isMine: m.sender_id === userId,
-      };
-    });
   });
 
 /** Mark a message as read. */
@@ -276,23 +281,28 @@ export const requestSubscription = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { planId: "pro" | "entreprise"; isRenewal?: boolean; notes?: string }) => d)
   .handler(async ({ data, context }): Promise<RequestOrderResult> => {
-    const { supabase, userId } = context;
-    const amount = data.planId === "pro" ? 49 : 149;
-    const type = data.isRenewal ? "renewal" : "subscription";
+    try {
+      const { supabase, userId } = context;
+      const amount = data.planId === "pro" ? 49 : 149;
+      const type = data.isRenewal ? "renewal" : "subscription";
 
-    const { error } = await supabase.from("subscription_requests").insert({
-      user_id: userId,
-      type,
-      plan_id: data.planId,
-      amount,
-      notes: data.notes?.trim() || "",
-      status: "pending",
-    } as any);
+      const { error } = await supabase.from("subscription_requests").insert({
+        user_id: userId,
+        type,
+        plan_id: data.planId,
+        amount,
+        notes: data.notes?.trim() || "",
+        status: "pending",
+      } as any);
 
-    if (!error) return { ok: true };
-    if (missingRelation(error.code)) return { ok: false, error: "not_ready" };
-    console.error("request subscription failed", error.message);
-    return { ok: false, error: "failed" };
+      if (!error) return { ok: true };
+      if (missingRelation(error.code)) return { ok: false, error: "not_ready" };
+      console.error("request subscription failed", error.message);
+      return { ok: false, error: "failed" };
+    } catch (e) {
+      console.error("requestSubscription exception", e);
+      return { ok: false, error: "failed" };
+    }
   });
 
 /** Request a token pack purchase. */
@@ -300,22 +310,27 @@ export const buyTokenPack = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { packId: string; tokensCount: number; amount: number; notes?: string }) => d)
   .handler(async ({ data, context }): Promise<RequestOrderResult> => {
-    const { supabase, userId } = context;
+    try {
+      const { supabase, userId } = context;
 
-    const { error } = await supabase.from("subscription_requests").insert({
-      user_id: userId,
-      type: "token_pack",
-      pack_id: data.packId,
-      tokens_count: data.tokensCount,
-      amount: data.amount,
-      notes: data.notes?.trim() || "",
-      status: "pending",
-    } as any);
+      const { error } = await supabase.from("subscription_requests").insert({
+        user_id: userId,
+        type: "token_pack",
+        pack_id: data.packId,
+        tokens_count: data.tokensCount,
+        amount: data.amount,
+        notes: data.notes?.trim() || "",
+        status: "pending",
+      } as any);
 
-    if (!error) return { ok: true };
-    if (missingRelation(error.code)) return { ok: false, error: "not_ready" };
-    console.error("buy token pack failed", error.message);
-    return { ok: false, error: "failed" };
+      if (!error) return { ok: true };
+      if (missingRelation(error.code)) return { ok: false, error: "not_ready" };
+      console.error("buy token pack failed", error.message);
+      return { ok: false, error: "failed" };
+    } catch (e) {
+      console.error("buyTokenPack exception", e);
+      return { ok: false, error: "failed" };
+    }
   });
 
 export interface UserRequestItem {
@@ -335,14 +350,19 @@ export interface UserRequestItem {
 export const getMyRequests = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }): Promise<UserRequestItem[]> => {
-    const { supabase, userId } = context;
-    const { data, error } = await supabase
-      .from("subscription_requests")
-      .select("*")
-      .eq("user_id", userId)
-      .order("created_at", { ascending: false });
+    try {
+      const { supabase, userId } = context;
+      const { data, error } = await supabase
+        .from("subscription_requests")
+        .select("*")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false });
 
-    if (error || !data) return [];
-    return data as any[];
+      if (error || !data) return [];
+      return data as any[];
+    } catch (e) {
+      console.warn("getMyRequests error", e);
+      return [];
+    }
   });
 

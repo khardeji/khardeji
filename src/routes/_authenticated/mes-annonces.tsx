@@ -11,12 +11,14 @@ import { PageHeader } from "@/components/site/SectionHeading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { governorateLabel, LISTING_STATUS_LABEL, SALE_TYPE_LABEL, type ListingStatus } from "@/data/catalog";
+import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { deleteMyListing, getMyListings } from "@/lib/listings.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 
 export const Route = createFileRoute("/_authenticated/mes-annonces")({
+  ssr: false,
   head: ({ match }) => ({
     meta: [
       ...pageMeta(match.context.locale, {
@@ -44,10 +46,11 @@ const STATUS_HELP: Record<ListingStatus, Msg> = {
 
 function MyListings() {
   const { t, dt, date } = useI18n();
+  const { user, loading: authLoading } = useAuth();
   const fetchMine = useServerFn(getMyListings);
   const remove = useServerFn(deleteMyListing);
   const qc = useQueryClient();
-  const q = useQuery({ queryKey: ["me", "listings"], queryFn: () => fetchMine() });
+  const q = useQuery({ queryKey: ["me", "listings"], queryFn: () => fetchMine(), enabled: !!user, retry: false });
 
   const [boostListingId, setBoostListingId] = useState<string | undefined>();
   const [boostOpen, setBoostOpen] = useState(false);

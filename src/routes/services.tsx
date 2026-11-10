@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowDown, ArrowUpCircle, BadgeCheck, Building2, Check, Coins, Flame, Home, Gift, Rocket, Star } from "lucide-react";
+import { ArrowDown, ArrowUpCircle, BadgeCheck, Building2, Check, Coins, Flame, Home, Gift, Rocket } from "lucide-react";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -60,7 +60,7 @@ const OVERVIEW = [
   },
 ];
 
-const BOOST_ICON: Record<string, typeof Star> = { "arrow-up": ArrowUpCircle, flame: Flame, star: Star, home: Home };
+const BOOST_ICON: Record<string, typeof BadgeCheck> = { "arrow-up": ArrowUpCircle, flame: Flame, star: BadgeCheck, home: Home };
 
 function Services() {
   const { t, dt, num } = useI18n();
@@ -151,7 +151,7 @@ function Services() {
           </div>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             {BOOSTS.map((b) => {
-              const Icon = BOOST_ICON[b.icon] ?? Star;
+              const Icon = BOOST_ICON[b.icon] ?? BadgeCheck;
               return (
               <div key={b.id} className="surface-card flex items-start gap-4 p-5">
                 <span className="grid size-12 shrink-0 place-items-center rounded-lg bg-charcoal text-brass"><Icon className="size-6" /></span>

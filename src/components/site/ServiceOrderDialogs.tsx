@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Coins, Loader2, Sparkles } from "lucide-react";
+import { Check, Coins, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -60,7 +60,17 @@ export function BuyTokensDialog({
       onClose();
       onSuccess?.();
     } else {
-      toast.error(t({ ar: "تعذر إرسال الطلب. حاول مجدداً.", fr: "Échec de l'envoi de la commande. Réessayez.", en: "Failed to submit request. Try again." }));
+      if (res.error === "not_ready") {
+        toast.error(
+          t({
+            ar: "خدمة الطلبات غير مفعلة بعد في قاعدة البيانات. يرجى تنفيذ ملف SQL في Supabase.",
+            fr: "Le module de commandes n'est pas encore activé dans la base de données. Exécutez le script SQL dans Supabase.",
+            en: "The requests module is not enabled yet in database. Please run the SQL script in Supabase.",
+          }),
+        );
+      } else {
+        toast.error(t({ ar: "تعذر إرسال الطلب. حاول مجدداً.", fr: "Échec de l'envoi de la commande. Réessayez.", en: "Failed to submit request. Try again." }));
+      }
     }
   };
 
@@ -172,7 +182,17 @@ export function SubscribePlanDialog({
       onClose();
       onSuccess?.();
     } else {
-      toast.error(t({ ar: "تعذر إرسال الطلب. حاول مجدداً.", fr: "Échec de l'envoi de la demande. Réessayez.", en: "Failed to submit request. Try again." }));
+      if (res.error === "not_ready") {
+        toast.error(
+          t({
+            ar: "خدمة الاشتراكات غير مفعلة بعد في قاعدة البيانات. يرجى تنفيذ ملف SQL في Supabase.",
+            fr: "Le module d'abonnements n'est pas encore activé dans la base de données. Exécutez le script SQL dans Supabase.",
+            en: "The subscription module is not enabled yet in database. Please run the SQL script in Supabase.",
+          }),
+        );
+      } else {
+        toast.error(t({ ar: "تعذر إرسال الطلب. حاول مجدداً.", fr: "Échec de l'envoi de la demande. Réessayez.", en: "Failed to submit request. Try again." }));
+      }
     }
   };
 
@@ -183,7 +203,7 @@ export function SubscribePlanDialog({
         <DialogContent dir={dir} className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Sparkles className="size-6 text-olive" />
+              <ShieldCheck className="size-6 text-olive" />
               {isRenewal
                 ? t({ ar: "تجديد الباقة :", fr: "Renouvellement :", en: "Renew plan:" })
                 : t({ ar: "اختيار الباقة :", fr: "Souscrire à l'offre :", en: "Subscribe to:" })}{" "}

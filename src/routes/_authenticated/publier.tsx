@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, ChevronLeft, ChevronRight, Coins, Flame, Gavel, HandCoins, Home, ImagePlus, Loader2, Sparkles, Tag, X } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Coins, Flame, Gavel, HandCoins, Home, ImagePlus, Loader2, Rocket, BadgeCheck, Tag, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -421,7 +421,7 @@ function Publish() {
                 <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border pb-3">
                   <div>
                     <h3 className="flex items-center gap-2 text-base font-semibold">
-                      <Sparkles className="size-4 text-rust" />
+                      <BadgeCheck className="size-4 text-rust" />
                       {t({ ar: "خيارات الترويج والظهور (اختياري)", fr: "Options de visibilité & Boost (facultatif)", en: "Visibility & Boost options (optional)" })}
                     </h3>
                     <p className="text-xs text-muted-foreground">

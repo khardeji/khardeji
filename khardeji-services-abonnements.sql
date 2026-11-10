@@ -5,6 +5,18 @@
 -- ============================================================================
 
 -- ----------------------------------------------------------------------------
+-- 0. Fonction de vérification de blocage (sécurisée et compatible uuid/text)
+-- ----------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.is_blocked(_user_id uuid)
+RETURNS boolean
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT COALESCE((SELECT is_blocked FROM public.profiles WHERE id = _user_id), false);
+$$;
+
+-- ----------------------------------------------------------------------------
 -- 1. Colonnes d'abonnements et jetons sur les profils (public.profiles)
 -- ----------------------------------------------------------------------------
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS tokens_balance integer NOT NULL DEFAULT 0;
