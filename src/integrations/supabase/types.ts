@@ -297,6 +297,10 @@ export type Database = {
           id: string
           is_blocked: boolean
           phone: string
+          subscription_expires_at: string | null
+          subscription_plan: string
+          subscription_status: string
+          tokens_balance: number
           updated_at: string
         }
         Insert: {
@@ -307,6 +311,10 @@ export type Database = {
           id: string
           is_blocked?: boolean
           phone?: string
+          subscription_expires_at?: string | null
+          subscription_plan?: string
+          subscription_status?: string
+          tokens_balance?: number
           updated_at?: string
         }
         Update: {
@@ -317,7 +325,122 @@ export type Database = {
           id?: string
           is_blocked?: boolean
           phone?: string
+          subscription_expires_at?: string | null
+          subscription_plan?: string
+          subscription_status?: string
+          tokens_balance?: number
           updated_at?: string
+        }
+        Relationships: []
+      }
+      subscription_requests: {
+        Row: {
+          admin_notes: string
+          amount: number
+          created_at: string
+          id: string
+          notes: string
+          pack_id: string | null
+          plan_id: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          tokens_count: number
+          type: string
+          user_id: string
+        }
+        Insert: {
+          admin_notes?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string
+          pack_id?: string | null
+          plan_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tokens_count?: number
+          type: string
+          user_id: string
+        }
+        Update: {
+          admin_notes?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string
+          pack_id?: string | null
+          plan_id?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          tokens_count?: number
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      messages: {
+        Row: {
+          content: string
+          created_at: string
+          id: string
+          is_read: boolean
+          listing_id: string | null
+          recipient_id: string
+          sender_email: string
+          sender_id: string
+          sender_phone: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          listing_id?: string | null
+          recipient_id: string
+          sender_email?: string
+          sender_id: string
+          sender_phone?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          listing_id?: string | null
+          recipient_id?: string
+          sender_email?: string
+          sender_id?: string
+          sender_phone?: string
+        }
+        Relationships: []
+      }
+      listing_boosts: {
+        Row: {
+          boost_id: string
+          cost: number
+          created_at: string
+          id: string
+          listing_id: string
+          user_id: string
+        }
+        Insert: {
+          boost_id: string
+          cost: number
+          created_at?: string
+          id?: string
+          listing_id: string
+          user_id: string
+        }
+        Update: {
+          boost_id?: string
+          cost?: number
+          created_at?: string
+          id?: string
+          listing_id?: string
+          user_id?: string
         }
         Relationships: []
       }

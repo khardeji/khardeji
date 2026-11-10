@@ -21,6 +21,7 @@ import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedMesAnnoncesRouteImport } from './routes/_authenticated/mes-annonces'
 import { Route as AuthenticatedMesFavorisRouteImport } from './routes/_authenticated/mes-favoris'
 import { Route as AuthenticatedPublierRouteImport } from './routes/_authenticated/publier'
+import { Route as AuthenticatedTableauDeBordRouteImport } from './routes/_authenticated/tableau-de-bord'
 import { Route as AnnoncesIndexRouteImport } from './routes/annonces.index'
 import { Route as AnnoncesIdRouteImport } from './routes/annonces.$id'
 
@@ -84,6 +85,12 @@ const AuthenticatedPublierRoute = AuthenticatedPublierRouteImport.update({
   path: '/publier',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedTableauDeBordRoute =
+  AuthenticatedTableauDeBordRouteImport.update({
+    id: '/tableau-de-bord',
+    path: '/tableau-de-bord',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AnnoncesIndexRoute = AnnoncesIndexRouteImport.update({
   id: '/annonces/',
   path: '/annonces/',
@@ -107,6 +114,7 @@ export interface FileRoutesByFullPath {
   '/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
   '/mes-favoris': typeof AuthenticatedMesFavorisRoute
   '/publier': typeof AuthenticatedPublierRoute
+  '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces/': typeof AnnoncesIndexRoute
 }
@@ -122,6 +130,7 @@ export interface FileRoutesByTo {
   '/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
   '/mes-favoris': typeof AuthenticatedMesFavorisRoute
   '/publier': typeof AuthenticatedPublierRoute
+  '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces': typeof AnnoncesIndexRoute
 }
@@ -139,6 +148,7 @@ export interface FileRoutesById {
   '/_authenticated/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
   '/_authenticated/mes-favoris': typeof AuthenticatedMesFavorisRoute
   '/_authenticated/publier': typeof AuthenticatedPublierRoute
+  '/_authenticated/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
   '/annonces/$id': typeof AnnoncesIdRoute
   '/annonces/': typeof AnnoncesIndexRoute
 }
@@ -290,6 +300,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPublierRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/tableau-de-bord': {
+      id: '/_authenticated/tableau-de-bord'
+      path: '/tableau-de-bord'
+      fullPath: '/tableau-de-bord'
+      preLoaderRoute: typeof AuthenticatedTableauDeBordRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/annonces/': {
       id: '/annonces/'
       path: '/annonces'
@@ -312,6 +329,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMesAnnoncesRoute: typeof AuthenticatedMesAnnoncesRoute
   AuthenticatedMesFavorisRoute: typeof AuthenticatedMesFavorisRoute
   AuthenticatedPublierRoute: typeof AuthenticatedPublierRoute
+  AuthenticatedTableauDeBordRoute: typeof AuthenticatedTableauDeBordRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -319,6 +337,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMesAnnoncesRoute: AuthenticatedMesAnnoncesRoute,
   AuthenticatedMesFavorisRoute: AuthenticatedMesFavorisRoute,
   AuthenticatedPublierRoute: AuthenticatedPublierRoute,
+  AuthenticatedTableauDeBordRoute: AuthenticatedTableauDeBordRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

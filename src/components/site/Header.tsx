@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { useQueryClient } from "@tanstack/react-query";
-import { Heart, LayoutDashboard, ListChecks, LogOut, Menu, Plus, UserRound } from "lucide-react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useServerFn } from "@tanstack/react-start";
+import { Coins, Gauge, Heart, LayoutDashboard, ListChecks, LogOut, Menu, Plus, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -15,6 +16,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { useIsAdmin } from "@/hooks/use-is-admin";
+import { getMyOverview } from "@/lib/services.functions";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { Logo } from "./Logo";
 
@@ -27,6 +29,7 @@ const NAV = [
   { to: "/services", label: { ar: "الخدمات والنقاط", fr: "Services et jetons", en: "Services & tokens" } },
 ] as const;
 
+const DASHBOARD = { ar: "لوحة التحكم", fr: "Tableau de bord", en: "Dashboard" };
 const PUBLISH = { ar: "انشر إعلان", fr: "Publier une annonce", en: "Post a listing" };
 const MY_LISTINGS = { ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" };
 const MY_FAVORITES = { ar: "مفضلتي", fr: "Mes favoris", en: "My favourites" };
@@ -52,8 +55,12 @@ function AccountMenu() {
   const navigate = useNavigate();
   const signOut = useSignOut();
   const { isAdmin } = useIsAdmin();
+  const fetchOverview = useServerFn(getMyOverview);
+  const { data: overview } = useQuery({ queryKey: ["me", "overview"], queryFn: () => fetchOverview(), enabled: !!user });
+
   if (!user) return null;
   const name = (user.user_metadata?.["full_name"] as string | undefined) || user.email || "";
+  const tokens = overview?.tokensBalance ?? 0;
 
   return (
     <DropdownMenu>
@@ -67,12 +74,22 @@ function AccountMenu() {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="truncate font-normal text-muted-foreground">{user.email}</DropdownMenuLabel>
+        <div className="flex items-center justify-between px-2 py-1.5 text-xs bg-muted/50 rounded mx-1 my-1">
+          <span className="flex items-center gap-1.5 text-muted-foreground">
+            <Coins className="size-3.5 text-brass" />
+            {t({ ar: "النقاط", fr: "Jetons", en: "Tokens" })}
+          </span>
+          <strong className="text-rust">{tokens}</strong>
+        </div>
         <DropdownMenuSeparator />
         {isAdmin && (
           <DropdownMenuItem onSelect={() => navigate({ to: "/admin" })}>
             <LayoutDashboard /> {t(ADMIN)}
           </DropdownMenuItem>
         )}
+        <DropdownMenuItem onSelect={() => navigate({ to: "/tableau-de-bord" })}>
+          <Gauge /> {t(DASHBOARD)}
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate({ to: "/mes-annonces" })}>
           <ListChecks /> {t(MY_LISTINGS)}
         </DropdownMenuItem>
@@ -158,6 +175,9 @@ export function Header() {
                         <LayoutDashboard className="size-5" /> {t(ADMIN)}
                       </Link>
                     )}
+                    <Link to="/tableau-de-bord" className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
+                      <Gauge className="size-5" /> {t(DASHBOARD)}
+                    </Link>
                     <Link to="/mes-annonces" className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
                       <ListChecks className="size-5" /> {t(MY_LISTINGS)}
                     </Link>

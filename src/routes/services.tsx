@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowDown, ArrowUpCircle, BadgeCheck, Building2, Check, Coins, Flame, Home, Gift, Rocket, Star } from "lucide-react";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { BoostDialog } from "@/components/site/BoostDialog";
+import { BuyTokensDialog, SubscribePlanDialog } from "@/components/site/ServiceOrderDialogs";
 import { useI18n } from "@/hooks/use-i18n";
 import { pricingQuery } from "@/lib/catalog-queries";
 import { pageMeta, SHARE_IMAGE, type Msg } from "@/lib/i18n";
@@ -69,6 +71,10 @@ function Services() {
   const tokensWord = t({ ar: "نقطة", fr: "jetons", en: "tokens" });
   const perMonth = t({ ar: "/ الشهر", fr: "/ mois", en: "/ month" });
 
+  const [buyingPack, setBuyingPack] = useState<any | null>(null);
+  const [subscribingPlan, setSubscribingPlan] = useState<any | null>(null);
+  const [boostingOpen, setBoostingOpen] = useState(false);
+
   return (
     <>
       <section className="surface-dark">
@@ -122,11 +128,7 @@ function Services() {
                 <Button
                   variant="default"
                   className="mt-4"
-                  onClick={() =>
-                    toast(t({ ar: "الخلاص قريب", fr: "Paiement bientôt disponible", en: "Payment coming soon" }), {
-                      description: t({ ar: "شراء النقاط باش يتحلّ قريب.", fr: "L'achat de jetons ouvrira très prochainement.", en: "Token purchases will open very soon." }),
-                    })
-                  }
+                  onClick={() => setBuyingPack(p)}
                 >
                   {t({ ar: "اشري", fr: "Acheter", en: "Buy" })}
                 </Button>
@@ -137,8 +139,16 @@ function Services() {
 
         {/* Boosts */}
         <section id="boosts" className="scroll-mt-24 pt-20">
-          <p className="label-stamp text-xs text-rust">{t({ ar: "الظهور", fr: "Visibilité", en: "Visibility" })}</p>
-          <h2 className="mt-2 text-3xl font-semibold sm:text-4xl">{t({ ar: "روّج إعلاناتك بفعالية", fr: "Boostez vos annonces efficacement", en: "Boost your listings effectively" })}</h2>
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+            <div>
+              <p className="label-stamp text-xs text-rust">{t({ ar: "الظهور", fr: "Visibilité", en: "Visibility" })}</p>
+              <h2 className="mt-2 text-3xl font-semibold sm:text-4xl">{t({ ar: "روّج إعلاناتك بفعالية", fr: "Boostez vos annonces efficacement", en: "Boost your listings effectively" })}</h2>
+            </div>
+            <Button variant="rust" onClick={() => setBoostingOpen(true)} className="gap-2">
+              <Rocket className="size-4" />
+              {t({ ar: "روّج إعلانك الآن", fr: "Booster une annonce maintenant", en: "Boost a listing now" })}
+            </Button>
+          </div>
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             {BOOSTS.map((b) => {
               const Icon = BOOST_ICON[b.icon] ?? Star;
@@ -196,11 +206,7 @@ function Services() {
                   <Button
                     variant={p.highlight ? "rust" : "default"}
                     className="mt-8 w-full"
-                    onClick={() =>
-                      toast(t({ ar: "اتصل بينا", fr: "Contactez-nous", en: "Contact us" }), {
-                        description: t({ ar: "باقات المحترفين باش تتحلّ قريب.", fr: "Les forfaits Pro ouvriront très prochainement.", en: "Pro plans will open very soon." }),
-                      })
-                    }
+                    onClick={() => setSubscribingPlan(p)}
                   >
                     {t({ ar: "اختار", fr: "Choisir", en: "Choose" })} {t(p.name)}
                   </Button>
@@ -213,6 +219,28 @@ function Services() {
           </p>
         </section>
       </div>
+
+      <BuyTokensDialog
+        pack={buyingPack}
+        open={!!buyingPack}
+        onClose={() => setBuyingPack(null)}
+      />
+
+      <SubscribePlanDialog
+        plan={subscribingPlan}
+        open={!!subscribingPlan}
+        onClose={() => setSubscribingPlan(null)}
+      />
+
+      <BoostDialog
+        open={boostingOpen}
+        onClose={() => setBoostingOpen(false)}
+        onRecharge={() => {
+          setBoostingOpen(false);
+          const el = document.getElementById("jetons");
+          el?.scrollIntoView({ behavior: "smooth" });
+        }}
+      />
     </>
   );
 }

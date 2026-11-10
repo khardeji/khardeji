@@ -325,3 +325,128 @@ export const deleteAdminReport = admin
     const { error } = await supabase.from("listing_reports").delete().eq("id", data.id);
     return error ? { ok: false as const } : { ok: true as const };
   });
+
+// ---------- Subscription & Token Pack Requests ----------
+export interface AdminSubscriptionRequest {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  userPhone: string;
+  type: "subscription" | "renewal" | "token_pack";
+  planId: string | null;
+  packId: string | null;
+  tokensCount: number;
+  amount: number;
+  status: "pending" | "approved" | "rejected";
+  notes: string;
+  adminNotes: string;
+  createdAt: string;
+  reviewedAt: string | null;
+}
+
+export const listAdminSubscriptionRequests = adminGet.handler(async ({ context }) => {
+  const { supabase, userId } = context;
+  await assertAdmin(supabase, userId);
+  const { data, error } = await supabase
+    .from("subscription_requests")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) {
+    if (error.code === "PGRST205" || error.code === "42P01") return { ready: false as const, requests: [] };
+    throw new Error("requests_unavailable");
+  }
+
+  const userIds = [...new Set(data.map((r: any) => r.user_id))];
+  const { data: profiles } = userIds.length
+    ? await supabase.from("profiles").select("id, email, full_name, phone").in("id", userIds)
+    : { data: [] };
+
+  const profileById = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+  return {
+    ready: true as const,
+    requests: data.map((r: any): AdminSubscriptionRequest => {
+      const p = profileById.get(r.user_id);
+      return {
+        id: r.id,
+        userId: r.user_id,
+        userName: p?.full_name || "—",
+        userEmail: p?.email || "",
+        userPhone: p?.phone || "",
+        type: r.type,
+        planId: r.plan_id,
+        packId: r.pack_id,
+        tokensCount: r.tokens_count,
+        amount: Number(r.amount),
+        status: r.status,
+        notes: r.notes || "",
+        adminNotes: r.admin_notes || "",
+        createdAt: r.created_at,
+        reviewedAt: r.reviewed_at,
+      };
+    }),
+  };
+});
+
+export const reviewAdminSubscriptionRequest = admin
+  .inputValidator((d: { id: string; action: "approve" | "reject"; adminNotes?: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    await assertAdmin(supabase, userId);
+
+    const { data: req, error: reqErr } = await supabase
+      .from("subscription_requests")
+      .select("*")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    if (reqErr || !req) return { ok: false as const };
+
+    if (data.action === "approve") {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("tokens_balance")
+        .eq("id", req.user_id)
+        .maybeSingle();
+
+      const currentBalance = (profile as any)?.tokens_balance ?? 0;
+
+      if (req.type === "subscription" || req.type === "renewal") {
+        const bonusTokens = req.plan_id === "entreprise" ? 150 : 40;
+        const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+        await supabase
+          .from("profiles")
+          .update({
+            account_type: req.plan_id || "pro",
+            subscription_plan: req.plan_id || "pro",
+            subscription_status: "active",
+            subscription_expires_at: expiresAt,
+            tokens_balance: currentBalance + bonusTokens,
+          } as any)
+          .eq("id", req.user_id);
+      } else if (req.type === "token_pack") {
+        await supabase
+          .from("profiles")
+          .update({
+            tokens_balance: currentBalance + (req.tokens_count || 0),
+          } as any)
+          .eq("id", req.user_id);
+      }
+    }
+
+    const { error: updErr } = await supabase
+      .from("subscription_requests")
+      .update({
+        status: data.action === "approve" ? "approved" : "rejected",
+        reviewed_at: new Date().toISOString(),
+        reviewed_by: userId,
+        admin_notes: (data.adminNotes || "").trim().slice(0, 500),
+      } as any)
+      .eq("id", data.id);
+
+    return updErr ? { ok: false as const } : { ok: true as const };
+  });
+

@@ -1,11 +1,12 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Flag, LayoutDashboard, Layers, ShieldAlert, ShoppingBag, Tags, Users } from "lucide-react";
+import { CreditCard, Flag, LayoutDashboard, Layers, ShieldAlert, ShoppingBag, Tags, Users } from "lucide-react";
 import { useState } from "react";
 import { CategoriesPanel } from "@/components/admin/Categories";
 import { ListingsPanel } from "@/components/admin/Listings";
 import { Overview } from "@/components/admin/Overview";
 import { PricingPanel } from "@/components/admin/Pricing";
 import { ReportsPanel } from "@/components/admin/Reports";
+import { SubscriptionsPanel } from "@/components/admin/Subscriptions";
 import { Loading } from "@/components/admin/shared";
 import { UsersPanel } from "@/components/admin/Users";
 import { PageHeader } from "@/components/site/SectionHeading";
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/_authenticated/admin")({
   component: AdminPage,
 });
 
-type Tab = "overview" | "listings" | "reports" | "users" | "categories" | "pricing";
+type Tab = "overview" | "listings" | "subscriptions" | "reports" | "users" | "categories" | "pricing";
 
 function AdminPage() {
   const { t, dir } = useI18n();
@@ -59,6 +60,7 @@ function AdminPage() {
   const tabs: { id: Tab; icon: typeof Users; label: string }[] = [
     { id: "overview", icon: LayoutDashboard, label: t({ ar: "نظرة عامة", fr: "Vue d'ensemble", en: "Overview" }) },
     { id: "listings", icon: ShoppingBag, label: t({ ar: "الإعلانات", fr: "Annonces", en: "Listings" }) },
+    { id: "subscriptions", icon: CreditCard, label: t({ ar: "الاشتراكات والنقاط", fr: "Demandes", en: "Requests" }) },
     { id: "reports", icon: Flag, label: t({ ar: "التبليغات", fr: "Signalements", en: "Reports" }) },
     { id: "users", icon: Users, label: t({ ar: "الحسابات", fr: "Comptes", en: "Accounts" }) },
     { id: "categories", icon: Layers, label: t({ ar: "الأصناف", fr: "Catégories", en: "Categories" }) },
@@ -91,6 +93,7 @@ function AdminPage() {
             />
           </TabsContent>
           <TabsContent value="listings"><ListingsPanel status={status} onStatus={setStatus} /></TabsContent>
+          <TabsContent value="subscriptions"><SubscriptionsPanel /></TabsContent>
           <TabsContent value="reports"><ReportsPanel /></TabsContent>
           <TabsContent value="users"><UsersPanel /></TabsContent>
           <TabsContent value="categories"><CategoriesPanel /></TabsContent>
