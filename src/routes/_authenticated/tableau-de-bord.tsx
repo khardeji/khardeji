@@ -63,6 +63,18 @@ export const Route = createFileRoute("/_authenticated/tableau-de-bord")({
       { name: "robots", content: "noindex" },
     ],
   }),
+  errorComponent: ({ error, reset }) => (
+    <div className="mx-auto max-w-lg px-4 py-20 text-center">
+      <h2 className="text-xl font-semibold text-foreground">Tableau de bord temporairement indisponible</h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {(error as any)?.message || "Une erreur est survenue lors du chargement de vos données."}
+      </p>
+      <div className="mt-6 flex justify-center gap-3">
+        <Button variant="rust" onClick={() => reset()}>Réessayer</Button>
+        <Button asChild variant="outline"><Link to="/">Retour à l'accueil</Link></Button>
+      </div>
+    </div>
+  ),
   component: DashboardPage,
 });
 
@@ -407,7 +419,11 @@ export function DashboardPage() {
                     {approvedListings.slice(0, 5).map((l) => (
                       <div key={l.id} className="flex flex-col justify-between gap-3 py-3 sm:flex-row sm:items-center">
                         <div className="flex items-center gap-3">
-                          <img src={l.images[0]} alt="" className="size-14 rounded-md object-cover" />
+                          {l.images?.[0] ? (
+                            <img src={l.images[0]} alt="" className="size-14 rounded-md object-cover" />
+                          ) : (
+                            <div className="size-14 rounded-md bg-muted grid place-items-center text-muted-foreground"><ShoppingBag className="size-6" /></div>
+                          )}
                           <div>
                             <p className="font-semibold text-foreground">{t(l.title)}</p>
                             <p className="text-xs text-muted-foreground">{dt(l.price)} · {t(SALE_TYPE_LABEL[l.saleType])}</p>
@@ -460,7 +476,11 @@ export function DashboardPage() {
                     const st = l.status ?? "pending";
                     return (
                       <div key={l.id} className="surface-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
-                        <img src={l.images[0]} alt="" className="size-20 shrink-0 rounded-md object-cover" />
+                        {l.images?.[0] ? (
+                          <img src={l.images[0]} alt="" className="size-20 shrink-0 rounded-md object-cover" />
+                        ) : (
+                          <div className="size-20 shrink-0 rounded-md bg-muted grid place-items-center text-muted-foreground"><ShoppingBag className="size-8" /></div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <Badge variant={STATUS_BADGE[st]}>{t(LISTING_STATUS_LABEL[st])}</Badge>
@@ -644,10 +664,14 @@ export function DashboardPage() {
                               {r.status === "approved" ? "Validée" : r.status === "rejected" ? "Rejetée" : "En attente"}
                             </Badge>
                             <span className="font-semibold text-foreground text-sm">
-                              {r.type === "token_pack" ? `Pack de ${r.tokensCount} jetons` : `Forfait ${r.planId?.toUpperCase()}`}
+                              {r.type === "token_pack"
+                                ? `Pack de ${r.tokensCount || 0} jetons`
+                                : `Forfait ${(r.planId || "Pro").toUpperCase()}`}
                             </span>
                           </div>
-                          <p className="mt-1 text-xs text-muted-foreground">{date(r.createdAt)} · Montant : {dt(r.amount)}</p>
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            {date(r.createdAt || (r as any).created_at)} · Montant : {dt(r.amount)}
+                          </p>
                         </div>
                         {r.adminNotes && (
                           <p className="text-xs text-muted-foreground bg-muted/60 px-2 py-1 rounded">

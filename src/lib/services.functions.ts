@@ -359,7 +359,18 @@ export const getMyRequests = createServerFn({ method: "GET" })
         .order("created_at", { ascending: false });
 
       if (error || !data) return [];
-      return data as any[];
+      return data.map((r: any) => ({
+        id: String(r.id),
+        type: r.type,
+        planId: r.plan_id ?? null,
+        packId: r.pack_id ?? null,
+        tokensCount: Number(r.tokens_count ?? 0),
+        amount: Number(r.amount ?? 0),
+        status: r.status,
+        notes: String(r.notes ?? ""),
+        adminNotes: String(r.admin_notes ?? ""),
+        createdAt: String(r.created_at ?? ""),
+      }));
     } catch (e) {
       console.warn("getMyRequests error", e);
       return [];
