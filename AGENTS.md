@@ -38,3 +38,4 @@ use the editor.
 - Admin screens live in `src/components/admin/` behind `/admin`; every admin server function re-checks the admin role (`assertAdmin`), the UI check (`useIsAdmin`) is display-only.
 - Listing photos upload from the browser to the private `listing-photos` bucket under `<userId>/…` (storage policies enforce the folder) and are shown via signed URLs; private query keys start with `me` or `admin` so sign-out can drop them.
 - Pages that need an account live under `src/routes/_authenticated/` (client-only guard redirecting to `/connexion?redirect=`), so adding a protected page is just a new file there.
+- The backend is the owner's own Supabase project (not Lovable Cloud), set by the public URL/publishable key in `.env`; server code reads `process.env` first and falls back to the `VITE_` values so the published worker still reaches it. Schema changes are applied by the owner with the SQL export, since no migration tool is attached.

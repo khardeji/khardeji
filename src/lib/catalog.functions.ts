@@ -13,8 +13,9 @@ import {
 } from "./catalog-map";
 
 function publicClient() {
-  const url = process.env["SUPABASE_URL"]!;
-  const key = process.env["SUPABASE_PUBLISHABLE_KEY"]!;
+  // Server env first; the build-time public values are a fallback so the published site keeps working.
+  const url = (process.env["SUPABASE_URL"] || import.meta.env["VITE_SUPABASE_URL"]) as string;
+  const key = (process.env["SUPABASE_PUBLISHABLE_KEY"] || import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]) as string;
   return createClient<Database>(url, key, {
     auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
     // Opaque sb_ keys aren't JWTs; send only apikey, not the default Authorization bearer.
