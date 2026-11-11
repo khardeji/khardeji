@@ -70,7 +70,7 @@ function NotFound() {
 function ListingDetail() {
   const { listing } = Route.useLoaderData();
   const { user } = useAuth();
-  const isOwner = Boolean(user?.id && listing.ownerId && user.id === listing.ownerId);
+  const isOwner = !!user && !!listing.ownerId && user.id === listing.ownerId;
   const [active, setActive] = useState(0);
   const { isFavorite, toggle, needAccount, closeAccount } = useFavorites();
   const { t, dt, num, date } = useI18n();
@@ -190,32 +190,52 @@ function ListingDetail() {
                 </p>
               </div>
             </div>
-            <div className="mt-4 grid grid-cols-2 gap-2">
-              {isOwner ? (
-                <Button variant="rust" asChild className="gap-1.5">
-                  <Link to="/tableau-de-bord">
-                    {t({ ar: "إدارة إعلاني", fr: "Gérer mon annonce", en: "Manage listing" })}
-                  </Link>
-                </Button>
-              ) : (
+            {isOwner ? (
+              <div className="mt-4 space-y-2">
+                <Badge variant="brass" className="w-full justify-center py-1">
+                  {t({ ar: "أنت صاحب هذا الإعلان", fr: "Votre propre annonce", en: "Your own listing" })}
+                </Badge>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button asChild variant="outline" size="sm">
+                    <Link to="/mes-annonces">
+                      {t({ ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" })}
+                    </Link>
+                  </Button>
+                  {listing.saleType === "negociable" ? (
+                    <Button asChild variant="rust" size="sm">
+                      <Link to="/mes-offres">
+                        {t({ ar: "العروض", fr: "Voir offres", en: "View offers" })}
+                      </Link>
+                    </Button>
+                  ) : (
+                    <Button asChild variant="rust" size="sm">
+                      <Link to="/mes-demandes">
+                        {t({ ar: "الطلبات", fr: "Commandes", en: "Requests" })}
+                      </Link>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 grid grid-cols-2 gap-2">
                 <ContactSellerDialog
                   listingId={listing.id}
                   listingTitle={t(listing.title)}
                   sellerName={listing.seller.name}
                 />
-              )}
-              {listing.seller.phone ? (
-                <Button variant="outline" asChild>
-                  <a href={`tel:${listing.seller.phone.replace(/[^+\d]/g, "")}`} dir="ltr">
-                    <Phone /> {listing.seller.phone}
-                  </a>
-                </Button>
-              ) : (
-                <Button variant="outline" disabled>
-                  <Phone /> {t({ ar: "ما فمّاش رقم", fr: "Pas de numéro", en: "No number" })}
-                </Button>
-              )}
-            </div>
+                {listing.seller.phone ? (
+                  <Button variant="outline" asChild>
+                    <a href={`tel:${listing.seller.phone.replace(/[^+\d]/g, "")}`} dir="ltr">
+                      <Phone /> {listing.seller.phone}
+                    </a>
+                  </Button>
+                ) : (
+                  <Button variant="outline" disabled>
+                    <Phone /> {t({ ar: "ما فمّاش رقم", fr: "Pas de numéro", en: "No number" })}
+                  </Button>
+                )}
+              </div>
+            )}
           </div>
         </aside>
       </div>

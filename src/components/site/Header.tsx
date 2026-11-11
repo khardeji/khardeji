@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Coins, Gauge, Heart, LayoutDashboard, ListChecks, LogOut, Menu, Plus, UserRound } from "lucide-react";
+import { Coins, Gauge, HandCoins, Heart, LayoutDashboard, ListChecks, LogOut, Menu, Package, Plus, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -19,6 +19,7 @@ import { useIsAdmin } from "@/hooks/use-is-admin";
 import { getMyOverview } from "@/lib/services.functions";
 import { LanguageSwitcher } from "./LanguageSwitcher";
 import { Logo } from "./Logo";
+import { NotificationBell } from "./NotificationBell";
 
 const NAV = [
   { to: "/", label: { ar: "الرئيسية", fr: "Accueil", en: "Home" } },
@@ -32,6 +33,8 @@ const NAV = [
 const DASHBOARD = { ar: "لوحة التحكم", fr: "Tableau de bord", en: "Dashboard" };
 const PUBLISH = { ar: "انشر إعلان", fr: "Publier une annonce", en: "Post a listing" };
 const MY_LISTINGS = { ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" };
+const MY_OFFERS = { ar: "عروض الأسعار", fr: "Mes offres", en: "My offers" };
+const MY_REQUESTS = { ar: "طلبات الكميات", fr: "Demandes de quantité", en: "Quantity requests" };
 const MY_FAVORITES = { ar: "مفضلتي", fr: "Mes favoris", en: "My favourites" };
 const ADMIN = { ar: "لوحة الإدارة", fr: "Administration", en: "Admin dashboard" };
 const SIGN_OUT = { ar: "تسجيل الخروج", fr: "Se déconnecter", en: "Sign out" };
@@ -93,6 +96,12 @@ function AccountMenu() {
         <DropdownMenuItem onSelect={() => navigate({ to: "/mes-annonces" })}>
           <ListChecks /> {t(MY_LISTINGS)}
         </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate({ to: "/mes-offres" })}>
+          <HandCoins /> {t(MY_OFFERS)}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate({ to: "/mes-demandes" })}>
+          <Package /> {t(MY_REQUESTS)}
+        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate({ to: "/mes-favoris" })}>
           <Heart /> {t(MY_FAVORITES)}
         </DropdownMenuItem>
@@ -133,6 +142,7 @@ export function Header() {
         </nav>
 
         <div className="ms-auto flex items-center gap-1.5 xl:ms-0">
+          <NotificationBell />
           <LanguageSwitcher />
           {!loading && !user && (
             <Button asChild variant="ghost" className="hidden sm:inline-flex">
@@ -180,6 +190,12 @@ export function Header() {
                     </Link>
                     <Link to="/mes-annonces" className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
                       <ListChecks className="size-5" /> {t(MY_LISTINGS)}
+                    </Link>
+                    <Link to="/mes-offres" className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
+                      <HandCoins className="size-5" /> {t(MY_OFFERS)}
+                    </Link>
+                    <Link to="/mes-demandes" className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
+                      <Package className="size-5" /> {t(MY_REQUESTS)}
                     </Link>
                     <Link to="/mes-favoris" className="mb-2 flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
                       <Heart className="size-5" /> {t(MY_FAVORITES)}

@@ -114,6 +114,11 @@ export interface DemoBid {
   bidder: string;
   amount: number;
   minutesAgo: number;
+  bidderId?: string;
+  bidderName?: string;
+  bidderPhone?: string;
+  bidderEmail?: string;
+  createdAt?: string;
 }
 
 export interface Listing {

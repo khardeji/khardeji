@@ -19,7 +19,9 @@ import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
 import { Route as AuthenticatedMesAnnoncesRouteImport } from './routes/_authenticated/mes-annonces'
+import { Route as AuthenticatedMesDemandesRouteImport } from './routes/_authenticated/mes-demandes'
 import { Route as AuthenticatedMesFavorisRouteImport } from './routes/_authenticated/mes-favoris'
+import { Route as AuthenticatedMesOffresRouteImport } from './routes/_authenticated/mes-offres'
 import { Route as AuthenticatedPublierRouteImport } from './routes/_authenticated/publier'
 import { Route as AuthenticatedTableauDeBordRouteImport } from './routes/_authenticated/tableau-de-bord'
 import { Route as AnnoncesIndexRouteImport } from './routes/annonces.index'
@@ -75,9 +77,20 @@ const AuthenticatedMesAnnoncesRoute =
     path: '/mes-annonces',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMesDemandesRoute =
+  AuthenticatedMesDemandesRouteImport.update({
+    id: '/mes-demandes',
+    path: '/mes-demandes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMesFavorisRoute = AuthenticatedMesFavorisRouteImport.update({
   id: '/mes-favoris',
   path: '/mes-favoris',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMesOffresRoute = AuthenticatedMesOffresRouteImport.update({
+  id: '/mes-offres',
+  path: '/mes-offres',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedPublierRoute = AuthenticatedPublierRouteImport.update({
@@ -112,7 +125,9 @@ export interface FileRoutesByFullPath {
   '/services': typeof ServicesRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
+  '/mes-demandes': typeof AuthenticatedMesDemandesRoute
   '/mes-favoris': typeof AuthenticatedMesFavorisRoute
+  '/mes-offres': typeof AuthenticatedMesOffresRoute
   '/publier': typeof AuthenticatedPublierRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
   '/annonces/$id': typeof AnnoncesIdRoute
@@ -128,7 +143,9 @@ export interface FileRoutesByTo {
   '/services': typeof ServicesRoute
   '/admin': typeof AuthenticatedAdminRoute
   '/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
+  '/mes-demandes': typeof AuthenticatedMesDemandesRoute
   '/mes-favoris': typeof AuthenticatedMesFavorisRoute
+  '/mes-offres': typeof AuthenticatedMesOffresRoute
   '/publier': typeof AuthenticatedPublierRoute
   '/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
   '/annonces/$id': typeof AnnoncesIdRoute
@@ -146,7 +163,9 @@ export interface FileRoutesById {
   '/services': typeof ServicesRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
   '/_authenticated/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
+  '/_authenticated/mes-demandes': typeof AuthenticatedMesDemandesRoute
   '/_authenticated/mes-favoris': typeof AuthenticatedMesFavorisRoute
+  '/_authenticated/mes-offres': typeof AuthenticatedMesOffresRoute
   '/_authenticated/publier': typeof AuthenticatedPublierRoute
   '/_authenticated/tableau-de-bord': typeof AuthenticatedTableauDeBordRoute
   '/annonces/$id': typeof AnnoncesIdRoute
@@ -164,7 +183,9 @@ export interface FileRouteTypes {
     | '/services'
     | '/admin'
     | '/mes-annonces'
+    | '/mes-demandes'
     | '/mes-favoris'
+    | '/mes-offres'
     | '/publier'
     | '/tableau-de-bord'
     | '/annonces/$id'
@@ -180,7 +201,9 @@ export interface FileRouteTypes {
     | '/services'
     | '/admin'
     | '/mes-annonces'
+    | '/mes-demandes'
     | '/mes-favoris'
+    | '/mes-offres'
     | '/publier'
     | '/tableau-de-bord'
     | '/annonces/$id'
@@ -197,7 +220,9 @@ export interface FileRouteTypes {
     | '/services'
     | '/_authenticated/admin'
     | '/_authenticated/mes-annonces'
+    | '/_authenticated/mes-demandes'
     | '/_authenticated/mes-favoris'
+    | '/_authenticated/mes-offres'
     | '/_authenticated/publier'
     | '/_authenticated/tableau-de-bord'
     | '/annonces/$id'
@@ -289,11 +314,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMesAnnoncesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/mes-demandes': {
+      id: '/_authenticated/mes-demandes'
+      path: '/mes-demandes'
+      fullPath: '/mes-demandes'
+      preLoaderRoute: typeof AuthenticatedMesDemandesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mes-favoris': {
       id: '/_authenticated/mes-favoris'
       path: '/mes-favoris'
       fullPath: '/mes-favoris'
       preLoaderRoute: typeof AuthenticatedMesFavorisRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mes-offres': {
+      id: '/_authenticated/mes-offres'
+      path: '/mes-offres'
+      fullPath: '/mes-offres'
+      preLoaderRoute: typeof AuthenticatedMesOffresRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/publier': {
@@ -330,7 +369,9 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
   AuthenticatedMesAnnoncesRoute: typeof AuthenticatedMesAnnoncesRoute
+  AuthenticatedMesDemandesRoute: typeof AuthenticatedMesDemandesRoute
   AuthenticatedMesFavorisRoute: typeof AuthenticatedMesFavorisRoute
+  AuthenticatedMesOffresRoute: typeof AuthenticatedMesOffresRoute
   AuthenticatedPublierRoute: typeof AuthenticatedPublierRoute
   AuthenticatedTableauDeBordRoute: typeof AuthenticatedTableauDeBordRoute
 }
@@ -338,7 +379,9 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
   AuthenticatedMesAnnoncesRoute: AuthenticatedMesAnnoncesRoute,
+  AuthenticatedMesDemandesRoute: AuthenticatedMesDemandesRoute,
   AuthenticatedMesFavorisRoute: AuthenticatedMesFavorisRoute,
+  AuthenticatedMesOffresRoute: AuthenticatedMesOffresRoute,
   AuthenticatedPublierRoute: AuthenticatedPublierRoute,
   AuthenticatedTableauDeBordRoute: AuthenticatedTableauDeBordRoute,
 }
