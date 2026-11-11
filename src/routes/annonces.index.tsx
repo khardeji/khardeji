@@ -7,6 +7,7 @@ import { ListingCard } from "@/components/site/ListingCard";
 import { PageHeader } from "@/components/site/SectionHeading";
 import {
   auctionCurrentPrice,
+  boostPriority,
   governorateLabel,
   GOVERNORATES,
   listingSearchText,
@@ -186,9 +187,15 @@ function Catalogue() {
     return true;
   });
   const sort = search.sort ?? "recent";
-  results = [...results].sort((a, b) =>
-    sort === "recent" ? b.publishedAt.localeCompare(a.publishedAt) : sort === "prix-asc" ? a.price - b.price : b.price - a.price,
-  );
+  results = [...results].sort((a, b) => {
+    // Boosted listings always appear first, ordered by plan tier
+    const boostDiff = boostPriority(b) - boostPriority(a);
+    if (boostDiff !== 0) return boostDiff;
+    // Then apply the user-selected sort
+    if (sort === "recent") return b.publishedAt.localeCompare(a.publishedAt);
+    if (sort === "prix-asc") return a.price - b.price;
+    return b.price - a.price;
+  });
 
   const activeCat = search.cat ? getCategory(search.cat) : undefined;
   const hasFilters = Object.values(search).some((v) => v !== undefined && v !== "recent");
