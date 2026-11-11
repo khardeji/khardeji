@@ -18,6 +18,45 @@ interface AuctionJson {
   endsInHours?: number;
 }
 
+const PHOTO_BUCKET = "listing-photos";
+const STORAGE_PREFIX = "storage:";
+
+async function signListingImages(supabase: any, listings: any[]): Promise<Map<string, string>> {
+  const map = new Map<string, string>();
+  const paths: string[] = [];
+  for (const l of listings) {
+    const images: string[] = Array.isArray(l?.images) ? l.images : [];
+    for (const img of images) {
+      if (typeof img === "string" && img.startsWith(STORAGE_PREFIX)) {
+        paths.push(img.slice(STORAGE_PREFIX.length));
+      }
+    }
+  }
+  const uniquePaths = Array.from(new Set(paths));
+  if (uniquePaths.length > 0) {
+    try {
+      const { data } = await supabase.storage.from(PHOTO_BUCKET).createSignedUrls(uniquePaths, 60 * 60 * 24 * 7);
+      for (const d of data ?? []) {
+        if (d?.path && d?.signedUrl) {
+          map.set(`${STORAGE_PREFIX}${d.path}`, d.signedUrl);
+        }
+      }
+    } catch (e) {
+      console.error("signListingImages failed", e);
+    }
+  }
+  return map;
+}
+
+function getListingFirstImage(l: any, signedMap?: Map<string, string>): string {
+  const images: string[] = Array.isArray(l?.images) ? l.images : [];
+  const first = images[0] || "listing-recup";
+  if (typeof first === "string" && first.startsWith(STORAGE_PREFIX) && signedMap?.has(first)) {
+    return signedMap.get(first)!;
+  }
+  return first;
+}
+
 // Helper: Create persistent notification in Supabase
 async function createNotification(
   supabase: any,
@@ -489,6 +528,7 @@ export const getIncomingOffers = createServerFn({ method: "GET" })
         : Promise.resolve({ data: [] }),
     ]);
 
+    const signedImagesMap = await signListingImages(supabase, listings ?? []);
     const lMap = new Map((listings ?? []).map((l: any) => [l.id, l]));
     const pMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
 
@@ -496,12 +536,11 @@ export const getIncomingOffers = createServerFn({ method: "GET" })
       const l = lMap.get(o.listing_id);
       const p = pMap.get(o.buyer_id);
       const titleObj = (l?.title && typeof l.title === "object" ? l.title : {}) as any;
-      const images: string[] = Array.isArray(l?.images) ? l.images : [];
       return {
         id: o.id,
         listingId: o.listing_id,
         listingTitle: titleObj,
-        listingImage: images[0] || "listing-recup",
+        listingImage: getListingFirstImage(l, signedImagesMap),
         originalPrice: Number(o.original_price),
         offeredPrice: Number(o.offered_price),
         quantity: Number(o.quantity),
@@ -580,18 +619,18 @@ export const getOutgoingOffers = createServerFn({ method: "GET" })
       .select("id, title, images, price, unit, seller")
       .in("id", listingIds);
 
+    const signedImagesMap = await signListingImages(supabase, listings ?? []);
     const lMap = new Map((listings ?? []).map((l: any) => [l.id, l]));
 
     return offersData.map((o) => {
       const l = lMap.get(o.listing_id);
       const titleObj = (l?.title && typeof l.title === "object" ? l.title : {}) as any;
-      const images: string[] = Array.isArray(l?.images) ? l.images : [];
       const sellerObj = (l?.seller && typeof l.seller === "object" ? l.seller : {}) as any;
       return {
         id: o.id,
         listingId: o.listing_id,
         listingTitle: titleObj,
-        listingImage: images[0] || "listing-recup",
+        listingImage: getListingFirstImage(l, signedImagesMap),
         originalPrice: Number(o.original_price),
         offeredPrice: Number(o.offered_price),
         quantity: Number(o.quantity),
@@ -935,10 +974,11 @@ export const getSellerQuantityRequests = createServerFn({ method: "GET" })
         ? supabase.from("listings").select("id, title, images, price, unit, stock").in("id", listingIds)
         : Promise.resolve({ data: [] }),
       buyerIds.length > 0
-        ? supabase.from("profiles").select("id, full_name, phone, email, account_type").in("id", buyerIds)
+        ? supabase.from("profiles").select("id, full_name, phone, email, account_type, created_at").in("id", buyerIds)
         : Promise.resolve({ data: [] }),
     ]);
 
+    const signedImagesMap = await signListingImages(supabase, listings ?? []);
     const lMap = new Map((listings ?? []).map((l: any) => [l.id, l]));
     const pMap = new Map((profiles ?? []).map((p: any) => [p.id, p]));
 
@@ -946,12 +986,11 @@ export const getSellerQuantityRequests = createServerFn({ method: "GET" })
       const l = lMap.get(r.listing_id);
       const p = pMap.get(r.buyer_id);
       const titleObj = (l?.title && typeof l.title === "object" ? l.title : {}) as any;
-      const images: string[] = Array.isArray(l?.images) ? l.images : [];
       return {
         id: r.id,
         listingId: r.listing_id,
         listingTitle: titleObj,
-        listingImage: images[0] || "listing-recup",
+        listingImage: getListingFirstImage(l, signedImagesMap),
         availableStock: Number(l?.stock ?? 0),
         unitPrice: Number(r.unit_price),
         requestedQuantity: Number(r.requested_quantity),
@@ -967,6 +1006,7 @@ export const getSellerQuantityRequests = createServerFn({ method: "GET" })
           phone: p?.phone || r.buyer_snapshot?.phone || "",
           email: p?.email || r.buyer_snapshot?.email || "",
           accountType: p?.account_type || "particulier",
+          memberSince: p?.created_at || "",
         },
       };
     });
@@ -1029,18 +1069,18 @@ export const getBuyerQuantityRequests = createServerFn({ method: "GET" })
       .select("id, title, images, price, unit, seller, stock")
       .in("id", listingIds);
 
+    const signedImagesMap = await signListingImages(supabase, listings ?? []);
     const lMap = new Map((listings ?? []).map((l: any) => [l.id, l]));
 
     return reqsData.map((r) => {
       const l = lMap.get(r.listing_id);
       const titleObj = (l?.title && typeof l.title === "object" ? l.title : {}) as any;
-      const images: string[] = Array.isArray(l?.images) ? l.images : [];
       const sellerObj = (l?.seller && typeof l.seller === "object" ? l.seller : {}) as any;
       return {
         id: r.id,
         listingId: r.listing_id,
         listingTitle: titleObj,
-        listingImage: images[0] || "listing-recup",
+        listingImage: getListingFirstImage(l, signedImagesMap),
         unitPrice: Number(r.unit_price),
         requestedQuantity: Number(r.requested_quantity),
         totalValue: Number(r.total_value),
@@ -1059,7 +1099,7 @@ export const getBuyerQuantityRequests = createServerFn({ method: "GET" })
 
 export const respondToQuantityRequest = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { requestId: string; action: "accepted" | "rejected" }) => ({
+  .inputValidator((d: { requestId: string; action: "accepted" | "rejected" | "cancel_acceptance" }) => ({
     requestId: String(d.requestId),
     action: d.action,
   }))
@@ -1071,6 +1111,7 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
     let requestedQuantity = 0;
     let unitLabel = "piece";
     let isDedicatedTable = false;
+    let currentStatus = "";
 
     // 1. Check dedicated quantity_requests table
     const { data: req, error } = await supabase
@@ -1086,9 +1127,7 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
           return { ok: false as const, error: "forbidden", message: "Action non autorisée." };
         }
       }
-      if (req.status !== "pending") {
-        return { ok: false as const, error: "not_pending", message: "Cette demande n'est plus en attente." };
-      }
+      currentStatus = req.status;
       isDedicatedTable = true;
       targetListingId = req.listing_id;
       targetBuyerId = req.buyer_id;
@@ -1115,9 +1154,7 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
 
       try {
         const parsed = JSON.parse(msg.content);
-        if (parsed.status !== "pending") {
-          return { ok: false as const, error: "not_pending", message: "Cette demande n'est plus en attente." };
-        }
+        currentStatus = parsed.status || "pending";
         targetListingId = msg.listing_id;
         targetBuyerId = msg.sender_id;
         requestedQuantity = Number(parsed.requested_quantity);
@@ -1125,6 +1162,79 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
       } catch (e) {
         return { ok: false as const, error: "failed", message: "Données de commande invalides." };
       }
+    }
+
+    if (data.action === "cancel_acceptance") {
+      if (currentStatus !== "accepted") {
+        return {
+          ok: false as const,
+          error: "not_accepted",
+          message: "Seules les commandes acceptées peuvent être annulées et republiées.",
+        };
+      }
+
+      // Restock the item and repost into the store
+      const { data: listing, error: lErr } = await supabase
+        .from("listings")
+        .select("stock, status")
+        .eq("id", targetListingId)
+        .maybeSingle();
+
+      const currentStock = Number(listing?.stock ?? 0);
+      const restoredStock = currentStock + requestedQuantity;
+      // Repost to store: if sold or hidden, reset status to approved so it is live again
+      const newStatus = listing?.status === "sold" ? "approved" : (listing?.status || "approved");
+
+      await supabase
+        .from("listings")
+        .update({ stock: restoredStock, status: newStatus })
+        .eq("id", targetListingId);
+
+      // Update request status to "cancelled"
+      if (isDedicatedTable) {
+        await supabase
+          .from("quantity_requests")
+          .update({ status: "cancelled", updated_at: new Date().toISOString() })
+          .eq("id", data.requestId);
+      } else {
+        const { data: msg } = await supabase.from("messages").select("content").eq("id", data.requestId).maybeSingle();
+        if (msg) {
+          const parsed = JSON.parse(msg.content);
+          parsed.status = "cancelled";
+          parsed.updated_at = new Date().toISOString();
+          await supabase.from("messages").update({ content: JSON.stringify(parsed) }).eq("id", data.requestId);
+        }
+      }
+
+      // Notify buyer
+      await createNotification(supabase, {
+        actorId: userId,
+        userId: targetBuyerId,
+        type: "quantity_cancelled",
+        title: {
+          ar: "تم إلغاء قبول الطلب وإعادة المنتج للمتجر",
+          fr: "Acceptation annulée & article remis en vente",
+          en: "Order acceptance cancelled & item reposted",
+        },
+        message: {
+          ar: `قام البائع بإلغاء قبول طلبك (${requestedQuantity} ${unitLabel}). تمت إعادة الكمية إلى المتجر.`,
+          fr: `Le vendeur a annulé l'acceptation de votre commande de ${requestedQuantity} ${unitLabel}. La quantité a été remise en vente dans la boutique.`,
+          en: `The seller cancelled acceptance of your order for ${requestedQuantity} ${unitLabel}. The quantity has been reposted to the store.`,
+        },
+        listingId: targetListingId,
+        link: "/tableau-de-bord?tab=requests",
+      });
+
+      return {
+        ok: true as const,
+        status: "cancelled" as const,
+        remainingStock: restoredStock,
+        message: "L'acceptation a été annulée et le produit a été remis en vente.",
+      };
+    }
+
+    if (currentStatus !== "pending") {
+      return { ok: false as const, error: "not_pending", message: "Cette demande n'est plus en attente." };
     }
 
     if (data.action === "accepted") {
@@ -1384,11 +1494,12 @@ export const getSellerBiddingRequests = createServerFn({ method: "GET" })
 
     if (!listings || listings.length === 0) return [];
 
+    const signedImagesMap = await signListingImages(supabase, listings);
+
     return listings.map((l: any) => {
       const a = (l.auction && typeof l.auction === "object" ? l.auction : {}) as AuctionJson;
       const bids: any[] = Array.isArray(a.bids) ? a.bids : [];
       const titleObj = (l.title && typeof l.title === "object" ? l.title : {}) as any;
-      const images: string[] = Array.isArray(l.images) ? l.images : [];
       const startPrice = Number(a.startPrice ?? l.price ?? 0);
       const increment = Number(a.increment ?? 1);
 
@@ -1407,7 +1518,7 @@ export const getSellerBiddingRequests = createServerFn({ method: "GET" })
       return {
         id: l.id,
         title: titleObj,
-        image: images[0] || "listing-recup",
+        image: getListingFirstImage(l, signedImagesMap),
         startPrice,
         increment,
         currentHighestBid: highestBid,
