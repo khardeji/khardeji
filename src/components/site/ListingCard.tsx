@@ -15,7 +15,9 @@ export function ListingCard({ listing }: { listing: Listing }) {
   const { isFavorite, toggle, needAccount, closeAccount } = useFavorites();
   const { t, dt, num, date } = useI18n();
   const fav = isFavorite(listing.id);
-  const unit = t(UNIT_LABEL[listing.unit].short);
+  const unit = UNIT_LABEL[listing.unit as keyof typeof UNIT_LABEL]
+    ? t(UNIT_LABEL[listing.unit as keyof typeof UNIT_LABEL].short)
+    : (listing.unit || "");
   const isAuction = listing.saleType === "enchere";
   const price = isAuction ? auctionCurrentPrice(listing) : listing.price;
 

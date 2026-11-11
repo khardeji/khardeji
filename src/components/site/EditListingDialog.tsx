@@ -16,7 +16,7 @@ import { useCatalog } from "@/lib/catalog-queries";
 import { updateMyListing } from "@/lib/listings.functions";
 import { UNIT_LABEL, type SaleUnit } from "@/lib/quantity";
 
-const UNITS: SaleUnit[] = ["kg", "tonne", "piece", "lot", "metre", "litre", "m3", "libre"];
+const UNITS: SaleUnit[] = ["piece", "kg", "g", "tonne", "lot", "libre"];
 
 export function EditListingDialog({
   listing,
@@ -254,11 +254,15 @@ export function EditListingDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {UNITS.map((u) => (
-                    <SelectItem key={u} value={u}>
-                      {t(UNIT_LABEL[u].long)} ({t(UNIT_LABEL[u].short)})
-                    </SelectItem>
-                  ))}
+                  {UNITS.map((u) => {
+                    const lbl = UNIT_LABEL[u];
+                    if (!lbl) return null;
+                    return (
+                      <SelectItem key={u} value={u}>
+                        {t(lbl.long)} ({t(lbl.short)})
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>

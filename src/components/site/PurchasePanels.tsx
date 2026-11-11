@@ -76,8 +76,9 @@ function QuantityStepper({
   disabled?: boolean;
 }) {
   const { t, num } = useI18n();
-  const { step } = UNIT_LABEL[listing.unit];
-  const short = t(UNIT_LABEL[listing.unit].short);
+  const uObj = UNIT_LABEL[listing.unit as keyof typeof UNIT_LABEL] || UNIT_LABEL.piece;
+  const step = uObj.step;
+  const short = t(uObj.short);
   return (
     <div>
       <label htmlFor="qty" className="label-stamp text-xs text-muted-foreground">
@@ -140,8 +141,9 @@ export function FixedPricePanel({ listing }: { listing: Listing }) {
   const qc = useQueryClient();
   const isOwner = !!user && !!listing.ownerId && user.id === listing.ownerId;
 
-  const { step } = UNIT_LABEL[listing.unit];
-  const short = t(UNIT_LABEL[listing.unit].short);
+  const uObj = UNIT_LABEL[listing.unit as keyof typeof UNIT_LABEL] || UNIT_LABEL.piece;
+  const step = uObj.step;
+  const short = t(uObj.short);
   const [qty, setQty] = useState(() => clampQuantity(listing.unit === "kg" ? 25 : 1, listing.stock, step));
   const [delivery, setDelivery] = useState("");
   const [notes, setNotes] = useState("");
@@ -258,8 +260,9 @@ export function OfferPanel({ listing }: { listing: Listing }) {
   const qc = useQueryClient();
   const isOwner = !!user && !!listing.ownerId && user.id === listing.ownerId;
 
-  const { step } = UNIT_LABEL[listing.unit];
-  const short = t(UNIT_LABEL[listing.unit].short);
+  const uObj = UNIT_LABEL[listing.unit as keyof typeof UNIT_LABEL] || UNIT_LABEL.piece;
+  const step = uObj.step;
+  const short = t(uObj.short);
 
   // Dynamic negotiation rule computation
   const rule = getNegotiationRule(listing.price);

@@ -138,7 +138,7 @@ function MyListings() {
                     </div>
                     <h2 className="mt-2 truncate text-lg font-semibold">{t(l.title)}</h2>
                     <p className="text-sm text-muted-foreground">
-                      {dt(l.auction?.startPrice ?? l.price)} / {t(UNIT_LABEL[l.unit].short)} · {t(governorateLabel(l.governorate))}
+                      {dt(l.auction?.startPrice ?? l.price)} / {UNIT_LABEL[l.unit as keyof typeof UNIT_LABEL] ? t(UNIT_LABEL[l.unit as keyof typeof UNIT_LABEL].short) : (l.unit || "pièce")} · {t(governorateLabel(l.governorate))}
                       {l.publishedAt && ` · ${date(l.publishedAt)}`}
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">{t(STATUS_HELP[st])}</p>

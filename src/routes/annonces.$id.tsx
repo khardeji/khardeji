@@ -34,7 +34,7 @@ export const Route = createFileRoute("/annonces/$id")({
       ? `${tr(l.title)} — ${tr(governorateLabel(l.governorate))} | Khardeji`
       : tr({ ar: "إعلان غير موجود | خردجي", fr: "Annonce introuvable | Khardeji", en: "Listing not found | Khardeji" });
     const desc = l
-      ? `${tr(l.title)} : ${formatDT(l.price, locale)} / ${tr(UNIT_LABEL[l.unit].short)} — ${tr(l.city)}, ${tr(governorateLabel(l.governorate))}.`
+      ? `${tr(l.title)} : ${formatDT(l.price, locale)} / ${UNIT_LABEL[l.unit as keyof typeof UNIT_LABEL] ? tr(UNIT_LABEL[l.unit as keyof typeof UNIT_LABEL].short) : l.unit} — ${tr(l.city)}, ${tr(governorateLabel(l.governorate))}.`
       : tr({ ar: "هذا الإعلان غير موجود ولا تنحّى.", fr: "Cette annonce n'existe pas ou a été retirée.", en: "This listing doesn't exist or was removed." });
     return {
       meta: [
@@ -77,7 +77,11 @@ function ListingDetail() {
   const fav = isFavorite(listing.id);
   const { listings, getCategory } = useCatalog();
   const cat = getCategory(listing.category);
-  const unit = { short: t(UNIT_LABEL[listing.unit].short), long: t(UNIT_LABEL[listing.unit].long) };
+  const uLabel = UNIT_LABEL[listing.unit as keyof typeof UNIT_LABEL];
+  const unit = {
+    short: uLabel ? t(uLabel.short) : listing.unit,
+    long: uLabel ? t(uLabel.long) : listing.unit,
+  };
   const similar = listings.filter((l) => l.category === listing.category && l.id !== listing.id).slice(0, 4);
 
   const share = async () => {

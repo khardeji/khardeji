@@ -123,7 +123,8 @@ function Publish() {
   const hasEnoughTokens = currentTokens >= boostCost;
   const set = <K extends keyof Draft>(k: K, v: Draft[K]) => setD((p) => ({ ...p, [k]: v }));
   const cat = CATEGORIES.find((c) => c.slug === d.category);
-  const unit = { step: UNIT_LABEL[d.unit].step, short: t(UNIT_LABEL[d.unit].short), long: t(UNIT_LABEL[d.unit].long) };
+  const uObj = UNIT_LABEL[d.unit] || UNIT_LABEL.piece;
+  const unit = { step: uObj.step, short: t(uObj.short), long: t(uObj.long) };
   const choose = t({ ar: "اختار…", fr: "Choisir…", en: "Choose…" });
 
   function validate(s: number): Msg | null {

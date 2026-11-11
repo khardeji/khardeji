@@ -91,7 +91,7 @@ export function ListingsPanel({ status, onStatus }: { status: ListingStatus | "a
                   </div>
                   <h3 className="mt-2 truncate text-lg font-semibold">{t(l.title)}</h3>
                   <p className="text-sm text-muted-foreground">
-                    {t(subcategoryLabel(l.subcategory))} · {t(governorateLabel(l.governorate))} · {dt(l.auction?.startPrice ?? l.price)} / {t(UNIT_LABEL[l.unit].short)}
+                    {t(subcategoryLabel(l.subcategory))} · {t(governorateLabel(l.governorate))} · {dt(l.auction?.startPrice ?? l.price)} / {UNIT_LABEL[l.unit as keyof typeof UNIT_LABEL] ? t(UNIT_LABEL[l.unit as keyof typeof UNIT_LABEL].short) : l.unit}
                     {l.publishedAt && ` · ${date(l.publishedAt)}`}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">

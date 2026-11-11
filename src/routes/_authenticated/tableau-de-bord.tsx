@@ -642,7 +642,9 @@ export function DashboardPage() {
                             )}
                           </div>
                           <h4 className="mt-1 truncate font-semibold text-foreground">{t(l.title)}</h4>
-                          <p className="text-xs text-muted-foreground">{dt(l.price)} / {t(UNIT_LABEL[l.unit].short)}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {dt(l.price)} / {UNIT_LABEL[l.unit as keyof typeof UNIT_LABEL] ? t(UNIT_LABEL[l.unit as keyof typeof UNIT_LABEL].short) : (l.unit || "pièce")}
+                          </p>
                           {l.moderationNote && (
                             <p className="mt-1 text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded inline-block">
                               {l.moderationNote}
