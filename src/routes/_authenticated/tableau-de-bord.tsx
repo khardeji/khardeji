@@ -55,7 +55,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
-import { deleteMyListing, getMyListings, markListingSold } from "@/lib/listings.functions";
+import { deleteMyListing, getMyListings, markListingSold, repostMyListing } from "@/lib/listings.functions";
 import { getIncomingOffers, getMyPurchases, getSellerQuantityRequests } from "@/lib/marketplace.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 import {
@@ -117,6 +117,7 @@ export function DashboardPage() {
   const fetchBoosts = useServerFn(getMyBoosts);
   const removeListing = useServerFn(deleteMyListing);
   const markSold = useServerFn(markListingSold);
+  const repost = useServerFn(repostMyListing);
   const setRead = useServerFn(markMessageRead);
   const fetchIncomingOffers = useServerFn(getIncomingOffers);
   const fetchSellerQtyReqs = useServerFn(getSellerQuantityRequests);
@@ -203,6 +204,35 @@ export function DashboardPage() {
       ]);
     } else {
       toast.error(t({ ar: "فشل تحديث حالة الإعلان.", fr: "Échec de l'opération.", en: "Failed to mark as sold." }));
+    }
+  };
+
+  const handleRepost = async (id: string, stock: number) => {
+    const res = await repost({ data: { id, stock: stock > 0 ? stock : undefined } }).catch(() => ({ ok: false as const }));
+    if (res.ok) {
+      toast.success(
+        t({
+          ar: "أُعيد نشر الإعلان كإعلان جديد في حسابك.",
+          fr: "Annonce republiée : elle compte comme une nouvelle annonce sur votre compte.",
+          en: "Listing reposted. It counts as a new post on your account.",
+        }),
+      );
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["me", "listings"] }),
+        qc.invalidateQueries({ queryKey: ["me", "overview"] }),
+        qc.invalidateQueries({ queryKey: ["me", "offers"] }),
+        qc.invalidateQueries({ queryKey: ["me", "qty_requests"] }),
+        qc.invalidateQueries({ queryKey: ["me", "purchases"] }),
+        qc.invalidateQueries({ queryKey: ["catalog"] }),
+      ]);
+    } else {
+      toast.error(
+        t({
+          ar: "تعذر إعادة النشر. حدّد كمية في التعديل أولاً إن كان المخزون صفراً.",
+          fr: "Republication impossible. Indiquez une quantité si le stock est à zéro.",
+          en: "Could not repost. Set a quantity first if stock is zero.",
+        }),
+      );
     }
   };
 
@@ -797,6 +827,17 @@ export function DashboardPage() {
                                 }
                               />
                             </>
+                          )}
+
+                          {st === "sold" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 border-olive text-olive"
+                              onClick={() => void handleRepost(l.id, l.stock)}
+                            >
+                              {t({ ar: "إعادة النشر", fr: "Republier", en: "Repost" })}
+                            </Button>
                           )}
 
                           {st !== "sold" && (
