@@ -550,7 +550,7 @@ export const getIncomingOffers = createServerFn({ method: "GET" })
         difference: Number(o.difference),
         percentage: Number(o.percentage),
         notes: o.notes || "",
-        status: o.status as "pending" | "accepted" | "rejected" | "expired",
+        status: o.status as "pending" | "accepted" | "rejected" | "expired" | "cancelled",
         createdAt: o.created_at,
         buyer: {
           id: o.buyer_id,
@@ -640,7 +640,7 @@ export const getOutgoingOffers = createServerFn({ method: "GET" })
         difference: Number(o.difference),
         percentage: Number(o.percentage),
         notes: o.notes || "",
-        status: o.status as "pending" | "accepted" | "rejected" | "expired",
+        status: o.status as "pending" | "accepted" | "rejected" | "expired" | "cancelled",
         createdAt: o.created_at,
         seller: {
           name: sellerObj?.name || "Vendeur",
@@ -652,7 +652,7 @@ export const getOutgoingOffers = createServerFn({ method: "GET" })
 
 export const respondToOffer = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { offerId: string; action: "accepted" | "rejected" }) => ({
+  .inputValidator((d: { offerId: string; action: "accepted" | "rejected" | "cancel_acceptance" }) => ({
     offerId: String(d.offerId),
     action: d.action,
   }))
@@ -680,20 +680,29 @@ export const respondToOffer = createServerFn({ method: "POST" })
         }
       }
 
-      if (offer.status && offer.status !== "pending") {
+      if (data.action === "cancel_acceptance") {
+        if (offer.status !== "accepted") {
+          return { ok: false as const, error: "not_accepted", message: "Seules les ventes acceptées peuvent être annulées." };
+        }
+        targetBuyerId = offer.buyer_id;
+        targetListingId = offer.listing_id;
+        offeredPrice = Number(offer.offered_price);
+        offeredQuantity = Math.max(1, Number(offer.quantity) || 1);
+        offerUnit = offer.unit || "piece";
+      } else if (offer.status && offer.status !== "pending") {
         return { ok: false as const, error: "not_pending", message: "Cette offre n'est plus en attente." };
+      } else {
+        await supabase
+          .from("offers")
+          .update({ status: data.action, updated_at: new Date().toISOString() })
+          .eq("id", data.offerId);
+
+        targetBuyerId = offer.buyer_id;
+        targetListingId = offer.listing_id;
+        offeredPrice = Number(offer.offered_price);
+        offeredQuantity = Math.max(1, Number(offer.quantity) || 1);
+        offerUnit = offer.unit || "piece";
       }
-
-      await supabase
-        .from("offers")
-        .update({ status: data.action, updated_at: new Date().toISOString() })
-        .eq("id", data.offerId);
-
-      targetBuyerId = offer.buyer_id;
-      targetListingId = offer.listing_id;
-      offeredPrice = Number(offer.offered_price);
-      offeredQuantity = Math.max(1, Number(offer.quantity) || 1);
-      offerUnit = offer.unit || "piece";
     } else {
       // 2. Check persistent messages table
       const { data: msg } = await supabase
@@ -715,6 +724,14 @@ export const respondToOffer = createServerFn({ method: "POST" })
 
       try {
         const parsed = JSON.parse(msg.content);
+        if (data.action === "cancel_acceptance") {
+          if ((parsed.status || "pending") !== "accepted") {
+            return { ok: false as const, error: "not_accepted", message: "Seules les ventes acceptées peuvent être annulées." };
+          }
+        } else if (parsed.status && parsed.status !== "pending") {
+          return { ok: false as const, error: "not_pending", message: "Cette offre n'est plus en attente." };
+        }
+        if (data.action !== "cancel_acceptance") {
         parsed.status = data.action;
         parsed.updated_at = new Date().toISOString();
 
@@ -722,6 +739,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
           .from("messages")
           .update({ content: JSON.stringify(parsed) })
           .eq("id", data.offerId);
+        }
 
         targetBuyerId = msg.sender_id;
         targetListingId = msg.listing_id;
@@ -736,6 +754,62 @@ export const respondToOffer = createServerFn({ method: "POST" })
 
     let remainingStock: number | null = null;
     let listingSold = false;
+
+    if (data.action === "cancel_acceptance" && targetListingId) {
+      const { data: listing, error: lErr } = await supabase
+        .from("listings")
+        .select("stock, status, unit")
+        .eq("id", targetListingId)
+        .maybeSingle();
+      if (lErr || !listing) {
+        return { ok: false as const, error: "listing_not_found", message: "Article introuvable." };
+      }
+      const currentStock = listing.unit === "libre" ? 0 : Number(listing.stock ?? 0);
+      const restoredStock = listing.unit === "libre" ? 0 : currentStock + offeredQuantity;
+      const newStatus = listing.status === "sold" ? "approved" : listing.status || "approved";
+      const { error: stockErr } = await supabase
+        .from("listings")
+        .update({ stock: restoredStock, status: newStatus })
+        .eq("id", targetListingId);
+      if (stockErr) return { ok: false as const, error: "failed", message: "Impossible de rendre la quantité." };
+
+      if (offer) {
+        const { error: statusErr } = await supabase
+          .from("offers")
+          .update({ status: "cancelled", updated_at: new Date().toISOString() })
+          .eq("id", data.offerId);
+        if (statusErr) return { ok: false as const, error: "failed", message: "Impossible d'annuler la vente." };
+      } else {
+        const { data: msg } = await supabase.from("messages").select("content").eq("id", data.offerId).maybeSingle();
+        if (msg) {
+          const parsed = JSON.parse(msg.content);
+          parsed.status = "cancelled";
+          parsed.updated_at = new Date().toISOString();
+          await supabase.from("messages").update({ content: JSON.stringify(parsed) }).eq("id", data.offerId);
+        }
+      }
+
+      if (targetBuyerId) {
+        await createNotification(supabase, {
+          actorId: userId,
+          userId: targetBuyerId,
+          type: "offer_cancelled",
+          title: {
+            ar: "تم إلغاء البيع وإرجاع الكمية",
+            fr: "Vente annulée, quantité rendue",
+            en: "Sale cancelled, quantity returned",
+          },
+          message: {
+            ar: `ألغى البائع بيع ${offeredQuantity} ${offerUnit}. عادت الكمية لنفس الإعلان.`,
+            fr: `Le vendeur a annulé la vente de ${offeredQuantity} ${offerUnit}. La quantité est revenue sur la même annonce.`,
+            en: `The seller cancelled the sale of ${offeredQuantity} ${offerUnit}. The quantity is back on the same listing.`,
+          },
+          listingId: targetListingId,
+          link: "/tableau-de-bord?tab=offers",
+        });
+      }
+      return { ok: true as const, status: "cancelled" as const, remainingStock: restoredStock, sold: false };
+    }
 
     // Accepting an offer reserves the requested quantity, same as a quantity deal.
     // When nothing is left the listing leaves the public catalog.
@@ -1268,14 +1342,14 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
         userId: targetBuyerId,
         type: "quantity_cancelled",
         title: {
-          ar: "تم إلغاء قبول الطلب وإعادة المنتج للمتجر",
-          fr: "Acceptation annulée & article remis en vente",
-          en: "Order acceptance cancelled & item reposted",
+          ar: "تم إلغاء البيع وإرجاع الكمية",
+          fr: "Vente annulée, quantité rendue",
+          en: "Sale cancelled, quantity returned",
         },
         message: {
-          ar: `قام البائع بإلغاء قبول طلبك (${requestedQuantity} ${unitLabel}). تمت إعادة الكمية إلى المتجر.`,
-          fr: `Le vendeur a annulé l'acceptation de votre commande de ${requestedQuantity} ${unitLabel}. La quantité a été remise en vente dans la boutique.`,
-          en: `The seller cancelled acceptance of your order for ${requestedQuantity} ${unitLabel}. The quantity has been reposted to the store.`,
+          ar: `قام البائع بإلغاء بيع ${requestedQuantity} ${unitLabel}. عادت الكمية لنفس الإعلان.`,
+          fr: `Le vendeur a annulé la vente de ${requestedQuantity} ${unitLabel}. La quantité est revenue sur la même annonce.`,
+          en: `The seller cancelled the sale of ${requestedQuantity} ${unitLabel}. The quantity is back on the same listing.`,
         },
         listingId: targetListingId,
         link: "/tableau-de-bord?tab=requests",

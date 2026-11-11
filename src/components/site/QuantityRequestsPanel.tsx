@@ -407,7 +407,9 @@ export function QuantityRequestsPanel() {
                                   onClick={() => setCancelConfirmId(req.id)}
                                 >
                                   <RefreshCw className="size-3.5 me-1" />
-                                  {t({ ar: "إلغاء القبول وإعادة النشر", fr: "Annuler & remettre en vente", en: "Cancel & repost" })}
+                                  {Number(req.availableStock) > 0
+                                    ? t({ ar: "إلغاء البيع وإرجاع الكمية", fr: "Annuler la vente", en: "Cancel this sale" })
+                                    : t({ ar: "إلغاء القبول وإعادة النشر", fr: "Annuler & remettre en vente", en: "Cancel & repost" })}
                                 </Button>
                                 {(req.listingStatus === "sold" || Number(req.availableStock) <= 0) && (
                                   <Button
@@ -765,7 +767,9 @@ export function QuantityRequestsPanel() {
                     }}
                   >
                     <RefreshCw className="size-4 me-1" />
-                    {t({ ar: "إلغاء القبول وإعادة المنتج للمتجر", fr: "Annuler l'acceptation & remettre en vente", en: "Cancel acceptance & repost" })}
+                    {Number(selectedReq.availableStock) > 0
+                      ? t({ ar: "إلغاء البيع وإرجاع الكمية", fr: "Annuler la vente", en: "Cancel this sale" })
+                      : t({ ar: "إلغاء القبول وإعادة المنتج للمتجر", fr: "Annuler l'acceptation & remettre en vente", en: "Cancel acceptance & repost" })}
                   </Button>
                 </div>
               )}
@@ -780,13 +784,13 @@ export function QuantityRequestsPanel() {
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <Store className="size-5 text-orange-500" />
-              {t({ ar: "إلغاء القبول وإعادة النشر", fr: "Annuler l'acceptation & remettre en vente", en: "Cancel acceptance & repost" })}
+              {t({ ar: "إلغاء البيع", fr: "Annuler la vente", en: "Cancel this sale" })}
             </AlertDialogTitle>
             <AlertDialogDescription>
               {t({
-                ar: "سيتم إلغاء قبول هذا الطلب، وستُعاد الكمية المطلوبة إلى المخزون، وسيُعاد المنتج للبيع في المتجر. سيتلقى المشتري إشعاراً بالإلغاء.",
-                fr: "L'acceptation sera annulée, la quantité sera restituée au stock, et le produit sera remis en vente dans la boutique. L'acheteur recevra une notification d'annulation.",
-                en: "The acceptance will be cancelled, the quantity will be restored to stock, and the product will be reposted for sale in the store. The buyer will receive a cancellation notification.",
+                ar: "يُلغى هذا البيع وتعود الكمية إلى نفس الإعلان. الإعلان يبقى منشوراً، ولا تحتاج إلى إعادة نشره. يصلك المشتري إشعاراً.",
+                fr: "Cette vente est annulée et la quantité revient sur la même annonce. L'annonce reste en ligne, sans republication. L'acheteur est prévenu.",
+                en: "This sale is cancelled and that quantity goes back on the same listing. The listing stays online, so you do not need to repost it. The buyer is notified.",
               })}
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -802,7 +806,7 @@ export function QuantityRequestsPanel() {
               <RefreshCw className="size-4 me-1" />
               {busyId === cancelConfirmId
                 ? t({ ar: "جاري الإلغاء...", fr: "Annulation...", en: "Cancelling..." })
-                : t({ ar: "تأكيد الإلغاء وإعادة النشر", fr: "Confirmer & remettre en vente", en: "Confirm & repost" })}
+                : t({ ar: "تأكيد إلغاء البيع", fr: "Confirmer l'annulation", en: "Confirm cancellation" })}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

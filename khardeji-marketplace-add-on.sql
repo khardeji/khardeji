@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS public.offers (
   difference numeric NOT NULL,
   percentage numeric NOT NULL,
   notes text NOT NULL DEFAULT '',
-  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'expired')),
+  status text NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected', 'expired', 'cancelled')),
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT check_buyer_not_seller CHECK (buyer_id <> seller_id)
@@ -47,6 +47,8 @@ CREATE INDEX IF NOT EXISTS idx_offers_seller_id ON public.offers(seller_id);
 CREATE INDEX IF NOT EXISTS idx_offers_buyer_id ON public.offers(buyer_id);
 CREATE INDEX IF NOT EXISTS idx_offers_listing_id ON public.offers(listing_id);
 CREATE INDEX IF NOT EXISTS idx_offers_status ON public.offers(status);
+ALTER TABLE public.offers DROP CONSTRAINT IF EXISTS offers_status_check;
+ALTER TABLE public.offers ADD CONSTRAINT offers_status_check CHECK (status IN ('pending', 'accepted', 'rejected', 'expired', 'cancelled'));
 
 ALTER TABLE public.offers ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE ON public.offers TO authenticated;

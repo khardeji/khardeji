@@ -77,7 +77,7 @@ export function OffersPanel() {
     return o.status === outgoingStatusFilter;
   });
 
-  async function handleResponse(offerId: string, action: "accepted" | "rejected") {
+  async function handleResponse(offerId: string, action: "accepted" | "rejected" | "cancel_acceptance") {
     setBusyId(offerId);
     try {
       const res = await sendResponse({ data: { offerId, action } });
@@ -85,7 +85,13 @@ export function OffersPanel() {
         toast.success(
           action === "accepted"
             ? t({ ar: "تم قبول العرض بنجاح", fr: "Offre acceptée avec succès", en: "Offer accepted successfully" })
-            : t({ ar: "تم رفض العرض", fr: "Offre refusée", en: "Offer rejected" }),
+            : action === "cancel_acceptance"
+              ? t({
+                  ar: `تم إلغاء البيع وعادت الكمية لنفس الإعلان (المتبقي: ${res.remainingStock})`,
+                  fr: `Vente annulée. La quantité est revenue sur la même annonce (restant : ${res.remainingStock}).`,
+                  en: `Sale cancelled. The quantity is back on the same listing (remaining: ${res.remainingStock}).`,
+                })
+              : t({ ar: "تم رفض العرض", fr: "Offre refusée", en: "Offer rejected" }),
         );
         await Promise.all([
           qc.invalidateQueries({ queryKey: ["me", "offers"] }),
@@ -94,7 +100,15 @@ export function OffersPanel() {
           qc.invalidateQueries({ queryKey: ["catalog"] }),
         ]);
         if (selectedOffer?.id === offerId) {
-          setSelectedOffer((prev: any) => (prev ? { ...prev, status: action } : null));
+          setSelectedOffer((prev: any) =>
+            prev
+              ? {
+                  ...prev,
+                  status: action === "cancel_acceptance" ? "cancelled" : action,
+                  availableStock: res.remainingStock ?? prev.availableStock,
+                }
+              : null,
+          );
         }
       } else {
         toast.error(res.message || t({ ar: "فشلت العملية", fr: "Une erreur est survenue", en: "Action failed" }));
@@ -114,6 +128,8 @@ export function OffersPanel() {
         return <Badge variant="destructive">{t({ ar: "مرفوض", fr: "Refusée", en: "Rejected" })}</Badge>;
       case "expired":
         return <Badge variant="outline">{t({ ar: "منتهي", fr: "Expirée", en: "Expired" })}</Badge>;
+      case "cancelled":
+        return <Badge variant="outline">{t({ ar: "ملغاة", fr: "Annulée", en: "Cancelled" })}</Badge>;
       default:
         return <Badge variant="brass">{t({ ar: "في الانتظار", fr: "En attente", en: "Pending" })}</Badge>;
     }
@@ -332,6 +348,18 @@ export function OffersPanel() {
                       >
                         {t({ ar: "تفاصيل والاتصال", fr: "Détails & Contact", en: "Details & Contact" })}
                       </Button>
+
+                      {isAccepted && Number(offer.availableStock) > 0 && offer.listingStatus !== "sold" && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busyId === offer.id}
+                          className="gap-1.5 border-orange-300 text-orange-600"
+                          onClick={() => handleResponse(offer.id, "cancel_acceptance")}
+                        >
+                          {t({ ar: "إلغاء البيع وإرجاع الكمية", fr: "Annuler la vente", en: "Cancel this sale" })}
+                        </Button>
+                      )}
 
                       {isAccepted && (offer.listingStatus === "sold" || Number(offer.availableStock) <= 0) && (
                         <Button
