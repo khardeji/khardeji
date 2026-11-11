@@ -202,25 +202,43 @@ export const sendMessageToSeller = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<SendMessageResult> => {
     if (!data.content) return { ok: false, error: "empty" };
 
-    const sb = getPublicSupabase();
+    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+    const key = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
 
-    // Check optional token if user is signed in
-    let userId: string | null = null;
-    let userProfile: { email?: string; phone?: string; full_name?: string } | null = null;
+    // Extract Bearer token if user is signed in
+    let token: string | null = null;
     try {
       const request = getRequest();
       const authHeader = request?.headers?.get("authorization");
       if (authHeader && authHeader.startsWith("Bearer ")) {
-        const token = authHeader.replace("Bearer ", "");
-        const claims = await sb.auth.getClaims(token).catch(() => null);
-        if (claims?.data?.claims?.sub) {
-          userId = claims.data.claims.sub;
-          const { data: prof } = await sb.from("profiles").select("email, phone, full_name").eq("id", userId).maybeSingle();
-          userProfile = prof;
-        }
+        token = authHeader.replace("Bearer ", "");
       }
     } catch {
       // Unauthenticated visitor
+    }
+
+    // Crucial: Pass token in global headers so Supabase authenticates the request!
+    const sb = createClient<Database>(url, key, {
+      global: {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      },
+      auth: {
+        storage: undefined,
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    });
+
+    let userId: string | null = null;
+    let userProfile: { email?: string; phone?: string; full_name?: string } | null = null;
+
+    if (token) {
+      const claims = await sb.auth.getClaims(token).catch(() => null);
+      if (claims?.data?.claims?.sub) {
+        userId = claims.data.claims.sub;
+        const { data: prof } = await sb.from("profiles").select("email, phone, full_name").eq("id", userId).maybeSingle();
+        userProfile = prof;
+      }
     }
 
     const { data: listing, error: listErr } = await sb
@@ -236,7 +254,7 @@ export const sendMessageToSeller = createServerFn({ method: "POST" })
     const senderPhone = data.phone || userProfile?.phone || "";
     const senderEmail = data.email || userProfile?.email || "";
 
-    const { error } = await sb.from("messages").insert({
+    const payload: any = {
       listing_id: data.listingId,
       sender_id: userId,
       recipient_id: listing.owner_id,
@@ -245,11 +263,20 @@ export const sendMessageToSeller = createServerFn({ method: "POST" })
       sender_email: senderEmail,
       content: data.content,
       is_read: false,
-    } as any);
+    };
+
+    let { error } = await sb.from("messages").insert(payload);
+
+    // Fallback if sender_name column does not exist yet in database
+    if (error && (error.message?.includes("sender_name") || error.code === "42703" || error.code === "PGRST204")) {
+      delete payload.sender_name;
+      const retry = await sb.from("messages").insert(payload);
+      error = retry.error;
+    }
 
     if (!error) return { ok: true };
     if (missingRelation(error.code)) return { ok: false, error: "not_ready" };
-    console.error("send message error", error.message);
+    console.error("send message error:", error.code, error.message);
     return { ok: false, error: "failed" };
   });
 
@@ -283,16 +310,24 @@ export const replyToConversation = createServerFn({ method: "POST" })
 
     const targetRecipient = data.recipientId && data.recipientId !== userId ? data.recipientId : userId;
 
-    const { error } = await supabase.from("messages").insert({
+    const replyPayload: any = {
       listing_id: data.listingId || null,
       sender_id: userId,
       recipient_id: targetRecipient,
       sender_name: profile?.full_name || "Vendeur",
-      sender_phone: profile?.phone || "",
-      sender_email: profile?.email || "",
+      sender_phone: data.recipientPhone || profile?.phone || "",
+      sender_email: data.recipientEmail || profile?.email || "",
       content: data.content,
       is_read: false,
-    } as any);
+    };
+
+    let { error } = await supabase.from("messages").insert(replyPayload);
+
+    if (error && (error.message?.includes("sender_name") || error.code === "42703" || error.code === "PGRST204")) {
+      delete replyPayload.sender_name;
+      const retry = await supabase.from("messages").insert(replyPayload);
+      error = retry.error;
+    }
 
     if (error) {
       console.error("replyToConversation error:", error.message);

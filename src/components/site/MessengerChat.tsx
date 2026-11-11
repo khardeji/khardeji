@@ -36,26 +36,79 @@ export function MessengerChat({
 
   // Group messages by conversation thread
   const conversations = useMemo(() => {
+    // 1. First pass: map each listing to the partner information from incoming messages
+    const listingPartners = new Map<
+      string,
+      {
+        partnerKey: string;
+        partnerName: string;
+        partnerPhone: string;
+        partnerEmail: string;
+        partnerId?: string | null;
+      }
+    >();
+
+    for (const m of messages) {
+      if (!m.isMine && m.listingId) {
+        const key = m.senderId || m.senderPhone || m.senderEmail || m.senderName || "guest";
+        if (!listingPartners.has(m.listingId)) {
+          listingPartners.set(m.listingId, {
+            partnerKey: key,
+            partnerName: m.senderName || "Visiteur",
+            partnerPhone: m.senderPhone || "",
+            partnerEmail: m.senderEmail || "",
+            partnerId: m.senderId || null,
+          });
+        }
+      }
+    }
+
     const map = new Map<string, Conversation>();
 
     // Process from oldest to newest for chronological ordering inside conversation
     const sorted = [...messages].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
     for (const m of sorted) {
-      // Identifier: group by listing and the other participant
-      const partnerKey = m.isMine
-        ? (m.recipientId || "dest")
-        : (m.senderId || m.senderPhone || m.senderEmail || m.senderName || m.id);
+      let partnerKey = "";
+      let partnerName = "";
+      let partnerPhone = "";
+      let partnerEmail = "";
+      let partnerId: string | null = null;
+
+      if (!m.isMine) {
+        partnerKey = m.senderId || m.senderPhone || m.senderEmail || m.senderName || m.id;
+        partnerName = m.senderName || "Visiteur";
+        partnerPhone = m.senderPhone || "";
+        partnerEmail = m.senderEmail || "";
+        partnerId = m.senderId || null;
+      } else {
+        // Sent by the current user (reply or outgoing contact)
+        if (m.recipientId && m.recipientId !== m.senderId) {
+          partnerKey = m.recipientId;
+          partnerId = m.recipientId;
+        } else if (m.listingId && listingPartners.has(m.listingId)) {
+          // This reply was sent to the visitor/buyer on this listing
+          const p = listingPartners.get(m.listingId)!;
+          partnerKey = p.partnerKey;
+          partnerName = p.partnerName;
+          partnerPhone = p.partnerPhone;
+          partnerEmail = p.partnerEmail;
+          partnerId = p.partnerId ?? null;
+        } else {
+          partnerKey = m.listingId ? `listing_${m.listingId}` : (m.recipientId || "dest");
+        }
+      }
+
       const threadKey = `${m.listingId || "general"}_${partnerKey}`;
 
       let conv = map.get(threadKey);
       if (!conv) {
         conv = {
           id: threadKey,
-          partnerName: m.isMine ? "Acheteur" : (m.senderName || "Visiteur"),
-          partnerPhone: m.senderPhone || "",
-          partnerEmail: m.senderEmail || "",
-          partnerId: m.isMine ? m.recipientId : m.senderId,
+          partnerName: partnerName || (m.isMine ? "Acheteur" : (m.senderName || "Visiteur")),
+          partnerPhone: partnerPhone || m.senderPhone || "",
+          partnerEmail: partnerEmail || m.senderEmail || "",
+          partnerId: partnerId || (m.isMine ? m.recipientId : m.senderId),
           listingId: m.listingId,
           listingTitle: m.listingTitle ? (typeof m.listingTitle === "string" ? m.listingTitle : t(m.listingTitle)) : null,
           messages: [],
@@ -67,10 +120,16 @@ export function MessengerChat({
 
       conv.messages.push(m);
       conv.lastMessage = m;
-      if (!m.isMine && m.senderPhone && !conv.partnerPhone) conv.partnerPhone = m.senderPhone;
-      if (!m.isMine && m.senderEmail && !conv.partnerEmail) conv.partnerEmail = m.senderEmail;
-      if (!m.isMine && m.senderName && conv.partnerName === "Acheteur") conv.partnerName = m.senderName;
-      if (!m.isMine && !m.isRead) conv.unreadCount += 1;
+
+      // Enrich partner info when incoming message provides details
+      if (!m.isMine) {
+        if (m.senderName && (conv.partnerName === "Acheteur" || conv.partnerName === "Visiteur")) {
+          conv.partnerName = m.senderName;
+        }
+        if (m.senderPhone && !conv.partnerPhone) conv.partnerPhone = m.senderPhone;
+        if (m.senderEmail && !conv.partnerEmail) conv.partnerEmail = m.senderEmail;
+        if (!m.isRead) conv.unreadCount += 1;
+      }
     }
 
     // Return conversations sorted by newest lastMessage first
@@ -342,3 +401,4 @@ export function MessengerChat({
     </div>
   );
 }
+

@@ -258,12 +258,12 @@ function ListingDetail() {
                     </Link>
                   </Button>
                   <Button asChild variant="rust" size="sm" className="h-8 px-2 text-xs">
-                    <Link to="/mes-offres">
+                    <Link to="/tableau-de-bord" search={{ tab: "offers" }}>
                       {t({ ar: "العروض", fr: "Offres", en: "Offers" })}
                     </Link>
                   </Button>
                   <Button asChild variant="outline" size="sm" className="h-8 px-2 text-xs">
-                    <Link to="/mes-demandes">
+                    <Link to="/tableau-de-bord" search={{ tab: "requests" }}>
                       {t({ ar: "الطلبات", fr: "Commandes", en: "Requests" })}
                     </Link>
                   </Button>

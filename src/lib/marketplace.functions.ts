@@ -178,7 +178,7 @@ export const placeAuctionBid = createServerFn({ method: "POST" })
           en: `New bid of ${data.amount} DT placed on your listing "${titleStr}".`,
         },
         listingId: data.listingId,
-        link: `/annonces/${data.listingId}`,
+        link: `/tableau-de-bord?tab=offers`,
       });
     }
 
@@ -398,7 +398,7 @@ export const submitOffer = createServerFn({ method: "POST" })
         en: `A buyer offered ${data.offeredPrice} DT for "${titleStr}" (diff of ${diff} DT).`,
       },
       listingId: data.listingId,
-      link: "/mes-offres",
+      link: "/tableau-de-bord?tab=offers",
     });
 
     return {
@@ -698,7 +698,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
             : `The seller declined your offer of ${offeredPrice} DT.`,
         },
         listingId: targetListingId,
-        link: "/mes-offres",
+        link: "/tableau-de-bord?tab=offers",
       });
     }
 
@@ -852,7 +852,7 @@ export const submitQuantityRequest = createServerFn({ method: "POST" })
         en: `A buyer requested ${data.quantity} ${listing.unit} of "${titleStr}" (Total: ${totalVal} DT).`,
       },
       listingId: data.listingId,
-      link: "/mes-demandes",
+      link: "/tableau-de-bord?tab=requests",
     });
 
     return {
@@ -1181,7 +1181,7 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
           en: `The seller confirmed your order for ${requestedQuantity} ${unitLabel}.`,
         },
         listingId: targetListingId,
-        link: "/mes-demandes",
+        link: "/tableau-de-bord?tab=requests",
       });
 
       return { ok: true as const, status: "accepted", remainingStock: newStock };
@@ -1218,7 +1218,7 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
           en: `The seller was unable to fulfill your request for ${requestedQuantity} ${unitLabel}.`,
         },
         listingId: targetListingId,
-        link: "/mes-demandes",
+        link: "/tableau-de-bord?tab=requests",
       });
 
       return { ok: true as const, status: "rejected" };
