@@ -742,7 +742,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
     if (data.action === "accepted" && targetListingId) {
       const { data: listing, error: lErr } = await supabase
         .from("listings")
-        .select("stock, status, unit")
+        .select("stock, status, unit, seller")
         .eq("id", targetListingId)
         .maybeSingle();
 
@@ -751,8 +751,11 @@ export const respondToOffer = createServerFn({ method: "POST" })
       }
 
       const unit = listing.unit || offerUnit;
+      const seller = listing.seller && typeof listing.seller === "object" && !Array.isArray(listing.seller) ? { ...(listing.seller as object) } : {};
+      delete (seller as { activeBoost?: unknown }).activeBoost;
+      const soldPatch = { urgent: false, featured: false, seller };
       if (unit === "libre") {
-        await supabase.from("listings").update({ status: "sold" }).eq("id", targetListingId);
+        await supabase.from("listings").update({ status: "sold", ...soldPatch }).eq("id", targetListingId);
         remainingStock = 0;
         listingSold = true;
       } else {
@@ -768,7 +771,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
         }
         const newStock = availableStock - offeredQuantity;
         const newStatus = newStock <= 0 ? "sold" : listing.status;
-        await supabase.from("listings").update({ stock: newStock, status: newStatus }).eq("id", targetListingId);
+        await supabase.from("listings").update({ stock: newStock, status: newStatus, ...(newStatus === "sold" ? soldPatch : {}) }).eq("id", targetListingId);
         remainingStock = newStock;
         listingSold = newStock <= 0;
       }
@@ -1294,7 +1297,7 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
       // Fetch latest stock from listings table to prevent overselling
       const { data: listing, error: lErr } = await supabase
         .from("listings")
-        .select("stock, status")
+        .select("stock, status, seller")
         .eq("id", targetListingId)
         .maybeSingle();
 
@@ -1315,11 +1318,13 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
 
       const newStock = availableStock - requestedQuantity;
       const newStatus = newStock <= 0 ? "sold" : listing.status;
+      const seller = listing.seller && typeof listing.seller === "object" && !Array.isArray(listing.seller) ? { ...(listing.seller as object) } : {};
+      if (newStatus === "sold") delete (seller as { activeBoost?: unknown }).activeBoost;
 
-      // Update listing stock safely
+      // Update listing stock safely. A sold-out listing drops its boost.
       await supabase
         .from("listings")
-        .update({ stock: newStock, status: newStatus })
+        .update({ stock: newStock, status: newStatus, ...(newStatus === "sold" ? { urgent: false, featured: false, seller } : {}) })
         .eq("id", targetListingId);
 
       if (isDedicatedTable) {

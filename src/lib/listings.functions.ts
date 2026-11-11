@@ -129,16 +129,19 @@ export const markListingSold = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: row, error: fetchErr } = await supabase
       .from("listings")
-      .select("id, owner_id")
+      .select("id, owner_id, seller")
       .eq("id", data.id)
       .maybeSingle();
 
     if (fetchErr || !row) return { ok: false, error: "not_found" } as const;
     if (row.owner_id !== userId) return { ok: false, error: "not_owner" } as const;
 
+    const seller = row.seller && typeof row.seller === "object" && !Array.isArray(row.seller) ? { ...(row.seller as object) } : {};
+    delete (seller as { activeBoost?: unknown }).activeBoost;
+
     const { data: updated, error } = await supabase
       .from("listings")
-      .update({ status: "sold" } as any)
+      .update({ status: "sold", urgent: false, featured: false, seller } as any)
       .eq("id", data.id)
       .eq("owner_id", userId)
       .select("id, status")
@@ -162,7 +165,7 @@ export const setMyListingStock = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: row, error: fetchErr } = await supabase
       .from("listings")
-      .select("id, owner_id, unit, status")
+      .select("id, owner_id, unit, status, seller")
       .eq("id", data.id)
       .maybeSingle();
 
@@ -171,10 +174,12 @@ export const setMyListingStock = createServerFn({ method: "POST" })
 
     const stock = row.unit === "libre" ? 0 : data.stock;
     const status = row.unit !== "libre" && stock <= 0 ? "sold" : row.status === "sold" && stock > 0 ? "approved" : row.status;
+    const seller = row.seller && typeof row.seller === "object" && !Array.isArray(row.seller) ? { ...(row.seller as object) } : {};
+    if (status === "sold") delete (seller as { activeBoost?: unknown }).activeBoost;
 
     const { error } = await supabase
       .from("listings")
-      .update({ stock, status } as any)
+      .update({ stock, status, ...(status === "sold" ? { urgent: false, featured: false, seller } : {}) } as any)
       .eq("id", data.id)
       .eq("owner_id", userId);
 

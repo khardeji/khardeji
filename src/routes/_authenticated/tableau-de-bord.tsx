@@ -715,7 +715,7 @@ export function DashboardPage() {
                 <div className="space-y-3">
                   {listings.map((l) => {
                     const st = l.status ?? "pending";
-                    const isBoosted = l.activeBoost && isBoostActive(l.activeBoost);
+                    const isBoosted = st !== "sold" && l.activeBoost && isBoostActive(l.activeBoost);
                     const remaining = isBoosted ? getBoostTimeRemaining(l.activeBoost!.expiresAt) : null;
                     const listingBoosts = (boosts ?? []).filter((b) => b.listingId === l.id);
                     const hasUrgent = l.urgent || listingBoosts.some((b) => b.boostId === "urgent");
@@ -749,7 +749,7 @@ export function DashboardPage() {
                                   {t(remaining!.label)}
                                 </span>
                               </Badge>
-                            ) : (
+                            ) : st !== "sold" ? (
                               <>
                                 {hasUrgent && (
                                   <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
@@ -767,7 +767,7 @@ export function DashboardPage() {
                                   </Badge>
                                 )}
                               </>
-                            )}
+                            ) : null}
                           </div>
                           <h4 className="mt-1 truncate font-semibold text-foreground">{t(l.title)}</h4>
                           <p className="text-xs text-muted-foreground">
