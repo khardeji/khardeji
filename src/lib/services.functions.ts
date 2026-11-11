@@ -8,14 +8,47 @@ import type { Msg } from "./i18n";
 
 const missingRelation = (code?: string) => code === "PGRST205" || code === "42P01" || code === "42703";
 
-function getPublicSupabase() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-  const key = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+const DEFAULT_SUPABASE_URL = "https://pzjgadriuimximczqnfy.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_w3dlGMmx2g9u85yf4W-TAA_i7Wz6sTx";
+
+function getPublicSupabase(token?: string | null) {
+  const url = (
+    process.env["SUPABASE_URL"] ||
+    import.meta.env?.["VITE_SUPABASE_URL"] ||
+    process.env["VITE_SUPABASE_URL"] ||
+    DEFAULT_SUPABASE_URL
+  ) as string;
+  const key = (
+    process.env["SUPABASE_PUBLISHABLE_KEY"] ||
+    process.env["SUPABASE_ANON_KEY"] ||
+    import.meta.env?.["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+    process.env["VITE_SUPABASE_ANON_KEY"] ||
+    DEFAULT_SUPABASE_KEY
+  ) as string;
   return createClient<Database>(url, key, {
     auth: {
       storage: undefined,
       persistSession: false,
       autoRefreshToken: false,
+    },
+    global: {
+      fetch: (input, init) => {
+        const h = new Headers(
+          typeof Request !== "undefined" && input instanceof Request ? input.headers : undefined
+        );
+        if (init?.headers) {
+          new Headers(init.headers).forEach((v, k) => h.set(k, v));
+        }
+        if (key.startsWith("sb_") && h.get("Authorization") === `Bearer ${key}`) {
+          h.delete("Authorization");
+        }
+        h.set("apikey", key);
+        if (token) {
+          h.set("Authorization", `Bearer ${token}`);
+        }
+        return fetch(input, { ...init, headers: h });
+      },
     },
   });
 }
@@ -222,9 +255,6 @@ export const sendMessageToSeller = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<SendMessageResult> => {
     if (!data.content) return { ok: false, error: "empty" };
 
-    const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
-    const key = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
-
     // Extract Bearer token if user is signed in
     let token: string | null = null;
     try {
@@ -237,26 +267,26 @@ export const sendMessageToSeller = createServerFn({ method: "POST" })
       // Unauthenticated visitor
     }
 
-    // Crucial: Pass token in global headers so Supabase authenticates the request!
-    const sb = createClient<Database>(url, key, {
-      global: {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-      },
-      auth: {
-        storage: undefined,
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
+    const sb = getPublicSupabase(token);
 
     let userId: string | null = null;
     let userProfile: { email?: string; phone?: string; full_name?: string } | null = null;
     let isAdmin = false;
 
     if (token) {
-      const claims = await sb.auth.getClaims(token).catch(() => null);
-      if (claims?.data?.claims?.sub) {
-        userId = claims.data.claims.sub;
+      let sub: string | null = null;
+      try {
+        const claims = await sb.auth.getClaims(token);
+        sub = claims?.data?.claims?.sub ?? null;
+      } catch {}
+      if (!sub) {
+        try {
+          const u = await sb.auth.getUser(token);
+          sub = u?.data?.user?.id ?? null;
+        } catch {}
+      }
+      if (sub) {
+        userId = sub;
         const [profRes, roleRes] = await Promise.all([
           sb.from("profiles").select("email, phone, full_name").eq("id", userId).maybeSingle(),
           sb.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle(),

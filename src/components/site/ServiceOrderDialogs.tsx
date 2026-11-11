@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, Coins, Loader2, ShieldCheck } from "lucide-react";
+import { Check, Coins, Loader2, ShieldCheck, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -8,9 +9,25 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
+import { pricingQuery } from "@/lib/catalog-queries";
 import type { Msg } from "@/lib/i18n";
 import { buyTokenPack, requestSubscription, type RequestOrderResult } from "@/lib/services.functions";
+import { cn } from "@/lib/utils";
 import { AccountRequiredDialog } from "./ActionDialogs";
+
+export interface TokenPackItem {
+  id: string;
+  tokens: number;
+  price: number;
+  tag?: Msg | null | undefined;
+}
+
+const FALLBACK_PACKS: TokenPackItem[] = [
+  { id: "336cb805-3e53-4766-891c-9b3461f73282", tokens: 10, price: 10, tag: null },
+  { id: "1ef534c4-e149-4548-98e5-608659746944", tokens: 30, price: 25, tag: { ar: "الأكثر طلباً", fr: "Populaire", en: "Popular" } },
+  { id: "b96afa83-26be-453a-bead-335237bf3f48", tokens: 80, price: 60, tag: null },
+  { id: "8b39be68-eed1-47a7-b15d-892f84279281", tokens: 200, price: 130, tag: { ar: "أحسن سوم", fr: "Meilleur prix", en: "Best value" } },
+];
 
 export function BuyTokensDialog({
   pack,
@@ -18,7 +35,7 @@ export function BuyTokensDialog({
   onClose,
   onSuccess,
 }: {
-  pack: { id: string; tokens: number; price: number; tag?: Msg | null | undefined } | null;
+  pack?: TokenPackItem | null | undefined;
   open: boolean;
   onClose: () => void;
   onSuccess?: (() => void) | undefined;
@@ -26,11 +43,24 @@ export function BuyTokensDialog({
   const { t, dt, num, dir } = useI18n();
   const { user } = useAuth();
   const buy = useServerFn(buyTokenPack);
+  const { data: pricing } = useQuery(pricingQuery);
+  const packs: TokenPackItem[] = (pricing?.packs && pricing.packs.length > 0) ? pricing.packs : FALLBACK_PACKS;
+
+  const [selectedPackId, setSelectedPackId] = useState<string>(() => pack?.id || packs[1]?.id || packs[0]?.id);
   const [notes, setNotes] = useState("");
   const [busy, setBusy] = useState(false);
   const [needAccount, setNeedAccount] = useState(false);
 
-  if (!pack) return null;
+  useEffect(() => {
+    if (pack?.id) {
+      setSelectedPackId(pack.id);
+    } else if (pack?.tokens) {
+      const match = packs.find((p) => p.tokens === pack.tokens);
+      if (match) setSelectedPackId(match.id);
+    }
+  }, [pack?.id, pack?.tokens, packs]);
+
+  const activePack = packs.find((p) => p.id === selectedPackId || p.tokens === pack?.tokens) || packs[1] || packs[0];
 
   const handleBuy = async () => {
     if (!user) {
@@ -40,9 +70,9 @@ export function BuyTokensDialog({
     setBusy(true);
     const res: RequestOrderResult = await buy({
       data: {
-        packId: pack.id,
-        tokensCount: pack.tokens,
-        amount: pack.price,
+        packId: activePack.id,
+        tokensCount: activePack.tokens,
+        amount: activePack.price,
         notes: notes.trim(),
       },
     }).catch(() => ({ ok: false, error: "failed" }) as const);
@@ -78,25 +108,76 @@ export function BuyTokensDialog({
     <>
       <AccountRequiredDialog open={needAccount} onClose={() => setNeedAccount(false)} reason="publier" />
       <Dialog open={open} onOpenChange={(o) => !o && !busy && onClose()}>
-        <DialogContent dir={dir} className="max-w-md">
+        <DialogContent dir={dir} className="max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Coins className="size-6 text-brass" />
-              {t({ ar: "تأكيد شراء باقة النقاط", fr: "Acheter un pack de jetons", en: "Buy token pack" })}
+              {t({ ar: "شراء باقة نقاط", fr: "Acheter un pack de jetons", en: "Buy token pack" })}
             </DialogTitle>
             <DialogDescription>
-              {t({ ar: "احصل على رصيد نقاط لترويج إعلاناتك بمرونة.", fr: "Rechargez votre solde de jetons pour booster vos annonces.", en: "Top up your token balance to boost your listings." })}
+              {t({ ar: "اختر الباقة التي تناسبك لشحن رصيد نقاطك وترويج إعلاناتك.", fr: "Choisissez l'offre qui vous convient pour recharger vos jetons.", en: "Choose the pack that fits your needs to top up your token balance." })}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4 py-2">
-            <div className="rounded-xl border border-border bg-card p-4 text-center">
-              <p className="font-display text-4xl font-semibold text-foreground">
-                {num(pack.tokens)} <span className="text-base font-normal text-muted-foreground">{t({ ar: "نقطة", fr: "jetons", en: "tokens" })}</span>
-              </p>
-              <p className="mt-2 text-2xl font-bold text-rust">{dt(pack.price)}</p>
+            {/* Pack selector */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                {t({ ar: "الباقات المتوفرة", fr: "Packs disponibles", en: "Available packs" })}
+              </Label>
+              <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+                {packs.map((p) => {
+                  const isSelected = p.id === activePack.id || p.tokens === activePack.tokens;
+                  const unitPrice = Math.round((p.price / p.tokens) * 100) / 100;
+                  return (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setSelectedPackId(p.id)}
+                      className={cn(
+                        "relative flex flex-col items-center justify-between rounded-xl border p-3 text-center transition-all cursor-pointer",
+                        isSelected
+                          ? "border-rust bg-rust/5 ring-2 ring-rust/30 shadow-sm"
+                          : "border-border bg-card hover:border-rust/40 hover:bg-muted/50"
+                      )}
+                    >
+                      {p.tag && (
+                        <span className="mb-1 rounded bg-brass/20 px-1.5 py-0.5 text-[0.6rem] font-medium text-brass-foreground">
+                          {t(p.tag)}
+                        </span>
+                      )}
+                      <p className="font-display text-2xl font-bold text-foreground">
+                        {num(p.tokens)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{t({ ar: "نقطة", fr: "jetons", en: "tokens" })}</p>
+                      <p className="mt-2 text-base font-bold text-rust">{dt(p.price)}</p>
+                      <p className="text-[0.65rem] text-muted-foreground/80">
+                        {dt(unitPrice)}/{t({ ar: "نقطة", fr: "j.", en: "t." })}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
+            {/* Selected pack summary */}
+            <div className="rounded-xl border border-rust/20 bg-rust/5 p-3.5 text-center">
+              <div className="flex items-center justify-center gap-2">
+                <Coins className="size-5 text-brass" />
+                <p className="font-display text-xl font-bold text-foreground">
+                  {num(activePack.tokens)} {t({ ar: "نقطة", fr: "jetons", en: "tokens" })} = <span className="text-rust">{dt(activePack.price)}</span>
+                </p>
+              </div>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {t({
+                  ar: "النقاط صالحة للاستعمال في كل خدمات الظرويج بدون تاريخ انتهاء.",
+                  fr: "Valable pour tous les boosts de visibilité sans limite de validité.",
+                  en: "Valid for all listing boosts with no expiration date.",
+                })}
+              </p>
+            </div>
+
+            {/* Notes */}
             <div className="space-y-1.5">
               <Label htmlFor="token-notes">
                 {t({ ar: "ملاحظات أو طريقة الدفع المفضلة (اختياري)", fr: "Remarques ou mode de règlement souhaité (facultatif)", en: "Notes or preferred payment method (optional)" })}
@@ -104,7 +185,7 @@ export function BuyTokensDialog({
               <Textarea
                 id="token-notes"
                 rows={2}
-                placeholder={t({ ar: "مثال: دفع عند الاستلام أو تحويل بنكي…", fr: "Ex. : Virement bancaire, mandat ou règlement sur place…", en: "e.g. Bank transfer, cash on delivery…" })}
+                placeholder={t({ ar: "مثال: تحويل بنكي، فيرمون، دفع نقدي…", fr: "Ex. : Virement bancaire, mandat ou règlement sur place…", en: "e.g. Bank transfer, cash on delivery…" })}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
               />

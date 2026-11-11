@@ -69,7 +69,10 @@ export function ContactSellerDialog({ listingId, listingTitle, sellerName, trigg
         email: email.trim(),
         name: name.trim() || senderDefaultName,
       },
-    }).catch(() => ({ ok: false, error: "failed" }) as const);
+    }).catch((err) => {
+      console.error("send message error:", err);
+      return { ok: false, error: "failed" } as const;
+    });
     setBusy(false);
 
     if (res.ok) {
@@ -94,6 +97,8 @@ export function ContactSellerDialog({ listingId, listingTitle, sellerName, trigg
       setOpen(false);
     } else if (res.error === "self") {
       toast.error(t({ ar: "هذا إعلانك الخاص!", fr: "C'est votre propre annonce !", en: "This is your own listing!" }));
+    } else if (res.error === "not_found") {
+      toast.error(t({ ar: "الإعلان غير موجود أو محذوف.", fr: "Annonce introuvable ou supprimée.", en: "Listing not found or removed." }));
     } else if (res.error === "not_ready") {
       toast.error(
         t({

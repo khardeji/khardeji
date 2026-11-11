@@ -13,6 +13,7 @@ import { BOOST_NAMES, getBoostTimeRemaining, governorateLabel, isBoostActive, SA
 import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
+import { useRealtimeListing } from "@/hooks/use-realtime";
 import { useFavorites } from "@/lib/favorites";
 import { formatDT } from "@/lib/format";
 import { translator } from "@/lib/i18n";
@@ -78,6 +79,9 @@ function ListingDetail() {
   const { isFavorite, toggle, needAccount, closeAccount } = useFavorites();
   const { t, dt, num, date } = useI18n();
   const fav = isFavorite(listing.id);
+
+  // Subscribe to live bids and updates for this listing
+  useRealtimeListing(listing.id);
   const { listings, getCategory } = useCatalog();
   const cat = getCategory(listing.category);
   const uLabel = UNIT_LABEL[listing.unit as keyof typeof UNIT_LABEL];
