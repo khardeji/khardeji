@@ -136,25 +136,42 @@ export const getMyMessages = createServerFn({ method: "GET" })
       }
 
       const listingIds = [...new Set(rawMessages.map((m) => m.listing_id).filter(Boolean))] as string[];
-      const userIds = [...new Set(rawMessages.map((m) => (m.sender_id === userId ? m.recipient_id : m.sender_id)))];
+      const userIds = [...new Set(rawMessages.map((m) => (m.sender_id === userId ? m.recipient_id : m.sender_id)).filter(Boolean))] as string[];
 
-      const [listingsRes, profilesRes] = await Promise.all([
+      const [listingsRes, profilesRes, rolesRes] = await Promise.all([
         listingIds.length ? supabase.from("listings").select("id, title").in("id", listingIds) : Promise.resolve({ data: [] }),
         userIds.length ? supabase.from("profiles").select("id, full_name, phone, email").in("id", userIds) : Promise.resolve({ data: [] }),
+        userIds.length ? supabase.from("user_roles").select("user_id, role").in("user_id", userIds).eq("role", "admin") : Promise.resolve({ data: [] }),
       ]);
 
       const listingsMap = new Map((listingsRes.data ?? []).map((l) => [l.id, l.title as Msg]));
       const profilesMap = new Map((profilesRes.data ?? []).map((p) => [p.id, p]));
+      const adminSet = new Set((rolesRes.data ?? []).map((r) => r.user_id));
 
       return rawMessages.map((m) => {
-        const otherProfile = profilesMap.get(m.sender_id === userId ? m.recipient_id : m.sender_id);
+        const otherUserId = m.sender_id === userId ? m.recipient_id : m.sender_id;
+        const otherProfile = otherUserId ? profilesMap.get(otherUserId) : null;
+        const otherIsAdmin = otherUserId ? adminSet.has(otherUserId) : false;
         const customName = (m as any).sender_name;
+
+        let displayName = customName;
+        if (m.sender_id === userId) {
+          displayName = "Moi";
+        } else if (otherIsAdmin) {
+          displayName = "Administrateur" + (otherProfile?.full_name ? ` (${otherProfile.full_name})` : "");
+        } else if (otherProfile?.full_name) {
+          // Dynamic profile name (if user changed name/profile to "charika", stay up to date!)
+          displayName = otherProfile.full_name;
+        } else if (!displayName || displayName === "Visiteur") {
+          displayName = otherProfile?.email ? otherProfile.email.split("@")[0] : (m.sender_id ? "Membre" : "Visiteur");
+        }
+
         return {
           id: m.id,
           listingId: m.listing_id,
           listingTitle: m.listing_id ? listingsMap.get(m.listing_id) ?? null : null,
           senderId: m.sender_id,
-          senderName: customName || otherProfile?.full_name || (m.sender_id === userId ? "Moi" : "Visiteur"),
+          senderName: displayName,
           senderPhone: m.sender_phone || otherProfile?.phone || "",
           senderEmail: m.sender_email || otherProfile?.email || "",
           recipientId: m.recipient_id,
@@ -231,13 +248,18 @@ export const sendMessageToSeller = createServerFn({ method: "POST" })
 
     let userId: string | null = null;
     let userProfile: { email?: string; phone?: string; full_name?: string } | null = null;
+    let isAdmin = false;
 
     if (token) {
       const claims = await sb.auth.getClaims(token).catch(() => null);
       if (claims?.data?.claims?.sub) {
         userId = claims.data.claims.sub;
-        const { data: prof } = await sb.from("profiles").select("email, phone, full_name").eq("id", userId).maybeSingle();
-        userProfile = prof;
+        const [profRes, roleRes] = await Promise.all([
+          sb.from("profiles").select("email, phone, full_name").eq("id", userId).maybeSingle(),
+          sb.from("user_roles").select("role").eq("user_id", userId).eq("role", "admin").maybeSingle(),
+        ]);
+        userProfile = profRes.data;
+        isAdmin = !!roleRes.data;
       }
     }
 
@@ -250,7 +272,12 @@ export const sendMessageToSeller = createServerFn({ method: "POST" })
     if (listErr || !listing || !listing.owner_id) return { ok: false, error: "not_found" };
     if (userId && listing.owner_id === userId) return { ok: false, error: "self" };
 
-    const senderName = data.name || userProfile?.full_name || "Visiteur";
+    let senderName = data.name;
+    if (isAdmin) {
+      senderName = "Administrateur" + (userProfile?.full_name ? ` (${userProfile.full_name})` : "");
+    } else if (!senderName || senderName === "Visiteur") {
+      senderName = userProfile?.full_name || (userProfile?.email ? userProfile.email.split("@")[0] : (userId ? "Membre" : "Visiteur"));
+    }
     const senderPhone = data.phone || userProfile?.phone || "";
     const senderEmail = data.email || userProfile?.email || "";
 
@@ -331,6 +358,28 @@ export const replyToConversation = createServerFn({ method: "POST" })
 
     if (error) {
       console.error("replyToConversation error:", error.message);
+      return { ok: false as const, error: "failed" };
+    }
+    return { ok: true as const };
+  });
+
+/** Delete all messages in a conversation thread. */
+export const deleteConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { messageIds: string[] }) => ({
+    messageIds: Array.isArray(d.messageIds) ? d.messageIds.map(String).filter(Boolean) : [],
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase } = context;
+    if (!data.messageIds.length) return { ok: false as const, error: "empty" };
+
+    const { error } = await supabase
+      .from("messages")
+      .delete()
+      .in("id", data.messageIds);
+
+    if (error) {
+      console.error("deleteConversation error:", error.message);
       return { ok: false as const, error: "failed" };
     }
     return { ok: true as const };

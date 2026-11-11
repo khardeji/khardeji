@@ -1,13 +1,14 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, CheckCheck, Loader2, Mail, MessageCircle, MessageSquare, Phone, Send, User } from "lucide-react";
+import { Check, CheckCheck, Loader2, Mail, MessageCircle, MessageSquare, Phone, Send, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
+import { Confirm } from "@/components/admin/shared";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/hooks/use-i18n";
-import { markMessageRead, replyToConversation, type MessageItem } from "@/lib/services.functions";
+import { deleteConversation, markMessageRead, replyToConversation, type MessageItem } from "@/lib/services.functions";
 import { cn } from "@/lib/utils";
 
 interface Conversation {
@@ -33,8 +34,9 @@ export function MessengerChat({
   const { t, date, dir } = useI18n();
   const setRead = useServerFn(markMessageRead);
   const sendReply = useServerFn(replyToConversation);
+  const removeConversation = useServerFn(deleteConversation);
 
-  // Group messages by conversation thread
+  // Group messages by conversation thread (one conversation per partner)
   const conversations = useMemo(() => {
     // 1. First pass: map each listing to the partner information from incoming messages
     const listingPartners = new Map<
@@ -49,9 +51,9 @@ export function MessengerChat({
     >();
 
     for (const m of messages) {
-      if (!m.isMine && m.listingId) {
-        const key = m.senderId || m.senderPhone || m.senderEmail || m.senderName || "guest";
-        if (!listingPartners.has(m.listingId)) {
+      if (!m.isMine) {
+        const key = m.senderId || (m.senderPhone ? `phone_${m.senderPhone}` : null) || (m.senderEmail ? `email_${m.senderEmail}` : null) || m.senderName || "guest";
+        if (m.listingId && !listingPartners.has(m.listingId)) {
           listingPartners.set(m.listingId, {
             partnerKey: key,
             partnerName: m.senderName || "Visiteur",
@@ -76,7 +78,7 @@ export function MessengerChat({
       let partnerId: string | null = null;
 
       if (!m.isMine) {
-        partnerKey = m.senderId || m.senderPhone || m.senderEmail || m.senderName || m.id;
+        partnerKey = m.senderId || (m.senderPhone ? `phone_${m.senderPhone}` : null) || (m.senderEmail ? `email_${m.senderEmail}` : null) || m.senderName || m.id;
         partnerName = m.senderName || "Visiteur";
         partnerPhone = m.senderPhone || "";
         partnerEmail = m.senderEmail || "";
@@ -86,6 +88,9 @@ export function MessengerChat({
         if (m.recipientId && m.recipientId !== m.senderId) {
           partnerKey = m.recipientId;
           partnerId = m.recipientId;
+        } else if (m.senderPhone && m.senderPhone !== "") {
+          partnerKey = `phone_${m.senderPhone}`;
+          partnerPhone = m.senderPhone;
         } else if (m.listingId && listingPartners.has(m.listingId)) {
           // This reply was sent to the visitor/buyer on this listing
           const p = listingPartners.get(m.listingId)!;
@@ -99,7 +104,8 @@ export function MessengerChat({
         }
       }
 
-      const threadKey = `${m.listingId || "general"}_${partnerKey}`;
+      // Group discussion by partner identity
+      const threadKey = partnerKey || (m.listingId ? `listing_${m.listingId}` : m.id);
 
       let conv = map.get(threadKey);
       if (!conv) {
@@ -120,10 +126,16 @@ export function MessengerChat({
 
       conv.messages.push(m);
       conv.lastMessage = m;
+      if (m.listingTitle) {
+        conv.listingTitle = typeof m.listingTitle === "string" ? m.listingTitle : t(m.listingTitle);
+      }
+      if (m.listingId) {
+        conv.listingId = m.listingId;
+      }
 
       // Enrich partner info when incoming message provides details
       if (!m.isMine) {
-        if (m.senderName && (conv.partnerName === "Acheteur" || conv.partnerName === "Visiteur")) {
+        if (m.senderName && m.senderName !== "Visiteur" && m.senderName !== "Acheteur") {
           conv.partnerName = m.senderName;
         }
         if (m.senderPhone && !conv.partnerPhone) conv.partnerPhone = m.senderPhone;
@@ -193,6 +205,37 @@ export function MessengerChat({
       onReplySent();
     } else {
       toast.error(t({ ar: "فشل إرسال الرد.", fr: "Échec de l'envoi de la réponse.", en: "Failed to send reply." }));
+    }
+  };
+
+  const handleDeleteConversation = async (conv?: Conversation) => {
+    const target = conv || activeConv;
+    if (!target) return;
+    const ids = target.messages.map((m) => m.id);
+    if (!ids.length) return;
+
+    setBusy(true);
+    const res = await removeConversation({ data: { messageIds: ids } }).catch(() => ({ ok: false as const }));
+    setBusy(false);
+
+    if (res.ok) {
+      toast.success(
+        t({
+          ar: "تم حذف المحادثة بنجاح.",
+          fr: "Conversation supprimée avec succès.",
+          en: "Conversation deleted.",
+        })
+      );
+      setActiveId("");
+      onReplySent();
+    } else {
+      toast.error(
+        t({
+          ar: "فشل حذف المحادثة.",
+          fr: "Échec de la suppression de la conversation.",
+          en: "Failed to delete conversation.",
+        })
+      );
     }
   };
 
@@ -335,6 +378,33 @@ export function MessengerChat({
                   <Mail className="size-4 text-muted-foreground" />
                 </a>
               </Button>
+            )}
+
+            {activeConv && (
+              <Confirm
+                title={t({ ar: "حذف هذه المحادثة؟", fr: "Supprimer cette conversation ?", en: "Delete this conversation?" })}
+                description={t({
+                  ar: "هل أنت متأكد من حذف هذه المحادثة؟ سيتم حذف جميع الرسائل المتبادلة نهائياً.",
+                  fr: "Êtes-vous sûr de vouloir supprimer cette conversation ? Tous les messages échangés seront définitivement effacés.",
+                  en: "Are you sure you want to delete this conversation? All exchanged messages will be permanently removed.",
+                })}
+                confirmLabel={t({ ar: "حذف المحادثة", fr: "Supprimer", en: "Delete" })}
+                variant="destructive"
+                onConfirm={() => void handleDeleteConversation(activeConv)}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 gap-1 text-xs text-destructive hover:bg-destructive/10 border-destructive/30"
+                    disabled={busy}
+                    title={t({ ar: "حذف المحادثة", fr: "Supprimer la conversation", en: "Delete conversation" })}
+                  >
+                    <Trash2 className="size-3.5" />
+                    <span className="hidden sm:inline">{t({ ar: "حذف", fr: "Supprimer", en: "Delete" })}</span>
+                  </Button>
+                }
+              />
             )}
           </div>
         </div>
