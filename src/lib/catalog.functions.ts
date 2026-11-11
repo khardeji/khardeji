@@ -12,10 +12,13 @@ import {
   rowToPlan,
 } from "./catalog-map";
 
+const DEFAULT_SUPABASE_URL = "https://pzjgadriuimximczqnfy.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_w3dlGMmx2g9u85yf4W-TAA_i7Wz6sTx";
+
 function publicClient() {
   // Server env first; the build-time public values are a fallback so the published site keeps working.
-  const url = (process.env["SUPABASE_URL"] || import.meta.env["VITE_SUPABASE_URL"]) as string;
-  const key = (process.env["SUPABASE_PUBLISHABLE_KEY"] || import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"]) as string;
+  const url = (process.env["SUPABASE_URL"] || import.meta.env["VITE_SUPABASE_URL"] || DEFAULT_SUPABASE_URL) as string;
+  const key = (process.env["SUPABASE_PUBLISHABLE_KEY"] || import.meta.env["VITE_SUPABASE_PUBLISHABLE_KEY"] || DEFAULT_SUPABASE_KEY) as string;
   return createClient<Database>(url, key, {
     auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
     // Opaque sb_ keys aren't JWTs; send only apikey, not the default Authorization bearer.
