@@ -92,3 +92,4 @@ END $$;
 SELECT pubname, schemaname, tablename 
 FROM pg_publication_tables 
 WHERE pubname = 'supabase_realtime';
+
