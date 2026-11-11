@@ -136,14 +136,16 @@ export const markListingSold = createServerFn({ method: "POST" })
     if (fetchErr || !row) return { ok: false, error: "not_found" } as const;
     if (row.owner_id !== userId) return { ok: false, error: "not_owner" } as const;
 
-    const { error } = await supabase
+    const { data: updated, error } = await supabase
       .from("listings")
       .update({ status: "sold" } as any)
       .eq("id", data.id)
-      .eq("owner_id", userId);
+      .eq("owner_id", userId)
+      .select("id, status")
+      .maybeSingle();
 
-    if (error) {
-      console.error("markListingSold failed", error.message);
+    if (error || !updated || updated.status !== "sold") {
+      console.error("markListingSold failed", error?.message ?? "no row updated");
       return { ok: false, error: "failed" } as const;
     }
     return { ok: true } as const;
