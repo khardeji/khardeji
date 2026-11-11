@@ -107,6 +107,77 @@ async function createNotification(
   }
 }
 
+/** A listing keeps a single accepted offer. Every other open offer is declined. */
+async function rejectCompetingOffers(
+  supabase: any,
+  args: { actorId: string; listingId: string; keepOfferId: string; keepBuyerId: string },
+) {
+  const now = new Date().toISOString();
+  const losers: { buyerId: string }[] = [];
+
+  const { data: others } = await supabase
+    .from("offers")
+    .select("id, buyer_id")
+    .eq("listing_id", args.listingId)
+    .eq("status", "pending")
+    .neq("id", args.keepOfferId);
+
+  if (others && others.length > 0) {
+    await supabase
+      .from("offers")
+      .update({ status: "rejected", updated_at: now })
+      .in("id", others.map((o: { id: string }) => o.id));
+    for (const o of others) {
+      if (o.buyer_id && o.buyer_id !== args.keepBuyerId) losers.push({ buyerId: o.buyer_id });
+    }
+  }
+
+  const { data: messages } = await supabase
+    .from("messages")
+    .select("id, sender_id, content")
+    .eq("listing_id", args.listingId);
+
+  if (messages) {
+    for (const m of messages) {
+      if (m.id === args.keepOfferId) continue;
+      try {
+        const parsed = JSON.parse(m.content);
+        if (parsed.__kind !== "offer") continue;
+        if (parsed.status && parsed.status !== "pending") continue;
+        parsed.status = "rejected";
+        parsed.updated_at = now;
+        await supabase.from("messages").update({ content: JSON.stringify(parsed) }).eq("id", m.id);
+        if (m.sender_id && m.sender_id !== args.keepBuyerId) losers.push({ buyerId: m.sender_id });
+      } catch {
+        /* not an offer payload */
+      }
+    }
+  }
+
+  const seen = new Set<string>();
+  for (const loser of losers) {
+    if (seen.has(loser.buyerId)) continue;
+    seen.add(loser.buyerId);
+    await createNotification(supabase, {
+      actorId: args.actorId,
+      userId: loser.buyerId,
+      type: "offer_rejected",
+      title: {
+        ar: "تم بيع الإعلان",
+        fr: "Annonce vendue",
+        en: "Listing sold",
+      },
+      message: {
+        ar: "قبل البائع عرضاً آخر. يظهر الإعلان مباعاً وعرضك مرفوضاً.",
+        fr: "Le vendeur a accepté une autre offre. L'annonce est vendue et la vôtre est refusée.",
+        en: "The seller accepted another offer. The listing is sold and yours was declined.",
+      },
+      listingId: args.listingId,
+      link: "/tableau-de-bord?tab=offers",
+    });
+  }
+}
+
 // --------------------------------------------------------------------------
 // 1. BIDDING
 // --------------------------------------------------------------------------
@@ -513,6 +584,15 @@ export const getIncomingOffers = createServerFn({ method: "GET" })
       }
     }
 
+    const acceptedListingIds = new Set(
+      offersData.filter((o) => o.status === "accepted" && o.listing_id).map((o) => o.listing_id as string),
+    );
+    if (acceptedListingIds.size > 0) {
+      offersData = offersData.filter(
+        (o) => o.status === "accepted" || !acceptedListingIds.has(o.listing_id),
+      );
+    }
+
     if (offersData.length === 0) return [];
 
     // Fetch listings and profiles to enrich offers
@@ -618,7 +698,7 @@ export const getOutgoingOffers = createServerFn({ method: "GET" })
     const listingIds = Array.from(new Set(offersData.map((o) => o.listing_id).filter(Boolean)));
     const { data: listings } = await supabase
       .from("listings")
-      .select("id, title, images, price, unit, seller")
+      .select("id, title, images, price, unit, seller, status")
       .in("id", listingIds);
 
     const signedImagesMap = await signListingImages(supabase, listings ?? []);
@@ -641,6 +721,7 @@ export const getOutgoingOffers = createServerFn({ method: "GET" })
         percentage: Number(o.percentage),
         notes: o.notes || "",
         status: o.status as "pending" | "accepted" | "rejected" | "expired" | "cancelled",
+        listingStatus: (l?.status as string) ?? "",
         createdAt: o.created_at,
         seller: {
           name: sellerObj?.name || "Vendeur",
@@ -692,6 +773,22 @@ export const respondToOffer = createServerFn({ method: "POST" })
       } else if (offer.status && offer.status !== "pending") {
         return { ok: false as const, error: "not_pending", message: "Cette offre n'est plus en attente." };
       } else {
+        if (data.action === "accepted") {
+          const { data: taken } = await supabase
+            .from("offers")
+            .select("id")
+            .eq("listing_id", offer.listing_id)
+            .eq("status", "accepted")
+            .neq("id", data.offerId)
+            .limit(1);
+          if (taken && taken.length > 0) {
+            return {
+              ok: false as const,
+              error: "already_accepted",
+              message: "Une offre a déjà été acceptée pour cette annonce.",
+            };
+          }
+        }
         await supabase
           .from("offers")
           .update({ status: data.action, updated_at: new Date().toISOString() })
@@ -844,11 +941,18 @@ export const respondToOffer = createServerFn({ method: "POST" })
           };
         }
         const newStock = availableStock - offeredQuantity;
-        const newStatus = newStock <= 0 ? "sold" : listing.status;
-        await supabase.from("listings").update({ stock: newStock, status: newStatus, ...(newStatus === "sold" ? soldPatch : {}) }).eq("id", targetListingId);
+        // One accepted offer closes the listing. Competing buyers then see it as sold.
+        await supabase.from("listings").update({ stock: newStock, status: "sold", ...soldPatch }).eq("id", targetListingId);
         remainingStock = newStock;
-        listingSold = newStock <= 0;
+        listingSold = true;
       }
+
+      await rejectCompetingOffers(supabase, {
+        actorId: userId,
+        listingId: targetListingId,
+        keepOfferId: data.offerId,
+        keepBuyerId: targetBuyerId,
+      });
     }
 
     // Notify buyer immediately of seller decision
@@ -1929,6 +2033,10 @@ export const getMyPurchases = createServerFn({ method: "GET" })
       const qty = Number(o.quantity || 1);
       const offeredPrice = Number(o.offered_price || 0);
       const unitPrice = qty > 0 ? (offeredPrice / qty) : offeredPrice;
+      let dealStatus = (o.status || "pending") as UserPurchase["status"];
+      if (l?.status === "sold" && dealStatus !== "accepted" && dealStatus !== "cancelled") {
+        dealStatus = "rejected";
+      }
 
       purchases.push({
         id: o.id,
@@ -1940,7 +2048,7 @@ export const getMyPurchases = createServerFn({ method: "GET" })
         quantity: qty,
         unitPrice,
         totalPrice: offeredPrice,
-        status: (o.status || "pending") as any,
+        status: dealStatus,
         createdAt: o.created_at,
         notes: o.notes || "",
         seller: resolveSeller(sellerId, l),

@@ -659,7 +659,11 @@ export function OffersPanel() {
                       <div className="min-w-0 flex-1 space-y-2">
                         <div className="flex flex-wrap items-center justify-between gap-2">
                           <div className="flex items-center gap-2">
-                            {statusBadge(offer.status)}
+                            {offer.listingStatus === "sold" && offer.status !== "accepted" ? (
+                              <Badge variant="outline">{t({ ar: "مباع", fr: "Vendu", en: "Sold" })}</Badge>
+                            ) : (
+                              statusBadge(offer.status)
+                            )}
                             <span className="text-xs text-muted-foreground">
                               <Clock className="inline size-3 me-1" />
                               {date(offer.createdAt)}
