@@ -76,6 +76,7 @@ function toAuction(v: Json | null): Listing["auction"] {
 }
 
 function toActiveBoost(sellerJson: Json | null | undefined, r: Partial<ListingRow>): ActiveBoost | null {
+  if (r.status === "sold") return null;
   if (sellerJson && typeof sellerJson === "object" && !Array.isArray(sellerJson)) {
     const boost = (sellerJson as any).activeBoost;
     if (boost && typeof boost === "object" && boost.boostId && boost.expiresAt) {
@@ -114,9 +115,10 @@ function toActiveBoost(sellerJson: Json | null | undefined, r: Partial<ListingRo
 
 export function rowToListing(r: Partial<ListingRow> & Pick<ListingRow, "id">): Listing {
   const images = (r.images ?? []).length ? r.images! : [FALLBACK_IMAGE];
-  const activeBoost = toActiveBoost(r.seller, r);
-  const isUrgent = activeBoost ? activeBoost.boostId === "urgent" : Boolean(r.urgent);
-  const isFeatured = activeBoost ? (activeBoost.boostId === "premium-7j" || activeBoost.boostId === "a-la-une") : Boolean(r.featured);
+  const sold = r.status === "sold";
+  const activeBoost = sold ? null : toActiveBoost(r.seller, r);
+  const isUrgent = sold ? false : activeBoost ? activeBoost.boostId === "urgent" : Boolean(r.urgent);
+  const isFeatured = sold ? false : activeBoost ? (activeBoost.boostId === "premium-7j" || activeBoost.boostId === "a-la-une") : Boolean(r.featured);
 
   return {
     id: r.id,
@@ -135,7 +137,7 @@ export function rowToListing(r: Partial<ListingRow> & Pick<ListingRow, "id">): L
     seller: toSeller(r.seller ?? {}),
     featured: isFeatured,
     urgent: isUrgent,
-    boostedAt: (r as any).boosted_at ?? null,
+    boostedAt: sold ? null : ((r as any).boosted_at ?? null),
     activeBoost,
     auction: toAuction(r.auction ?? null),
     status: (r.status ?? "approved") as ListingStatus,

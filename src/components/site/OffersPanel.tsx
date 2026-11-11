@@ -35,6 +35,7 @@ import {
   getSellerBiddingRequests,
   respondToOffer,
 } from "@/lib/marketplace.functions";
+import { repostMyListing } from "@/lib/listings.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 
 export function OffersPanel() {
@@ -45,6 +46,7 @@ export function OffersPanel() {
   const fetchOutgoing = useServerFn(getOutgoingOffers);
   const fetchBids = useServerFn(getSellerBiddingRequests);
   const sendResponse = useServerFn(respondToOffer);
+  const repostListing = useServerFn(repostMyListing);
 
   const incomingQ = useQuery({ queryKey: ["me", "offers", "incoming"], queryFn: () => fetchIncoming() });
   const outgoingQ = useQuery({ queryKey: ["me", "offers", "outgoing"], queryFn: () => fetchOutgoing() });
@@ -88,6 +90,8 @@ export function OffersPanel() {
         await Promise.all([
           qc.invalidateQueries({ queryKey: ["me", "offers"] }),
           qc.invalidateQueries({ queryKey: ["me", "notifications"] }),
+          qc.invalidateQueries({ queryKey: ["me", "listings"] }),
+          qc.invalidateQueries({ queryKey: ["catalog"] }),
         ]);
         if (selectedOffer?.id === offerId) {
           setSelectedOffer((prev: any) => (prev ? { ...prev, status: action } : null));
@@ -270,6 +274,12 @@ export function OffersPanel() {
                                 {offer.quantity} {unitLabel}
                               </span>
                             </div>
+                            <div className="text-xs text-muted-foreground">
+                              {t({ ar: "الكمية المتوفرة", fr: "Quantité disponible", en: "Available quantity" })}:{" "}
+                              <span className={`font-semibold ${Number(offer.availableStock) <= 0 ? "text-destructive" : "text-foreground"}`}>
+                                {offer.availableStock ?? 0} {unitLabel}
+                              </span>
+                            </div>
                           </div>
 
                           <div className="space-y-1 sm:text-end">
@@ -322,6 +332,46 @@ export function OffersPanel() {
                       >
                         {t({ ar: "تفاصيل والاتصال", fr: "Détails & Contact", en: "Details & Contact" })}
                       </Button>
+
+                      {isAccepted && (offer.listingStatus === "sold" || Number(offer.availableStock) <= 0) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          disabled={busyId === offer.id}
+                          className="gap-1.5 border-olive text-olive"
+                          onClick={async () => {
+                            setBusyId(offer.id);
+                            try {
+                              const res = await repostListing({
+                                data: { id: offer.listingId, stock: Number(offer.quantity) || undefined },
+                              });
+                              if (res.ok) {
+                                toast.success(
+                                  t({
+                                    ar: "أُعيد نشر الإعلان كإعلان جديد في حسابك.",
+                                    fr: "Annonce republiée : elle compte comme une nouvelle annonce sur votre compte.",
+                                    en: "Listing reposted. It counts as a new post on your account.",
+                                  }),
+                                );
+                                await Promise.all([
+                                  qc.invalidateQueries({ queryKey: ["me", "listings"] }),
+                                  qc.invalidateQueries({ queryKey: ["me", "offers"] }),
+                                  qc.invalidateQueries({ queryKey: ["me", "qty_requests"] }),
+                                  qc.invalidateQueries({ queryKey: ["me", "purchases"] }),
+                                ]);
+                              } else {
+                                toast.error(t({ ar: "تعذر إعادة النشر", fr: "Republication impossible", en: "Could not repost" }));
+                              }
+                            } catch {
+                              toast.error(t({ ar: "تعذر إعادة النشر", fr: "Republication impossible", en: "Could not repost" }));
+                            } finally {
+                              setBusyId(null);
+                            }
+                          }}
+                        >
+                          {t({ ar: "إعادة النشر", fr: "Republier", en: "Repost" })}
+                        </Button>
+                      )}
 
                       {isPending && (
                         <div className="flex gap-2">

@@ -46,6 +46,7 @@ import {
   respondToQuantityRequest,
 } from "@/lib/marketplace.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
+import { repostMyListing } from "@/lib/listings.functions";
 import { resolveImage } from "@/data/catalog";
 
 export function QuantityRequestsPanel() {
@@ -55,6 +56,7 @@ export function QuantityRequestsPanel() {
   const fetchSellerReqs = useServerFn(getSellerQuantityRequests);
   const fetchBuyerReqs = useServerFn(getBuyerQuantityRequests);
   const sendResponse = useServerFn(respondToQuantityRequest);
+  const repostListing = useServerFn(repostMyListing);
 
   const sellerQ = useQuery({ queryKey: ["me", "qty_requests", "seller"], queryFn: () => fetchSellerReqs() });
   const buyerQ = useQuery({ queryKey: ["me", "qty_requests", "buyer"], queryFn: () => fetchBuyerReqs() });
@@ -72,11 +74,13 @@ export function QuantityRequestsPanel() {
 
   const filteredSellerReqs = sellerReqs.filter((r) => {
     if (sellerStatusFilter === "all") return true;
+    if (sellerStatusFilter === "accepted") return r.status === "accepted" || r.status === "cancelled";
     return r.status === sellerStatusFilter;
   });
 
   const filteredBuyerReqs = buyerReqs.filter((r) => {
     if (buyerStatusFilter === "all") return true;
+    if (buyerStatusFilter === "accepted") return r.status === "accepted" || r.status === "cancelled";
     return r.status === buyerStatusFilter;
   });
 
@@ -392,18 +396,59 @@ export function QuantityRequestsPanel() {
                               </>
                             )}
 
-                            {/* Accepted: Cancel Acceptance & Repost */}
+                            {/* Accepted: undo, or republish as a new post once the listing is sold out */}
                             {isAccepted && (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                className="h-8 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
-                                disabled={busyId === req.id}
-                                onClick={() => setCancelConfirmId(req.id)}
-                              >
-                                <RefreshCw className="size-3.5 me-1" />
-                                {t({ ar: "إلغاء القبول وإعادة النشر", fr: "Annuler & remettre en vente", en: "Cancel & repost" })}
-                              </Button>
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-8 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
+                                  disabled={busyId === req.id}
+                                  onClick={() => setCancelConfirmId(req.id)}
+                                >
+                                  <RefreshCw className="size-3.5 me-1" />
+                                  {t({ ar: "إلغاء القبول وإعادة النشر", fr: "Annuler & remettre en vente", en: "Cancel & repost" })}
+                                </Button>
+                                {(req.listingStatus === "sold" || Number(req.availableStock) <= 0) && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="h-8 text-xs border-olive text-olive"
+                                    disabled={busyId === req.id}
+                                    onClick={async () => {
+                                      setBusyId(req.id);
+                                      try {
+                                        const res = await repostListing({
+                                          data: { id: req.listingId, stock: Number(req.requestedQuantity) || undefined },
+                                        });
+                                        if (res.ok) {
+                                          toast.success(
+                                            t({
+                                              ar: "أُعيد نشر الإعلان كإعلان جديد في حسابك.",
+                                              fr: "Annonce republiée : elle compte comme une nouvelle annonce sur votre compte.",
+                                              en: "Listing reposted. It counts as a new post on your account.",
+                                            }),
+                                          );
+                                          await Promise.all([
+                                            qc.invalidateQueries({ queryKey: ["me", "listings"] }),
+                                            qc.invalidateQueries({ queryKey: ["me", "offers"] }),
+                                            qc.invalidateQueries({ queryKey: ["me", "qty_requests"] }),
+                                            qc.invalidateQueries({ queryKey: ["me", "purchases"] }),
+                                          ]);
+                                        } else {
+                                          toast.error(t({ ar: "تعذر إعادة النشر", fr: "Republication impossible", en: "Could not repost" }));
+                                        }
+                                      } catch {
+                                        toast.error(t({ ar: "تعذر إعادة النشر", fr: "Republication impossible", en: "Could not repost" }));
+                                      } finally {
+                                        setBusyId(null);
+                                      }
+                                    }}
+                                  >
+                                    {t({ ar: "إعادة النشر", fr: "Republier", en: "Repost" })}
+                                  </Button>
+                                )}
+                              </>
                             )}
                           </div>
                         </div>

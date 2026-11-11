@@ -55,7 +55,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
-import { deleteMyListing, getMyListings, markListingSold } from "@/lib/listings.functions";
+import { deleteMyListing, getMyListings, markListingSold, repostMyListing } from "@/lib/listings.functions";
 import { getEffectivePlan, PLAN_CONFIG } from "@/lib/listing-rules";
 import { getIncomingOffers, getMyPurchases, getSellerQuantityRequests } from "@/lib/marketplace.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
@@ -118,6 +118,7 @@ export function DashboardPage() {
   const fetchBoosts = useServerFn(getMyBoosts);
   const removeListing = useServerFn(deleteMyListing);
   const markSold = useServerFn(markListingSold);
+  const repost = useServerFn(repostMyListing);
   const setRead = useServerFn(markMessageRead);
   const fetchIncomingOffers = useServerFn(getIncomingOffers);
   const fetchSellerQtyReqs = useServerFn(getSellerQuantityRequests);
@@ -204,6 +205,35 @@ export function DashboardPage() {
       ]);
     } else {
       toast.error(t({ ar: "فشل تحديث حالة الإعلان.", fr: "Échec de l'opération.", en: "Failed to mark as sold." }));
+    }
+  };
+
+  const handleRepost = async (id: string, stock: number) => {
+    const res = await repost({ data: { id, stock: stock > 0 ? stock : undefined } }).catch(() => ({ ok: false as const }));
+    if (res.ok) {
+      toast.success(
+        t({
+          ar: "أُعيد نشر الإعلان كإعلان جديد في حسابك.",
+          fr: "Annonce republiée : elle compte comme une nouvelle annonce sur votre compte.",
+          en: "Listing reposted. It counts as a new post on your account.",
+        }),
+      );
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["me", "listings"] }),
+        qc.invalidateQueries({ queryKey: ["me", "overview"] }),
+        qc.invalidateQueries({ queryKey: ["me", "offers"] }),
+        qc.invalidateQueries({ queryKey: ["me", "qty_requests"] }),
+        qc.invalidateQueries({ queryKey: ["me", "purchases"] }),
+        qc.invalidateQueries({ queryKey: ["catalog"] }),
+      ]);
+    } else {
+      toast.error(
+        t({
+          ar: "تعذر إعادة النشر. حدّد كمية في التعديل أولاً إن كان المخزون صفراً.",
+          fr: "Republication impossible. Indiquez une quantité si le stock est à zéro.",
+          en: "Could not repost. Set a quantity first if stock is zero.",
+        }),
+      );
     }
   };
 
@@ -305,7 +335,7 @@ export function DashboardPage() {
           <div className="surface-card flex flex-col justify-between p-5 ring-1 ring-border">
             <div className="flex items-start justify-between">
               <div>
-                <p className="label-stamp text-xs text-olive">{t({ ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" })}</p>
+                <p className="label-stamp text-xs text-olive">{t({ ar: "الإعلانات المنشورة", fr: "Annonces publiées", en: "Posts published" })}</p>
                 <div className="mt-2 flex items-baseline gap-2">
                   <p className="font-display text-4xl font-bold text-foreground">
                     {num(overview?.listingsCount.total ?? 0)}
@@ -317,7 +347,7 @@ export function DashboardPage() {
                   )}
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {overview?.listingsCount.approved ?? 0} {t({ ar: "منشورة", fr: "en ligne", en: "live" })} · {overview?.listingsCount.pending ?? 0} {t({ ar: "قيد المراجعة", fr: "en attente", en: "pending" })}
+                  {overview?.listingsCount.approved ?? 0} {t({ ar: "منشورة", fr: "en ligne", en: "live" })} · {overview?.listingsCount.pending ?? 0} {t({ ar: "قيد المراجعة", fr: "en attente", en: "pending" })} · {t({ ar: "العدد يبقى بعد الحذف", fr: "le total reste après suppression", en: "the total stays after a delete" })}
                 </p>
                 {isLimitReached && (
                   <span className="mt-2 inline-flex items-center gap-1 rounded bg-rust/15 px-2 py-0.5 text-[0.68rem] font-bold text-rust">
@@ -702,7 +732,7 @@ export function DashboardPage() {
                 <div className="space-y-3">
                   {listings.map((l) => {
                     const st = l.status ?? "pending";
-                    const isBoosted = l.activeBoost && isBoostActive(l.activeBoost);
+                    const isBoosted = st !== "sold" && l.activeBoost && isBoostActive(l.activeBoost);
                     const remaining = isBoosted ? getBoostTimeRemaining(l.activeBoost!.expiresAt) : null;
                     const listingBoosts = (boosts ?? []).filter((b) => b.listingId === l.id);
                     const hasUrgent = l.urgent || listingBoosts.some((b) => b.boostId === "urgent");
@@ -736,7 +766,7 @@ export function DashboardPage() {
                                   {t(remaining!.label)}
                                 </span>
                               </Badge>
-                            ) : (
+                            ) : st !== "sold" ? (
                               <>
                                 {hasUrgent && (
                                   <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
@@ -754,7 +784,7 @@ export function DashboardPage() {
                                   </Badge>
                                 )}
                               </>
-                            )}
+                            ) : null}
                           </div>
                           <h4 className="mt-1 truncate font-semibold text-foreground">{t(l.title)}</h4>
                           <p className="text-xs text-muted-foreground">
@@ -814,6 +844,17 @@ export function DashboardPage() {
                                 }
                               />
                             </>
+                          )}
+
+                          {st === "sold" && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1 border-olive text-olive"
+                              onClick={() => void handleRepost(l.id, l.stock)}
+                            >
+                              {t({ ar: "إعادة النشر", fr: "Republier", en: "Repost" })}
+                            </Button>
                           )}
 
                           {st !== "sold" && (

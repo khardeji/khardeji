@@ -81,12 +81,14 @@ export const getMyOverview = createServerFn({ method: "GET" })
       }
 
       // 2. Fetch Listings Counts
-      const { data: listings } = await supabase.from("listings").select("status").eq("owner_id", userId);
+      const { data: listings } = await supabase.from("listings").select("status, moderation_note").eq("owner_id", userId);
       if (listings) {
+        const kept = listings.filter((l) => (l as { moderation_note?: string }).moderation_note !== "owner_deleted");
+        // Total is every post the account has published, including ones later deleted.
         fallback.listingsCount.total = listings.length;
-        fallback.listingsCount.approved = listings.filter((l) => l.status === "approved").length;
-        fallback.listingsCount.pending = listings.filter((l) => l.status === "pending").length;
-        fallback.listingsCount.sold = listings.filter((l) => l.status === "sold").length;
+        fallback.listingsCount.approved = kept.filter((l) => l.status === "approved").length;
+        fallback.listingsCount.pending = kept.filter((l) => l.status === "pending").length;
+        fallback.listingsCount.sold = kept.filter((l) => l.status === "sold").length;
       }
 
       // 3. Fetch Messages Counts

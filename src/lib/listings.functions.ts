@@ -114,7 +114,12 @@ export const getMyListings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data, error } = await supabase.from("listings").select("*").eq("owner_id", userId).order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("owner_id", userId)
+      .or("moderation_note.is.null,moderation_note.neq.owner_deleted")
+      .order("created_at", { ascending: false });
     if (error) throw new Error("my_listings_unavailable");
     return resolveListingImages(supabase, data.map(rowToListing));
   });
@@ -124,12 +129,15 @@ export const deleteMyListing = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: row } = await supabase.from("listings").select("images").eq("id", data.id).eq("owner_id", userId).maybeSingle();
+    const { data: row } = await supabase.from("listings").select("id").eq("id", data.id).eq("owner_id", userId).maybeSingle();
     if (!row) return { ok: false as const };
-    const { error } = await supabase.from("listings").delete().eq("id", data.id).eq("owner_id", userId);
+    // Keep the row so the account total stays the number of posts ever published.
+    const { error } = await supabase
+      .from("listings")
+      .update({ status: "hidden", moderation_note: "owner_deleted" } as any)
+      .eq("id", data.id)
+      .eq("owner_id", userId);
     if (error) return { ok: false as const };
-    const paths = row.images.filter((i) => i.startsWith(STORAGE_PREFIX)).map((i) => i.slice(STORAGE_PREFIX.length));
-    if (paths.length) await supabase.storage.from("listing-photos").remove(paths);
     return { ok: true as const };
   });
 
@@ -141,24 +149,135 @@ export const markListingSold = createServerFn({ method: "POST" })
     const { supabase, userId } = context;
     const { data: row, error: fetchErr } = await supabase
       .from("listings")
-      .select("id, owner_id")
+      .select("id, owner_id, seller")
       .eq("id", data.id)
       .maybeSingle();
 
     if (fetchErr || !row) return { ok: false, error: "not_found" } as const;
     if (row.owner_id !== userId) return { ok: false, error: "not_owner" } as const;
 
-    const { error } = await supabase
-      .from("listings")
-      .update({ status: "sold" } as any)
-      .eq("id", data.id)
-      .eq("owner_id", userId);
+    const seller = row.seller && typeof row.seller === "object" && !Array.isArray(row.seller) ? { ...(row.seller as object) } : {};
+    delete (seller as { activeBoost?: unknown }).activeBoost;
 
-    if (error) {
-      console.error("markListingSold failed", error.message);
+    const { data: updated, error } = await supabase
+      .from("listings")
+      .update({ status: "sold", urgent: false, featured: false, seller } as any)
+      .eq("id", data.id)
+      .eq("owner_id", userId)
+      .select("id, status")
+      .maybeSingle();
+
+    if (error || !updated || updated.status !== "sold") {
+      console.error("markListingSold failed", error?.message ?? "no row updated");
       return { ok: false, error: "failed" } as const;
     }
     return { ok: true } as const;
+  });
+
+/** Change the quantity still for sale. Zero stock marks the listing sold so it leaves the catalog. */
+export const setMyListingStock = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; stock: number }) => ({
+    id: String(d.id),
+    stock: Math.max(0, Number(d.stock) || 0),
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error: fetchErr } = await supabase
+      .from("listings")
+      .select("id, owner_id, unit, status, seller")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    if (fetchErr || !row) return { ok: false as const, error: "not_found" };
+    if (row.owner_id !== userId) return { ok: false as const, error: "not_owner" };
+
+    const stock = row.unit === "libre" ? 0 : data.stock;
+    const status = row.unit !== "libre" && stock <= 0 ? "sold" : row.status === "sold" && stock > 0 ? "approved" : row.status;
+    const seller = row.seller && typeof row.seller === "object" && !Array.isArray(row.seller) ? { ...(row.seller as object) } : {};
+    if (status === "sold") delete (seller as { activeBoost?: unknown }).activeBoost;
+
+    const { error } = await supabase
+      .from("listings")
+      .update({ stock, status, ...(status === "sold" ? { urgent: false, featured: false, seller } : {}) } as any)
+      .eq("id", data.id)
+      .eq("owner_id", userId);
+
+    if (error) return { ok: false as const, error: "failed" };
+    return { ok: true as const, stock, status };
+  });
+
+/**
+ * Republish a listing as a brand-new post on the owner's account.
+ * The sold listing stays sold; the copy is a separate row so it counts in the account total.
+ */
+export const repostMyListing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; stock?: number }) => ({
+    id: String(d.id),
+    stock: d.stock == null ? undefined : Number(d.stock),
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error: fetchErr } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("id", data.id)
+      .eq("owner_id", userId)
+      .maybeSingle();
+
+    if (fetchErr || !row) return { ok: false as const, error: "not_found" };
+
+    const stock =
+      row.unit === "libre"
+        ? 0
+        : data.stock != null && data.stock > 0
+          ? data.stock
+          : Number(row.stock) > 0
+            ? Number(row.stock)
+            : 0;
+
+    if (row.unit !== "libre" && !(stock > 0)) {
+      return { ok: false as const, error: "stock" };
+    }
+
+    const { data: created, error } = await supabase
+      .from("listings")
+      .insert({
+        owner_id: userId,
+        title: row.title,
+        description: row.description,
+        category: row.category,
+        subcategory: row.subcategory,
+        governorate: row.governorate,
+        city: row.city,
+        price: row.price,
+        unit: row.unit,
+        stock,
+        sale_type: row.sale_type,
+        images: row.images,
+        seller: row.seller,
+        auction: row.auction,
+        urgent: false,
+        featured: false,
+        status: "pending",
+        moderation_note: "Republication — nouvelle annonce en attente de validation",
+      })
+      .select("id")
+      .single();
+
+    if (error || !created) {
+      console.error("repostMyListing failed", error?.message);
+      return { ok: false as const, error: "failed" };
+    }
+
+    // Keep accepted offers and quantity deals on the new post.
+    // They reference the listing, and deleting the sold original would otherwise remove them.
+    await supabase.from("offers").update({ listing_id: created.id }).eq("listing_id", data.id).eq("seller_id", userId);
+    await supabase.from("quantity_requests").update({ listing_id: created.id }).eq("listing_id", data.id).eq("seller_id", userId);
+    await supabase.from("messages").update({ listing_id: created.id }).eq("listing_id", data.id).or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
+
+    return { ok: true as const, id: created.id };
   });
 
 /**

@@ -93,18 +93,25 @@ export function MsgFields({ label, value, onChange, multiline }: { label: string
   );
 }
 
+function copy(value: string | Msg | undefined, fallback: string) {
+  return value == null ? fallback : typeof value === "string" ? value : undefined;
+}
+
 export function Confirm({
   trigger,
   onConfirm,
   title,
   description,
+  message,
   confirmLabel,
   variant = "destructive",
 }: {
   trigger: ReactNode;
   onConfirm: () => void;
-  title?: string | undefined;
-  description?: string | undefined;
+  title?: string | Msg | undefined;
+  description?: string | Msg | undefined;
+  /** Alias of description, used by listing actions. */
+  message?: string | Msg | undefined;
   confirmLabel?: string | undefined;
   variant?: "destructive" | "default" | "rust" | undefined;
 }) {
@@ -116,14 +123,17 @@ export function Confirm({
       : variant === "default"
       ? "bg-primary text-primary-foreground hover:bg-primary/90"
       : "bg-destructive text-destructive-foreground hover:bg-destructive/90";
+  const body = message ?? description;
+  const titleText = typeof title === "object" ? t(title) : copy(title, t(A.confirmTitle));
+  const bodyText = typeof body === "object" ? t(body) : copy(body, t(A.irreversible));
 
   return (
     <AlertDialog open={open} onOpenChange={setOpen}>
       <AlertDialogTrigger asChild>{trigger}</AlertDialogTrigger>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>{title ?? t(A.confirmTitle)}</AlertDialogTitle>
-          <AlertDialogDescription>{description ?? t(A.irreversible)}</AlertDialogDescription>
+          <AlertDialogTitle>{titleText}</AlertDialogTitle>
+          <AlertDialogDescription>{bodyText}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel>{t(A.cancel)}</AlertDialogCancel>

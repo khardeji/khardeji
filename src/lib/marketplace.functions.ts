@@ -521,7 +521,7 @@ export const getIncomingOffers = createServerFn({ method: "GET" })
 
     const [{ data: listings }, { data: profiles }] = await Promise.all([
       listingIds.length > 0
-        ? supabase.from("listings").select("id, title, images, price, unit, stock").in("id", listingIds)
+        ? supabase.from("listings").select("id, title, images, price, unit, stock, status").in("id", listingIds)
         : Promise.resolve({ data: [] }),
       buyerIds.length > 0
         ? supabase.from("profiles").select("id, full_name, phone, email, account_type").in("id", buyerIds)
@@ -544,6 +544,8 @@ export const getIncomingOffers = createServerFn({ method: "GET" })
         originalPrice: Number(o.original_price),
         offeredPrice: Number(o.offered_price),
         quantity: Number(o.quantity),
+        availableStock: Number(l?.stock ?? 0),
+        listingStatus: (l?.status as string) ?? "",
         unit: o.unit || l?.unit || "piece",
         difference: Number(o.difference),
         percentage: Number(o.percentage),
@@ -660,6 +662,8 @@ export const respondToOffer = createServerFn({ method: "POST" })
     let targetBuyerId = "";
     let targetListingId = "";
     let offeredPrice = 0;
+    let offeredQuantity = 1;
+    let offerUnit = "piece";
 
     // 1. Check dedicated offers table
     const { data: offer, error } = await supabase
@@ -676,6 +680,10 @@ export const respondToOffer = createServerFn({ method: "POST" })
         }
       }
 
+      if (offer.status && offer.status !== "pending") {
+        return { ok: false as const, error: "not_pending", message: "Cette offre n'est plus en attente." };
+      }
+
       await supabase
         .from("offers")
         .update({ status: data.action, updated_at: new Date().toISOString() })
@@ -684,6 +692,8 @@ export const respondToOffer = createServerFn({ method: "POST" })
       targetBuyerId = offer.buyer_id;
       targetListingId = offer.listing_id;
       offeredPrice = Number(offer.offered_price);
+      offeredQuantity = Math.max(1, Number(offer.quantity) || 1);
+      offerUnit = offer.unit || "piece";
     } else {
       // 2. Check persistent messages table
       const { data: msg } = await supabase
@@ -716,9 +726,54 @@ export const respondToOffer = createServerFn({ method: "POST" })
         targetBuyerId = msg.sender_id;
         targetListingId = msg.listing_id;
         offeredPrice = Number(parsed.offered_price);
+        offeredQuantity = Math.max(1, Number(parsed.quantity) || 1);
+        offerUnit = parsed.unit || "piece";
       } catch (e) {
         console.error("error updating offer status in message", e);
         return { ok: false as const, error: "failed", message: "Impossible de mettre à jour le statut." };
+      }
+    }
+
+    let remainingStock: number | null = null;
+    let listingSold = false;
+
+    // Accepting an offer reserves the requested quantity, same as a quantity deal.
+    // When nothing is left the listing leaves the public catalog.
+    if (data.action === "accepted" && targetListingId) {
+      const { data: listing, error: lErr } = await supabase
+        .from("listings")
+        .select("stock, status, unit, seller")
+        .eq("id", targetListingId)
+        .maybeSingle();
+
+      if (lErr || !listing) {
+        return { ok: false as const, error: "listing_not_found", message: "Article introuvable." };
+      }
+
+      const unit = listing.unit || offerUnit;
+      const seller = listing.seller && typeof listing.seller === "object" && !Array.isArray(listing.seller) ? { ...(listing.seller as object) } : {};
+      delete (seller as { activeBoost?: unknown }).activeBoost;
+      const soldPatch = { urgent: false, featured: false, seller };
+      if (unit === "libre") {
+        await supabase.from("listings").update({ status: "sold", ...soldPatch }).eq("id", targetListingId);
+        remainingStock = 0;
+        listingSold = true;
+      } else {
+        const availableStock = Number(listing.stock);
+        if (availableStock < offeredQuantity) {
+          await supabase.from("offers").update({ status: "pending" }).eq("id", data.offerId);
+          return {
+            ok: false as const,
+            error: "insufficient_stock",
+            available: availableStock,
+            message: `Stock insuffisant (${availableStock} disponible) pour accepter cette offre de ${offeredQuantity}.`,
+          };
+        }
+        const newStock = availableStock - offeredQuantity;
+        const newStatus = newStock <= 0 ? "sold" : listing.status;
+        await supabase.from("listings").update({ stock: newStock, status: newStatus, ...(newStatus === "sold" ? soldPatch : {}) }).eq("id", targetListingId);
+        remainingStock = newStock;
+        listingSold = newStock <= 0;
       }
     }
 
@@ -750,7 +805,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
       });
     }
 
-    return { ok: true as const, status: data.action };
+    return { ok: true as const, status: data.action, remainingStock, sold: listingSold };
   });
 
 // --------------------------------------------------------------------------
@@ -971,7 +1026,7 @@ export const getSellerQuantityRequests = createServerFn({ method: "GET" })
 
     const [{ data: listings }, { data: profiles }] = await Promise.all([
       listingIds.length > 0
-        ? supabase.from("listings").select("id, title, images, price, unit, stock").in("id", listingIds)
+        ? supabase.from("listings").select("id, title, images, price, unit, stock, status").in("id", listingIds)
         : Promise.resolve({ data: [] }),
       buyerIds.length > 0
         ? supabase.from("profiles").select("id, full_name, phone, email, account_type, created_at").in("id", buyerIds)
@@ -992,6 +1047,7 @@ export const getSellerQuantityRequests = createServerFn({ method: "GET" })
         listingTitle: titleObj,
         listingImage: getListingFirstImage(l, signedImagesMap),
         availableStock: Number(l?.stock ?? 0),
+        listingStatus: (l?.status as string) ?? "",
         unitPrice: Number(r.unit_price),
         requestedQuantity: Number(r.requested_quantity),
         totalValue: Number(r.total_value),
@@ -1241,7 +1297,7 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
       // Fetch latest stock from listings table to prevent overselling
       const { data: listing, error: lErr } = await supabase
         .from("listings")
-        .select("stock, status")
+        .select("stock, status, seller")
         .eq("id", targetListingId)
         .maybeSingle();
 
@@ -1262,11 +1318,13 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
 
       const newStock = availableStock - requestedQuantity;
       const newStatus = newStock <= 0 ? "sold" : listing.status;
+      const seller = listing.seller && typeof listing.seller === "object" && !Array.isArray(listing.seller) ? { ...(listing.seller as object) } : {};
+      if (newStatus === "sold") delete (seller as { activeBoost?: unknown }).activeBoost;
 
-      // Update listing stock safely
+      // Update listing stock safely. A sold-out listing drops its boost.
       await supabase
         .from("listings")
-        .update({ stock: newStock, status: newStatus })
+        .update({ stock: newStock, status: newStatus, ...(newStatus === "sold" ? { urgent: false, featured: false, seller } : {}) })
         .eq("id", targetListingId);
 
       if (isDedicatedTable) {
