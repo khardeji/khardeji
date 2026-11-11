@@ -389,9 +389,9 @@ export function MessengerChat({
               <Confirm
                 title={t({ ar: "حذف هذه المحادثة؟", fr: "Supprimer cette conversation ?", en: "Delete this conversation?" })}
                 description={t({
-                  ar: "هل أنت متأكد من حذف هذه المحادثة؟ سيتم حذف جميع الرسائل المتبادلة نهائياً.",
-                  fr: "Êtes-vous sûr de vouloir supprimer cette conversation ? Tous les messages échangés seront définitivement effacés.",
-                  en: "Are you sure you want to delete this conversation? All exchanged messages will be permanently removed.",
+                  ar: "تختفي هذه المحادثة من حسابك فقط. يبقى سجل الشراء والمنتوج عندك وعند المشتري.",
+                  fr: "Cette conversation disparaît de votre compte uniquement. L'historique d'achat et l'article restent sur votre compte et sur celui de l'acheteur.",
+                  en: "This conversation leaves your account only. The purchase history and the item stay on your account and on the buyer's.",
                 })}
                 confirmLabel={t({ ar: "حذف المحادثة", fr: "Supprimer", en: "Delete" })}
                 variant="destructive"

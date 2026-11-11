@@ -171,8 +171,13 @@ export const getMyMessages = createServerFn({ method: "GET" })
         return [];
       }
 
-      const listingIds = [...new Set(rawMessages.map((m) => m.listing_id).filter(Boolean))] as string[];
-      const userIds = [...new Set(rawMessages.map((m) => (m.sender_id === userId ? m.recipient_id : m.sender_id)).filter(Boolean))] as string[];
+      const hiddenIds = await hiddenMessageIds(supabase, userId, rawMessages.map((m) => m.id));
+      const visibleMessages = hiddenIds.size
+        ? rawMessages.filter((m) => !hiddenIds.has(m.id))
+        : rawMessages;
+
+      const listingIds = [...new Set(visibleMessages.map((m) => m.listing_id).filter(Boolean))] as string[];
+      const userIds = [...new Set(visibleMessages.map((m) => (m.sender_id === userId ? m.recipient_id : m.sender_id)).filter(Boolean))] as string[];
 
       const [listingsRes, profilesRes, rolesRes] = await Promise.all([
         listingIds.length ? supabase.from("listings").select("id, title").in("id", listingIds) : Promise.resolve({ data: [] }),
@@ -184,7 +189,7 @@ export const getMyMessages = createServerFn({ method: "GET" })
       const profilesMap = new Map((profilesRes.data ?? []).map((p) => [p.id, p]));
       const adminSet = new Set((rolesRes.data ?? []).map((r) => r.user_id));
 
-      return rawMessages.map((m) => {
+      return visibleMessages.map((m) => {
         const otherUserId = m.sender_id === userId ? m.recipient_id : m.sender_id;
         const otherProfile = otherUserId ? profilesMap.get(otherUserId) : null;
         const otherIsAdmin = otherUserId ? adminSet.has(otherUserId) : false;
@@ -396,24 +401,81 @@ export const replyToConversation = createServerFn({ method: "POST" })
     return { ok: true as const };
   });
 
-/** Delete all messages in a conversation thread. */
+const PURCHASE_KINDS = new Set(["quantity_request", "offer"]);
+
+function isPurchaseRecord(content: string | null | undefined): boolean {
+  const text = String(content ?? "").trim();
+  if (!text.startsWith("{")) return false;
+  try {
+    const parsed = JSON.parse(text) as { __kind?: unknown };
+    return typeof parsed.__kind === "string" && PURCHASE_KINDS.has(parsed.__kind);
+  } catch {
+    return false;
+  }
+}
+
+async function hiddenMessageIds(
+  supabase: { from: (table: string) => any },
+  userId: string,
+  messageIds: string[],
+): Promise<Set<string>> {
+  if (!messageIds.length) return new Set();
+  const { data, error } = await supabase
+    .from("message_hidden")
+    .select("message_id")
+    .eq("user_id", userId)
+    .in("message_id", messageIds);
+  if (error) return new Set();
+  return new Set((data ?? []).map((row: { message_id: string }) => row.message_id));
+}
+
+/**
+ * Remove a conversation from this account only.
+ * Purchase and offer payloads stay in the database so both histories keep the sale.
+ */
 export const deleteConversation = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { messageIds: string[] }) => ({
     messageIds: Array.isArray(d.messageIds) ? d.messageIds.map(String).filter(Boolean) : [],
   }))
   .handler(async ({ data, context }) => {
-    const { supabase } = context;
+    const { supabase, userId } = context;
     if (!data.messageIds.length) return { ok: false as const, error: "empty" };
 
-    const { error } = await supabase
+    const { data: rows, error: readError } = await supabase
       .from("messages")
-      .delete()
+      .select("id, content, sender_id, recipient_id")
       .in("id", data.messageIds);
 
-    if (error) {
-      console.error("deleteConversation error:", error.message);
+    if (readError || !rows) {
+      console.error("deleteConversation read error:", readError?.message);
       return { ok: false as const, error: "failed" };
+    }
+
+    const mine = rows.filter((m) => m.sender_id === userId || m.recipient_id === userId);
+    if (!mine.length) return { ok: false as const, error: "failed" };
+
+    const purchaseIds = new Set(mine.filter((m) => isPurchaseRecord(m.content)).map((m) => m.id));
+    const chatIds = mine.filter((m) => !purchaseIds.has(m.id)).map((m) => m.id);
+
+    const { error: hideError } = await supabase.from("message_hidden").upsert(
+      mine.map((m) => ({ user_id: userId, message_id: m.id })),
+      { onConflict: "user_id,message_id" },
+    );
+
+    if (!hideError) return { ok: true as const };
+
+    if (!missingRelation(hideError.code)) {
+      console.error("deleteConversation hide error:", hideError.message);
+    }
+
+    // Table not applied yet: drop chat text only. Never delete the order/offer row.
+    if (chatIds.length) {
+      const { error } = await supabase.from("messages").delete().in("id", chatIds);
+      if (error) {
+        console.error("deleteConversation error:", error.message);
+        return { ok: false as const, error: "failed" };
+      }
     }
     return { ok: true as const };
   });

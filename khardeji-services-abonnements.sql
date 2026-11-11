@@ -225,6 +225,41 @@ CREATE POLICY "messages_delete_involved" ON public.messages
   FOR DELETE TO authenticated
   USING (auth.uid() = recipient_id OR auth.uid() = sender_id OR public.has_role(auth.uid(), 'admin'::public.app_role));
 
+-- Hide a conversation for one account only. The row stays so the other party
+-- keeps the thread, and order/offer payloads stored in messages stay intact.
+CREATE TABLE IF NOT EXISTS public.message_hidden (
+  user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  message_id uuid NOT NULL REFERENCES public.messages(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, message_id)
+);
+CREATE INDEX IF NOT EXISTS idx_message_hidden_user ON public.message_hidden(user_id);
+ALTER TABLE public.message_hidden ENABLE ROW LEVEL SECURITY;
+GRANT SELECT, INSERT, DELETE ON public.message_hidden TO authenticated;
+GRANT ALL ON public.message_hidden TO service_role;
+
+DROP POLICY IF EXISTS "message_hidden_select_own" ON public.message_hidden;
+CREATE POLICY "message_hidden_select_own" ON public.message_hidden
+  FOR SELECT TO authenticated
+  USING (auth.uid() = user_id);
+
+DROP POLICY IF EXISTS "message_hidden_insert_own" ON public.message_hidden;
+CREATE POLICY "message_hidden_insert_own" ON public.message_hidden
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    auth.uid() = user_id
+    AND EXISTS (
+      SELECT 1 FROM public.messages m
+      WHERE m.id = message_id
+        AND (m.sender_id = auth.uid() OR m.recipient_id = auth.uid())
+    )
+  );
+
+DROP POLICY IF EXISTS "message_hidden_delete_own" ON public.message_hidden;
+CREATE POLICY "message_hidden_delete_own" ON public.message_hidden
+  FOR DELETE TO authenticated
+  USING (auth.uid() = user_id);
+
 -- ----------------------------------------------------------------------------
 -- 7. Table de journal des boosts d'annonces
 -- ----------------------------------------------------------------------------
