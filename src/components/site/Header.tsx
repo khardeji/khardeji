@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Coins, Gauge, HandCoins, Heart, LayoutDashboard, ListChecks, LogOut, Menu, Package, Plus, UserRound } from "lucide-react";
+import { Coins, Gauge, HandCoins, Heart, LayoutDashboard, ListChecks, LogOut, Menu, Package, Plus, Receipt, UserRound } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -33,6 +33,7 @@ const NAV = [
 const DASHBOARD = { ar: "لوحة التحكم", fr: "Tableau de bord", en: "Dashboard" };
 const PUBLISH = { ar: "انشر إعلان", fr: "Publier une annonce", en: "Post a listing" };
 const MY_LISTINGS = { ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" };
+const MY_PURCHASES = { ar: "مشترياتي", fr: "Mes achats", en: "My purchases" };
 const MY_OFFERS = { ar: "عروض الأسعار", fr: "Mes offres", en: "My offers" };
 const MY_REQUESTS = { ar: "طلبات الكميات", fr: "Demandes de quantité", en: "Quantity requests" };
 const MY_FAVORITES = { ar: "مفضلتي", fr: "Mes favoris", en: "My favourites" };
@@ -95,6 +96,9 @@ function AccountMenu() {
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate({ to: "/mes-annonces" })}>
           <ListChecks /> {t(MY_LISTINGS)}
+        </DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => navigate({ to: "/tableau-de-bord", search: { tab: "purchases" } })}>
+          <Receipt /> {t(MY_PURCHASES)}
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate({ to: "/mes-favoris" })}>
           <Heart /> {t(MY_FAVORITES)}
@@ -184,6 +188,9 @@ export function Header() {
                     </Link>
                     <Link to="/mes-annonces" className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
                       <ListChecks className="size-5" /> {t(MY_LISTINGS)}
+                    </Link>
+                    <Link to="/tableau-de-bord" search={{ tab: "purchases" }} className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
+                      <Receipt className="size-5" /> {t(MY_PURCHASES)}
                     </Link>
                     <Link to="/mes-favoris" className="mb-2 flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
                       <Heart className="size-5" /> {t(MY_FAVORITES)}

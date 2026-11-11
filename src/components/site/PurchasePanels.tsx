@@ -240,6 +240,7 @@ export function FixedPricePanel({ listing }: { listing: Listing }) {
         ]}
         confirmLabel={{ ar: "إرسال الطلب", fr: "Envoyer la demande", en: "Send request" }}
         onConfirm={handleConfirm}
+        submitting={submitting}
       />
       <ContactSellerDialog
         open={flow.step === "done"}
@@ -401,6 +402,7 @@ export function OfferPanel({ listing }: { listing: Listing }) {
         ]}
         confirmLabel={{ ar: "نأكّد العرض", fr: "Envoyer l'offre", en: "Confirm offer" }}
         onConfirm={handleConfirmOffer}
+        submitting={submitting}
       />
       <ContactSellerDialog
         open={flow.step === "done"}

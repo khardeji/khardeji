@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { BadgeCheck, CheckCircle2, Edit3, ExternalLink, Flame, Gauge, Plus, Rocket, Trash2 } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Clock, Edit3, ExternalLink, Flame, Gauge, Plus, Rocket, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { STATUS_BADGE } from "@/components/admin/Listings";
@@ -11,7 +11,16 @@ import { EditListingDialog } from "@/components/site/EditListingDialog";
 import { PageHeader } from "@/components/site/SectionHeading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { governorateLabel, LISTING_STATUS_LABEL, SALE_TYPE_LABEL, type Listing, type ListingStatus } from "@/data/catalog";
+import {
+  BOOST_NAMES,
+  getBoostTimeRemaining,
+  governorateLabel,
+  isBoostActive,
+  LISTING_STATUS_LABEL,
+  SALE_TYPE_LABEL,
+  type Listing,
+  type ListingStatus,
+} from "@/data/catalog";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
@@ -154,20 +163,40 @@ function MyListings() {
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={STATUS_BADGE[st]}>{t(LISTING_STATUS_LABEL[st])}</Badge>
                       <Badge variant="outline">{t(SALE_TYPE_LABEL[l.saleType])}</Badge>
-                      {l.urgent && (
-                        <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
-                          <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                      {l.activeBoost && isBoostActive(l.activeBoost) ? (
+                        <Badge className="bg-gradient-to-r from-rust to-brass text-white text-[0.7rem] gap-1.5 px-2 py-0.5 font-semibold shadow-sm">
+                          {l.activeBoost.boostId === "urgent" ? (
+                            <Flame className="size-3.5 fill-white" />
+                          ) : l.activeBoost.boostId === "remonter" ? (
+                            <Rocket className="size-3.5" />
+                          ) : (
+                            <BadgeCheck className="size-3.5 fill-white text-brass" />
+                          )}
+                          <span>{t(BOOST_NAMES[l.activeBoost.boostId])}</span>
+                          <span className="opacity-75">·</span>
+                          <span className="font-normal flex items-center gap-1">
+                            <Clock className="size-3" />
+                            {t(getBoostTimeRemaining(l.activeBoost.expiresAt).label)}
+                          </span>
                         </Badge>
-                      )}
-                      {l.featured && (
-                        <Badge className="bg-brass text-brass-foreground font-semibold text-[0.65rem] gap-1 px-1.5 py-0">
-                          <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
-                        </Badge>
-                      )}
-                      {l.boostedAt && (
-                        <Badge variant="outline" className="border-olive text-olive text-[0.65rem] gap-1 px-1.5 py-0">
-                          <Rocket className="size-3" /> {t({ ar: "تم ترويجها", fr: "Remontée", en: "Bumped" })}
-                        </Badge>
+                      ) : (
+                        <>
+                          {l.urgent && (
+                            <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
+                              <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                            </Badge>
+                          )}
+                          {l.featured && (
+                            <Badge className="bg-brass text-brass-foreground font-semibold text-[0.65rem] gap-1 px-1.5 py-0">
+                              <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
+                            </Badge>
+                          )}
+                          {l.boostedAt && (
+                            <Badge variant="outline" className="border-olive text-olive text-[0.65rem] gap-1 px-1.5 py-0">
+                              <Rocket className="size-3" /> {t({ ar: "تم ترويجها", fr: "Remontée", en: "Bumped" })}
+                            </Badge>
+                          )}
+                        </>
                       )}
                     </div>
                     <h2 className="mt-2 truncate text-lg font-semibold">{t(l.title)}</h2>
@@ -185,17 +214,32 @@ function MyListings() {
                   <div className="flex flex-wrap gap-2 sm:flex-col">
                     {st === "approved" && (
                       <>
-                        <Button
-                          size="sm"
-                          variant="rust"
-                          className="gap-1.5"
-                          onClick={() => {
-                            setBoostListingId(l.id);
-                            setBoostOpen(true);
-                          }}
-                        >
-                          <Rocket className="size-3.5" /> {t({ ar: "ترويج", fr: "Booster", en: "Boost" })}
-                        </Button>
+                        {l.activeBoost && isBoostActive(l.activeBoost) ? (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5 border-rust/40 text-rust hover:bg-rust/10 font-semibold text-xs"
+                            onClick={() => {
+                              setBoostListingId(l.id);
+                              setBoostOpen(true);
+                            }}
+                          >
+                            <Rocket className="size-3.5 text-rust animate-pulse" />
+                            {t({ ar: "إدارة الترويج", fr: "Gérer le boost", en: "Manage boost" })}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="rust"
+                            className="gap-1.5"
+                            onClick={() => {
+                              setBoostListingId(l.id);
+                              setBoostOpen(true);
+                            }}
+                          >
+                            <Rocket className="size-3.5" /> {t({ ar: "ترويج", fr: "Booster", en: "Boost" })}
+                          </Button>
+                        )}
                         <Confirm
                           title={{ ar: "تحديد كمباع ؟", fr: "Marquer comme vendue ?", en: "Mark as sold?" }}
                           message={{

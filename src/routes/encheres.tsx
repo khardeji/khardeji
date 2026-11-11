@@ -6,6 +6,7 @@ import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
 import { auctionSortKey } from "@/lib/demo-clock";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, SHARE_IMAGE } from "@/lib/i18n";
+import { boostPriority } from "@/data/catalog";
 
 export const Route = createFileRoute("/encheres")({
   loader: ({ context }) => context.queryClient.ensureQueryData(catalogQuery),
@@ -62,7 +63,12 @@ function Auctions() {
   const { listings } = useCatalog();
   const auctions = listings
     .filter((l) => l.saleType === "enchere" && l.auction)
-    .sort((a, b) => auctionSortKey(a.auction!) - auctionSortKey(b.auction!));
+    .sort((a, b) => {
+      // Boosted auction listings bubble up within their auction-time ordering
+      const boostDiff = boostPriority(b) - boostPriority(a);
+      if (boostDiff !== 0) return boostDiff;
+      return auctionSortKey(a.auction!) - auctionSortKey(b.auction!);
+    });
   return (
     <>
       <PageHeader

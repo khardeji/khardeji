@@ -11,6 +11,8 @@ import {
   MapPin,
   Package,
   Phone,
+  RefreshCw,
+  Store,
   User,
   XCircle,
 } from "lucide-react";
@@ -26,6 +28,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/hooks/use-i18n";
 import {
@@ -34,6 +46,7 @@ import {
   respondToQuantityRequest,
 } from "@/lib/marketplace.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
+import { resolveImage } from "@/data/catalog";
 
 export function QuantityRequestsPanel() {
   const { t, dt, date, num } = useI18n();
@@ -47,38 +60,69 @@ export function QuantityRequestsPanel() {
   const buyerQ = useQuery({ queryKey: ["me", "qty_requests", "buyer"], queryFn: () => fetchBuyerReqs() });
 
   const [activeTab, setActiveTab] = useState<"seller" | "buyer">("seller");
+  const [sellerStatusFilter, setSellerStatusFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");
+  const [buyerStatusFilter, setBuyerStatusFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");
   const [selectedReq, setSelectedReq] = useState<any | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [cancelConfirmId, setCancelConfirmId] = useState<string | null>(null);
 
   const sellerReqs = sellerQ.data ?? [];
   const buyerReqs = buyerQ.data ?? [];
   const pendingCount = sellerReqs.filter((r) => r.status === "pending").length;
 
-  async function handleResponse(requestId: string, action: "accepted" | "rejected") {
+  const filteredSellerReqs = sellerReqs.filter((r) => {
+    if (sellerStatusFilter === "all") return true;
+    return r.status === sellerStatusFilter;
+  });
+
+  const filteredBuyerReqs = buyerReqs.filter((r) => {
+    if (buyerStatusFilter === "all") return true;
+    return r.status === buyerStatusFilter;
+  });
+
+  async function handleResponse(requestId: string, action: "accepted" | "rejected" | "cancel_acceptance") {
     setBusyId(requestId);
     try {
       const res = await sendResponse({ data: { requestId, action } });
       if (res.ok) {
-        toast.success(
-          action === "accepted"
-            ? t({
-                ar: `تم قبول الطلب وتحديث المخزون (المتبقي: ${res.remainingStock})`,
-                fr: `Commande acceptée ! Stock mis à jour (restant : ${res.remainingStock})`,
-                en: `Request accepted! Inventory updated (remaining: ${res.remainingStock})`,
-              })
-            : t({ ar: "تم رفض الطلب", fr: "Demande refusée", en: "Request declined" }),
-        );
+        if (action === "cancel_acceptance") {
+          toast.success(
+            t({
+              ar: `تم إلغاء القبول وإعادة المنتج للمتجر (المتبقي: ${res.remainingStock})`,
+              fr: `Acceptation annulée ! Produit remis en vente (restant : ${res.remainingStock})`,
+              en: `Acceptance cancelled! Product reposted to store (remaining: ${res.remainingStock})`,
+            }),
+          );
+        } else {
+          toast.success(
+            action === "accepted"
+              ? t({
+                  ar: `تم قبول الطلب وتحديث المخزون (المتبقي: ${res.remainingStock})`,
+                  fr: `Commande acceptée ! Stock mis à jour (restant : ${res.remainingStock})`,
+                  en: `Request accepted! Inventory updated (remaining: ${res.remainingStock})`,
+                })
+              : t({ ar: "تم رفض الطلب", fr: "Demande refusée", en: "Request declined" }),
+          );
+        }
         await Promise.all([
           qc.invalidateQueries({ queryKey: ["me", "qty_requests"] }),
           qc.invalidateQueries({ queryKey: ["catalog"] }),
           qc.invalidateQueries({ queryKey: ["me", "listings"] }),
           qc.invalidateQueries({ queryKey: ["me", "notifications"] }),
         ]);
+        const newStatus = action === "cancel_acceptance" ? "cancelled" : action;
         if (selectedReq?.id === requestId) {
           setSelectedReq((prev: any) =>
-            prev ? { ...prev, status: action, availableStock: res.remainingStock ?? prev.availableStock } : null,
+            prev
+              ? {
+                  ...prev,
+                  status: newStatus,
+                  availableStock: res.remainingStock ?? prev.availableStock,
+                }
+              : null,
           );
         }
+        setCancelConfirmId(null);
       } else {
         toast.error(res.message || t({ ar: "فشلت العملية", fr: "Action impossible", en: "Action failed" }));
       }
@@ -135,56 +179,110 @@ export function QuantityRequestsPanel() {
           </TabsTrigger>
         </TabsList>
 
-        {/* SELLER INCOMING QUANTITY REQUESTS */}
+        {/* ── SELLER: INCOMING QUANTITY REQUESTS ── */}
         <TabsContent value="seller">
+          {/* Status Filter Sub-Bar */}
+          <div className="mb-5 flex flex-wrap gap-2 text-xs">
+            <Button
+              type="button"
+              variant={sellerStatusFilter === "all" ? "rust" : "outline"}
+              size="sm"
+              className="h-8"
+              onClick={() => setSellerStatusFilter("all")}
+            >
+              {t({ ar: "الكل", fr: "Toutes", en: "All" })} ({sellerReqs.length})
+            </Button>
+            <Button
+              type="button"
+              variant={sellerStatusFilter === "pending" ? "rust" : "outline"}
+              size="sm"
+              className="h-8"
+              onClick={() => setSellerStatusFilter("pending")}
+            >
+              {t({ ar: "في الانتظار", fr: "En attente", en: "Pending" })} ({sellerReqs.filter((r) => r.status === "pending").length})
+            </Button>
+            <Button
+              type="button"
+              variant={sellerStatusFilter === "accepted" ? "rust" : "outline"}
+              size="sm"
+              className="h-8"
+              onClick={() => setSellerStatusFilter("accepted")}
+            >
+              <CheckCircle2 className="size-3.5 me-1 text-olive" />
+              {t({ ar: "المقبولة", fr: "Acceptées", en: "Accepted" })} ({sellerReqs.filter((r) => r.status === "accepted").length})
+            </Button>
+            <Button
+              type="button"
+              variant={sellerStatusFilter === "rejected" ? "rust" : "outline"}
+              size="sm"
+              className="h-8"
+              onClick={() => setSellerStatusFilter("rejected")}
+            >
+              {t({ ar: "المرفوضة", fr: "Refusées", en: "Rejected" })} ({sellerReqs.filter((r) => r.status === "rejected").length})
+            </Button>
+          </div>
+
           {sellerQ.isPending ? (
             <Loading />
-          ) : sellerReqs.length === 0 ? (
+          ) : filteredSellerReqs.length === 0 ? (
             <div className="surface-card flex flex-col items-center p-12 text-center">
               <Package className="size-12 text-brass" />
               <h3 className="mt-3 font-display text-xl font-medium">
-                {t({ ar: "لا توجد طلبات كميات حالياً", fr: "Aucune demande reçue", en: "No quantity requests" })}
+                {t({ ar: "لا توجد طلبات في هذا القسم", fr: "Aucune commande dans cette section", en: "No requests in this section" })}
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {t({
-                  ar: "عندما يطلب المشترون كميات معينة من بضاعتك ستظهر تفاصيل كل طلب هنا.",
-                  fr: "Lorsque des acheteurs commandent des quantités sur vos annonces, elles apparaîtront ici.",
-                  en: "When buyers order specific quantities on your listings, they will show up here.",
+                  ar: "عندما يطلب المشترون كميات معينة من بضاعتك ستظهر تفاصيل كل طلب هنا بشكل دائم.",
+                  fr: "Lorsque des acheteurs commandent des quantités sur vos annonces, elles apparaîtront ici de façon permanente.",
+                  en: "When buyers order specific quantities on your listings, they will show up here permanently.",
                 })}
               </p>
             </div>
           ) : (
             <div className="space-y-4">
-              {sellerReqs.map((req) => {
+              {filteredSellerReqs.map((req) => {
                 const unitLabel = UNIT_LABEL[req.unit as keyof typeof UNIT_LABEL]?.short
                   ? t(UNIT_LABEL[req.unit as keyof typeof UNIT_LABEL].short)
                   : req.unit;
                 const isPending = req.status === "pending";
+                const isAccepted = req.status === "accepted";
                 const canFulfill = req.availableStock >= req.requestedQuantity;
+                const imgSrc = resolveImage(req.listingImage || "listing-recup");
 
                 return (
                   <article
                     key={req.id}
-                    className="surface-card overflow-hidden p-5 transition-shadow hover:shadow-md"
+                    className={`surface-card overflow-hidden transition-shadow hover:shadow-md ${isAccepted ? "border-olive/40 bg-olive/5" : ""}`}
                   >
-                    <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
-                      <img
-                        src={req.listingImage}
-                        alt=""
-                        className="h-28 w-full shrink-0 rounded-lg object-cover sm:h-24 sm:w-28"
-                        loading="lazy"
-                      />
+                    <div className="flex flex-col gap-0 sm:flex-row">
+                      {/* Product image — full-height sidebar on desktop */}
+                      <div className="relative h-44 w-full shrink-0 overflow-hidden bg-muted sm:h-auto sm:w-36">
+                        <img
+                          src={imgSrc}
+                          alt={t(req.listingTitle)}
+                          className="size-full object-cover"
+                          loading="lazy"
+                          onError={(e) => {
+                            (e.currentTarget as HTMLImageElement).src = resolveImage("listing-recup");
+                          }}
+                        />
+                        {/* Status overlay badge on image */}
+                        <div className="absolute top-2 start-2">
+                          {statusBadge(req.status)}
+                        </div>
+                      </div>
 
-                      <div className="min-w-0 flex-1 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            {statusBadge(req.status)}
+                      {/* Content */}
+                      <div className="min-w-0 flex-1 space-y-3 p-4">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div>
+                            <h3 className="font-display text-base font-semibold leading-tight">{t(req.listingTitle)}</h3>
                             <span className="text-xs text-muted-foreground">
                               <Clock className="inline size-3 me-1" />
                               {date(req.createdAt)}
                             </span>
                           </div>
-                          <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
+                          <Button asChild variant="ghost" size="sm" className="h-7 text-xs shrink-0">
                             <Link to="/annonces/$id" params={{ id: req.listingId }}>
                               <ExternalLink className="me-1 size-3" />
                               {t({ ar: "شوف الإعلان", fr: "Voir l'annonce", en: "View listing" })}
@@ -192,24 +290,22 @@ export function QuantityRequestsPanel() {
                           </Button>
                         </div>
 
-                        <h3 className="truncate font-display text-lg font-semibold">{t(req.listingTitle)}</h3>
-
                         {/* Quantities & Totals */}
-                        <div className="grid gap-2 text-sm sm:grid-cols-3">
+                        <div className="grid gap-2 text-sm grid-cols-3">
                           <div className="rounded-lg bg-muted/60 p-2.5">
                             <p className="text-xs text-muted-foreground">
-                              {t({ ar: "الكمية المطلوبة", fr: "Quantité demandée", en: "Requested quantity" })}
+                              {t({ ar: "الكمية المطلوبة", fr: "Quantité demandée", en: "Requested qty" })}
                             </p>
-                            <p className="font-display text-lg font-bold text-rust">
+                            <p className="font-display text-base font-bold text-rust">
                               {num(req.requestedQuantity)} {unitLabel}
                             </p>
                           </div>
 
                           <div className="rounded-lg bg-muted/60 p-2.5">
                             <p className="text-xs text-muted-foreground">
-                              {t({ ar: "المخزون المتوفر", fr: "Stock disponible", en: "Available stock" })}
+                              {t({ ar: "المخزون المتوفر", fr: "Stock disponible", en: "Available" })}
                             </p>
-                            <p className="font-display text-lg font-semibold text-foreground">
+                            <p className="font-display text-base font-semibold text-foreground">
                               {num(req.availableStock)} {unitLabel}
                             </p>
                           </div>
@@ -218,7 +314,7 @@ export function QuantityRequestsPanel() {
                             <p className="text-xs text-muted-foreground">
                               {t({ ar: "المبلغ الإجمالي", fr: "Montant total", en: "Total value" })}
                             </p>
-                            <p className="font-display text-lg font-semibold text-brass">
+                            <p className="font-display text-base font-semibold text-brass">
                               {dt(req.totalValue)}
                             </p>
                           </div>
@@ -237,11 +333,21 @@ export function QuantityRequestsPanel() {
                           </div>
                         )}
 
-                        {/* Buyer & Action Controls */}
+                        {/* Buyer info & action buttons */}
                         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
                           <div className="flex items-center gap-2">
                             <User className="size-3.5 text-brass" />
                             <span className="font-medium text-foreground">{req.buyer.name}</span>
+                            {req.buyer.phone && (
+                              <a
+                                href={`tel:${req.buyer.phone}`}
+                                className="flex items-center gap-1 text-rust hover:underline"
+                                dir="ltr"
+                              >
+                                <Phone className="size-3" />
+                                {req.buyer.phone}
+                              </a>
+                            )}
                             {req.deliveryLocation && (
                               <span className="flex items-center gap-1 text-muted-foreground">
                                 · <MapPin className="size-3" /> {req.deliveryLocation}
@@ -250,6 +356,7 @@ export function QuantityRequestsPanel() {
                           </div>
 
                           <div className="flex flex-wrap items-center gap-2">
+                            {/* Details button always visible */}
                             <Button
                               variant="outline"
                               size="sm"
@@ -259,6 +366,7 @@ export function QuantityRequestsPanel() {
                               {t({ ar: "التفاصيل والاتصال", fr: "Détails & contact", en: "Details & contact" })}
                             </Button>
 
+                            {/* Pending: Reject + Accept */}
                             {isPending && (
                               <>
                                 <Button
@@ -283,6 +391,20 @@ export function QuantityRequestsPanel() {
                                 </Button>
                               </>
                             )}
+
+                            {/* Accepted: Cancel Acceptance & Repost */}
+                            {isAccepted && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="h-8 text-xs text-orange-600 border-orange-300 hover:bg-orange-50"
+                                disabled={busyId === req.id}
+                                onClick={() => setCancelConfirmId(req.id)}
+                              >
+                                <RefreshCw className="size-3.5 me-1" />
+                                {t({ ar: "إلغاء القبول وإعادة النشر", fr: "Annuler & remettre en vente", en: "Cancel & repost" })}
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -294,15 +416,56 @@ export function QuantityRequestsPanel() {
           )}
         </TabsContent>
 
-        {/* BUYER SENT QUANTITY REQUESTS */}
+        {/* ── BUYER: SENT QUANTITY REQUESTS ── */}
         <TabsContent value="buyer">
+          {/* Status Filter Sub-Bar */}
+          <div className="mb-5 flex flex-wrap gap-2 text-xs">
+            <Button
+              type="button"
+              variant={buyerStatusFilter === "all" ? "rust" : "outline"}
+              size="sm"
+              className="h-8"
+              onClick={() => setBuyerStatusFilter("all")}
+            >
+              {t({ ar: "الكل", fr: "Toutes", en: "All" })} ({buyerReqs.length})
+            </Button>
+            <Button
+              type="button"
+              variant={buyerStatusFilter === "pending" ? "rust" : "outline"}
+              size="sm"
+              className="h-8"
+              onClick={() => setBuyerStatusFilter("pending")}
+            >
+              {t({ ar: "في الانتظار", fr: "En attente", en: "Pending" })} ({buyerReqs.filter((r) => r.status === "pending").length})
+            </Button>
+            <Button
+              type="button"
+              variant={buyerStatusFilter === "accepted" ? "rust" : "outline"}
+              size="sm"
+              className="h-8"
+              onClick={() => setBuyerStatusFilter("accepted")}
+            >
+              <CheckCircle2 className="size-3.5 me-1 text-olive" />
+              {t({ ar: "المقبولة", fr: "Acceptées", en: "Accepted" })} ({buyerReqs.filter((r) => r.status === "accepted").length})
+            </Button>
+            <Button
+              type="button"
+              variant={buyerStatusFilter === "rejected" ? "rust" : "outline"}
+              size="sm"
+              className="h-8"
+              onClick={() => setBuyerStatusFilter("rejected")}
+            >
+              {t({ ar: "المرفوضة", fr: "Refusées", en: "Rejected" })} ({buyerReqs.filter((r) => r.status === "rejected").length})
+            </Button>
+          </div>
+
           {buyerQ.isPending ? (
             <Loading />
-          ) : buyerReqs.length === 0 ? (
+          ) : filteredBuyerReqs.length === 0 ? (
             <div className="surface-card flex flex-col items-center p-12 text-center">
               <Package className="size-12 text-muted-foreground" />
               <h3 className="mt-3 font-display text-xl font-medium">
-                {t({ ar: "لم تطلب أي كمية بعد", fr: "Aucune commande envoyée", en: "No sent orders yet" })}
+                {t({ ar: "لا توجد طلبات في هذا القسم", fr: "Aucune commande dans cette section", en: "No orders in this section" })}
               </h3>
               <p className="mt-1 text-sm text-muted-foreground">
                 {t({
@@ -317,55 +480,66 @@ export function QuantityRequestsPanel() {
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2">
-              {buyerReqs.map((req) => {
+              {filteredBuyerReqs.map((req) => {
                 const unitLabel = UNIT_LABEL[req.unit as keyof typeof UNIT_LABEL]?.short
                   ? t(UNIT_LABEL[req.unit as keyof typeof UNIT_LABEL].short)
                   : req.unit;
+                const imgSrc = resolveImage(req.listingImage || "listing-recup");
                 return (
-                  <article key={req.id} className="surface-card flex flex-col justify-between p-5">
-                    <div className="flex gap-4">
+                  <article key={req.id} className={`surface-card overflow-hidden flex flex-col ${req.status === "accepted" ? "border-olive/40 bg-olive/5" : ""}`}>
+                    {/* Product image hero */}
+                    <div className="relative aspect-video w-full overflow-hidden bg-muted">
                       <img
-                        src={req.listingImage}
-                        alt=""
-                        className="size-20 shrink-0 rounded-lg object-cover"
+                        src={imgSrc}
+                        alt={t(req.listingTitle)}
+                        className="size-full object-cover"
                         loading="lazy"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = resolveImage("listing-recup");
+                        }}
                       />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1">
-                          {statusBadge(req.status)}
-                          <span className="text-xs text-muted-foreground">{date(req.createdAt)}</span>
-                        </div>
-                        <h4 className="mt-1 truncate font-display font-semibold">{t(req.listingTitle)}</h4>
-                        <p className="text-xs text-muted-foreground">
+                      <div className="absolute top-2 start-2">
+                        {statusBadge(req.status)}
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col flex-1 p-4 gap-3">
+                      <div>
+                        <h4 className="font-display font-semibold leading-tight">{t(req.listingTitle)}</h4>
+                        <p className="text-xs text-muted-foreground mt-0.5">
                           {t({ ar: "البائع:", fr: "Vendeur :", en: "Seller:" })} {req.seller.name}
                         </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 flex items-center justify-between rounded-lg bg-muted/60 p-3 text-sm">
-                      <div>
                         <p className="text-xs text-muted-foreground">
-                          {t({ ar: "الكمية المطلوبة", fr: "Quantité", en: "Quantity" })}
-                        </p>
-                        <p className="font-semibold text-foreground">
-                          {num(req.requestedQuantity)} {unitLabel}
+                          <Clock className="inline size-3 me-1" />
+                          {date(req.createdAt)}
                         </p>
                       </div>
-                      <div className="text-end">
-                        <p className="text-xs font-semibold text-rust">
-                          {t({ ar: "المجموع", fr: "Total estimé", en: "Total" })}
-                        </p>
-                        <p className="font-display text-lg font-bold text-rust">{dt(req.totalValue)}</p>
-                      </div>
-                    </div>
 
-                    <div className="mt-4 flex justify-end">
-                      <Button asChild variant="outline" size="sm" className="h-8 text-xs">
-                        <Link to="/annonces/$id" params={{ id: req.listingId }}>
-                          <ExternalLink className="me-1 size-3" />
-                          {t({ ar: "تفاصيل الإعلان", fr: "Fiche annonce", en: "Listing page" })}
-                        </Link>
-                      </Button>
+                      <div className="flex items-center justify-between rounded-lg bg-muted/60 p-3 text-sm">
+                        <div>
+                          <p className="text-xs text-muted-foreground">
+                            {t({ ar: "الكمية المطلوبة", fr: "Quantité", en: "Quantity" })}
+                          </p>
+                          <p className="font-semibold text-foreground">
+                            {num(req.requestedQuantity)} {unitLabel}
+                          </p>
+                        </div>
+                        <div className="text-end">
+                          <p className="text-xs font-semibold text-rust">
+                            {t({ ar: "المجموع", fr: "Total estimé", en: "Total" })}
+                          </p>
+                          <p className="font-display text-lg font-bold text-rust">{dt(req.totalValue)}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-auto flex justify-end">
+                        <Button asChild variant="outline" size="sm" className="h-8 text-xs">
+                          <Link to="/annonces/$id" params={{ id: req.listingId }}>
+                            <ExternalLink className="me-1 size-3" />
+                            {t({ ar: "تفاصيل الإعلان", fr: "Fiche annonce", en: "Listing page" })}
+                          </Link>
+                        </Button>
+                      </div>
                     </div>
                   </article>
                 );
@@ -375,16 +549,43 @@ export function QuantityRequestsPanel() {
         </TabsContent>
       </Tabs>
 
-      {/* FULL DETAILS & BUYER CONTACT MODAL */}
+      {/* ── FULL DETAILS & BUYER CONTACT MODAL ── */}
       <Dialog open={!!selectedReq} onOpenChange={(o) => !o && setSelectedReq(null)}>
         {selectedReq && (
-          <DialogContent className="max-w-lg">
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>{t({ ar: "تفاصيل طلب الكمية", fr: "Détails de la demande", en: "Quantity request details" })}</DialogTitle>
               <DialogDescription>{t(selectedReq.listingTitle)}</DialogDescription>
             </DialogHeader>
 
             <div className="space-y-4 py-2">
+              {/* Product image in modal */}
+              <div className="relative overflow-hidden rounded-xl bg-muted aspect-video w-full">
+                <img
+                  src={resolveImage(selectedReq.listingImage || "listing-recup")}
+                  alt={t(selectedReq.listingTitle)}
+                  className="size-full object-cover"
+                  onError={(e) => {
+                    (e.currentTarget as HTMLImageElement).src = resolveImage("listing-recup");
+                  }}
+                />
+                <div className="absolute top-3 start-3">
+                  {statusBadge(selectedReq.status)}
+                </div>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="absolute bottom-3 end-3 h-7 text-xs bg-background/90"
+                >
+                  <Link to="/annonces/$id" params={{ id: selectedReq.listingId }}>
+                    <ExternalLink className="me-1 size-3" />
+                    {t({ ar: "شوف الإعلان", fr: "Voir l'annonce", en: "View listing" })}
+                  </Link>
+                </Button>
+              </div>
+
+              {/* Quantities summary */}
               <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted p-4 text-sm">
                 <div>
                   <span className="text-xs text-muted-foreground">{t({ ar: "الكمية المطلوبة", fr: "Quantité demandée", en: "Requested quantity" })}</span>
@@ -404,6 +605,7 @@ export function QuantityRequestsPanel() {
                 </div>
               </div>
 
+              {/* Delivery location */}
               {selectedReq.deliveryLocation && (
                 <div className="flex items-center gap-2 rounded-lg border border-border p-3 text-sm">
                   <MapPin className="size-4 text-brass shrink-0" />
@@ -414,6 +616,7 @@ export function QuantityRequestsPanel() {
                 </div>
               )}
 
+              {/* Buyer notes */}
               {selectedReq.notes && (
                 <div className="rounded-lg border border-border p-3 text-sm">
                   <p className="text-xs font-semibold text-muted-foreground">{t({ ar: "ملاحظات إضافية من المشتري", fr: "Notes de l'acheteur", en: "Buyer notes" })}</p>
@@ -423,7 +626,10 @@ export function QuantityRequestsPanel() {
 
               {/* Buyer Profile & Contact */}
               <div className="rounded-lg border border-border p-4">
-                <h4 className="font-display text-sm font-semibold">{t({ ar: "معلومات المشتري", fr: "Profil de l'acheteur", en: "Buyer information" })}</h4>
+                <h4 className="font-display text-sm font-semibold flex items-center gap-2">
+                  <User className="size-4 text-brass" />
+                  {t({ ar: "معلومات المشتري", fr: "Profil de l'acheteur", en: "Buyer information" })}
+                </h4>
                 <dl className="mt-3 space-y-2 text-sm">
                   <div className="flex items-center justify-between">
                     <dt className="text-muted-foreground">{t({ ar: "الاسم", fr: "Nom complet", en: "Full name" })}</dt>
@@ -433,6 +639,12 @@ export function QuantityRequestsPanel() {
                     <dt className="text-muted-foreground">{t({ ar: "نوع الحساب", fr: "Type de compte", en: "Account type" })}</dt>
                     <dd className="capitalize">{selectedReq.buyer.accountType}</dd>
                   </div>
+                  {selectedReq.buyer.memberSince && (
+                    <div className="flex items-center justify-between">
+                      <dt className="text-muted-foreground">{t({ ar: "عضو منذ", fr: "Membre depuis", en: "Member since" })}</dt>
+                      <dd className="text-xs text-muted-foreground">{date(selectedReq.buyer.memberSince)}</dd>
+                    </div>
+                  )}
                   {selectedReq.buyer.phone && (
                     <div className="flex items-center justify-between border-t border-border pt-2">
                       <dt className="flex items-center gap-1.5 text-muted-foreground">
@@ -470,12 +682,14 @@ export function QuantityRequestsPanel() {
               </div>
             </div>
 
-            <DialogFooter className="gap-2 sm:gap-0">
+            <DialogFooter className="gap-2 sm:gap-2">
+              {/* Pending: reject & accept */}
               {selectedReq.status === "pending" && (
                 <div className="flex w-full gap-2">
                   <Button
                     variant="outline"
                     className="flex-1 text-destructive"
+                    disabled={busyId === selectedReq.id}
                     onClick={() => handleResponse(selectedReq.id, "rejected")}
                   >
                     <XCircle className="size-4 me-1" />
@@ -484,7 +698,7 @@ export function QuantityRequestsPanel() {
                   <Button
                     variant="rust"
                     className="flex-1 font-semibold"
-                    disabled={selectedReq.availableStock < selectedReq.requestedQuantity}
+                    disabled={busyId === selectedReq.id || selectedReq.availableStock < selectedReq.requestedQuantity}
                     onClick={() => handleResponse(selectedReq.id, "accepted")}
                   >
                     <CheckCircle2 className="size-4 me-1" />
@@ -492,11 +706,62 @@ export function QuantityRequestsPanel() {
                   </Button>
                 </div>
               )}
+
+              {/* Accepted: cancel acceptance & repost */}
+              {selectedReq.status === "accepted" && (
+                <div className="flex w-full gap-2">
+                  <Button
+                    variant="outline"
+                    className="flex-1 text-orange-600 border-orange-300 hover:bg-orange-50"
+                    disabled={busyId === selectedReq.id}
+                    onClick={() => {
+                      setSelectedReq(null);
+                      setCancelConfirmId(selectedReq.id);
+                    }}
+                  >
+                    <RefreshCw className="size-4 me-1" />
+                    {t({ ar: "إلغاء القبول وإعادة المنتج للمتجر", fr: "Annuler l'acceptation & remettre en vente", en: "Cancel acceptance & repost" })}
+                  </Button>
+                </div>
+              )}
             </DialogFooter>
           </DialogContent>
         )}
       </Dialog>
+
+      {/* ── CANCEL ACCEPTANCE CONFIRMATION ── */}
+      <AlertDialog open={!!cancelConfirmId} onOpenChange={(o) => !o && setCancelConfirmId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <Store className="size-5 text-orange-500" />
+              {t({ ar: "إلغاء القبول وإعادة النشر", fr: "Annuler l'acceptation & remettre en vente", en: "Cancel acceptance & repost" })}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {t({
+                ar: "سيتم إلغاء قبول هذا الطلب، وستُعاد الكمية المطلوبة إلى المخزون، وسيُعاد المنتج للبيع في المتجر. سيتلقى المشتري إشعاراً بالإلغاء.",
+                fr: "L'acceptation sera annulée, la quantité sera restituée au stock, et le produit sera remis en vente dans la boutique. L'acheteur recevra une notification d'annulation.",
+                en: "The acceptance will be cancelled, the quantity will be restored to stock, and the product will be reposted for sale in the store. The buyer will receive a cancellation notification.",
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={busyId === cancelConfirmId}>
+              {t({ ar: "تراجع", fr: "Annuler", en: "Go back" })}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-orange-500 hover:bg-orange-600 text-white"
+              disabled={busyId === cancelConfirmId}
+              onClick={() => cancelConfirmId && handleResponse(cancelConfirmId, "cancel_acceptance")}
+            >
+              <RefreshCw className="size-4 me-1" />
+              {busyId === cancelConfirmId
+                ? t({ ar: "جاري الإلغاء...", fr: "Annulation...", en: "Cancelling..." })
+                : t({ ar: "تأكيد الإلغاء وإعادة النشر", fr: "Confirmer & remettre en vente", en: "Confirm & repost" })}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
-

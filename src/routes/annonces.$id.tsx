@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { BadgeCheck, CalendarDays, Flame, Heart, MapPin, MessageSquare, Package, Phone, Share2, Tag } from "lucide-react";
+import { BadgeCheck, CalendarDays, Clock, Flame, Heart, MapPin, MessageSquare, Package, Phone, Rocket, Share2, Tag } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { ContactSellerDialog } from "@/components/site/ContactSellerDialog";
 import { ListingCard } from "@/components/site/ListingCard";
 import { ReportButton } from "@/components/site/ReportButton";
 import { AuctionPanel, FixedPricePanel, OfferPanel } from "@/components/site/PurchasePanels";
-import { governorateLabel, SALE_TYPE_LABEL, SELLER_KIND_LABEL, subcategoryLabel } from "@/data/catalog";
+import { BOOST_NAMES, getBoostTimeRemaining, governorateLabel, isBoostActive, SALE_TYPE_LABEL, SELLER_KIND_LABEL, subcategoryLabel } from "@/data/catalog";
 import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
@@ -72,6 +72,9 @@ function ListingDetail() {
   const { user } = useAuth();
   const isOwner = !!user && !!listing.ownerId && user.id === listing.ownerId;
   const [active, setActive] = useState(0);
+  const [panelMode, setPanelMode] = useState<"buy" | "offer">(() =>
+    listing.saleType === "negociable" ? "offer" : "buy",
+  );
   const { isFavorite, toggle, needAccount, closeAccount } = useFavorites();
   const { t, dt, num, date } = useI18n();
   const fav = isFavorite(listing.id);
@@ -145,15 +148,39 @@ function ListingDetail() {
           <div className="surface-card p-6">
             <div className="flex flex-wrap gap-1.5">
               <Badge variant={listing.saleType === "enchere" ? "rust" : listing.saleType === "negociable" ? "brass" : "olive"}>{t(SALE_TYPE_LABEL[listing.saleType])}</Badge>
-              {listing.urgent && (
-                <Badge variant="destructive" className="bg-rust text-white border-transparent gap-1">
-                  <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+              {listing.activeBoost && isBoostActive(listing.activeBoost) ? (
+                <Badge className="bg-gradient-to-r from-rust to-brass text-white font-semibold gap-1.5 shadow-sm">
+                  {listing.activeBoost.boostId === "urgent" ? (
+                    <Flame className="size-3.5 fill-white" />
+                  ) : listing.activeBoost.boostId === "remonter" ? (
+                    <Rocket className="size-3.5" />
+                  ) : (
+                    <BadgeCheck className="size-3.5 fill-white text-brass" />
+                  )}
+                  <span>{t(BOOST_NAMES[listing.activeBoost.boostId])}</span>
+                  {user && listing.ownerId === user.id && (
+                    <>
+                      <span className="opacity-75">·</span>
+                      <span className="font-normal flex items-center gap-1">
+                        <Clock className="size-3" />
+                        {t(getBoostTimeRemaining(listing.activeBoost.expiresAt).label)}
+                      </span>
+                    </>
+                  )}
                 </Badge>
-              )}
-              {listing.featured && (
-                <Badge className="bg-brass text-brass-foreground font-semibold gap-1">
-                  <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
-                </Badge>
+              ) : (
+                <>
+                  {listing.urgent && (
+                    <Badge variant="destructive" className="bg-rust text-white border-transparent gap-1">
+                      <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                    </Badge>
+                  )}
+                  {listing.featured && (
+                    <Badge className="bg-brass text-brass-foreground font-semibold gap-1">
+                      <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
+                    </Badge>
+                  )}
+                </>
               )}
             </div>
             <h1 className="mt-3 text-3xl font-semibold leading-tight">{t(listing.title)}</h1>
@@ -164,9 +191,58 @@ function ListingDetail() {
               </p>
             )}
             <div className="rivet-rule my-5" />
-            {listing.saleType === "fixe" && <FixedPricePanel listing={listing} />}
-            {listing.saleType === "negociable" && <OfferPanel listing={listing} />}
-            {listing.saleType === "enchere" && <AuctionPanel listing={listing} />}
+
+            {listing.urgent && (
+              <div className="mb-4 flex items-center gap-2 rounded-lg border border-rust/30 bg-rust/10 p-3 text-xs text-foreground">
+                <Flame className="size-4 shrink-0 text-rust" />
+                <span>
+                  {t({
+                    ar: "إعلان مستعجل: البائع يرغب في البيع السريع ويقبل عروض التفاوض المباشرة.",
+                    fr: "Vente urgente : Le vendeur souhaite vendre rapidement et accepte les offres de prix.",
+                    en: "Urgent sale: Seller wants a fast deal and accepts direct price offers.",
+                  })}
+                </span>
+              </div>
+            )}
+
+            {listing.saleType !== "enchere" && (
+              <div className="mb-4">
+                <div className="grid grid-cols-2 gap-1 rounded-lg border border-border bg-muted/60 p-1 text-xs sm:text-sm font-medium">
+                  <button
+                    type="button"
+                    onClick={() => setPanelMode("buy")}
+                    className={cn(
+                      "rounded-md py-1.5 transition-all text-center",
+                      panelMode === "buy"
+                        ? "bg-card text-foreground shadow-sm font-semibold"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t({ ar: "شراء بالكمية", fr: "Commander au prix fixe", en: "Order at fixed price" })}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPanelMode("offer")}
+                    className={cn(
+                      "rounded-md py-1.5 transition-all text-center",
+                      panelMode === "offer"
+                        ? "bg-card text-foreground shadow-sm font-semibold"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {t({ ar: "تقديم عرض سعر", fr: "Faire une offre", en: "Make an offer" })}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {listing.saleType === "enchere" ? (
+              <AuctionPanel listing={listing} />
+            ) : panelMode === "offer" ? (
+              <OfferPanel listing={listing} />
+            ) : (
+              <FixedPricePanel listing={listing} />
+            )}
 
             <div className="mt-5 grid grid-cols-3 gap-2">
               <Button variant="outline" onClick={() => void toggle(listing.id)} aria-pressed={fav}>
@@ -199,25 +275,22 @@ function ListingDetail() {
                 <Badge variant="brass" className="w-full justify-center py-1">
                   {t({ ar: "أنت صاحب هذا الإعلان", fr: "Votre propre annonce", en: "Your own listing" })}
                 </Badge>
-                <div className="grid grid-cols-2 gap-2">
-                  <Button asChild variant="outline" size="sm">
+                <div className="grid grid-cols-3 gap-2 text-xs">
+                  <Button asChild variant="outline" size="sm" className="h-8 px-2 text-xs">
                     <Link to="/mes-annonces">
                       {t({ ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" })}
                     </Link>
                   </Button>
-                  {listing.saleType === "negociable" ? (
-                    <Button asChild variant="rust" size="sm">
-                      <Link to="/tableau-de-bord" search={{ tab: "offers" }}>
-                        {t({ ar: "العروض", fr: "Voir offres", en: "View offers" })}
-                      </Link>
-                    </Button>
-                  ) : (
-                    <Button asChild variant="rust" size="sm">
-                      <Link to="/tableau-de-bord" search={{ tab: "requests" }}>
-                        {t({ ar: "الطلبات", fr: "Commandes", en: "Requests" })}
-                      </Link>
-                    </Button>
-                  )}
+                  <Button asChild variant="rust" size="sm" className="h-8 px-2 text-xs">
+                    <Link to="/tableau-de-bord" search={{ tab: "offers" }}>
+                      {t({ ar: "العروض", fr: "Offres", en: "Offers" })}
+                    </Link>
+                  </Button>
+                  <Button asChild variant="outline" size="sm" className="h-8 px-2 text-xs">
+                    <Link to="/tableau-de-bord" search={{ tab: "requests" }}>
+                      {t({ ar: "الطلبات", fr: "Commandes", en: "Requests" })}
+                    </Link>
+                  </Button>
                 </div>
               </div>
             ) : (

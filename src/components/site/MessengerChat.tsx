@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/hooks/use-i18n";
+import { displayMessageContent } from "@/lib/message-display";
 import { deleteConversation, markMessageRead, replyToConversation, type MessageItem } from "@/lib/services.functions";
 import { cn } from "@/lib/utils";
 
@@ -31,7 +32,7 @@ export function MessengerChat({
   messages: MessageItem[];
   onReplySent: () => void;
 }) {
-  const { t, date, dir } = useI18n();
+  const { t, date, dir, locale } = useI18n();
   const setRead = useServerFn(markMessageRead);
   const sendReply = useServerFn(replyToConversation);
   const removeConversation = useServerFn(deleteConversation);
@@ -315,7 +316,7 @@ export function MessengerChat({
                     {c.lastMessage.isMine ? (
                       <span className="text-foreground/80 font-medium">Vous : </span>
                     ) : null}
-                    {c.lastMessage.content}
+                    {displayMessageContent(c.lastMessage.content, locale)}
                   </p>
                 </div>
                 {c.unreadCount > 0 && (
@@ -431,7 +432,7 @@ export function MessengerChat({
                       : "bg-card border border-border text-foreground rounded-bl-sm"
                   )}
                 >
-                  {m.content}
+                  {displayMessageContent(m.content, locale)}
                 </div>
                 {isMe && (
                   <span className="text-[0.6rem] text-muted-foreground mt-0.5 flex items-center gap-0.5 px-1">

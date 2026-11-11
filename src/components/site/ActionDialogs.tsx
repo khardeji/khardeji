@@ -108,6 +108,7 @@ export function ConfirmActionDialog({
   rows,
   confirmLabel,
   onConfirm,
+  submitting,
 }: {
   open: boolean;
   onClose: () => void;
@@ -116,10 +117,11 @@ export function ConfirmActionDialog({
   rows: SummaryRow[];
   confirmLabel: Msg;
   onConfirm: () => void;
+  submitting?: boolean;
 }) {
   const { t } = useI18n();
   return (
-    <AlertDialog open={open} onOpenChange={(o) => !o && onClose()}>
+    <AlertDialog open={open} onOpenChange={(o) => (!submitting && !o) && onClose()}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>{t(title)}</AlertDialogTitle>
@@ -134,9 +136,18 @@ export function ConfirmActionDialog({
           ))}
         </dl>
         <AlertDialogFooter className="gap-2 sm:gap-2">
-          <AlertDialogCancel>{t({ ar: "إلغاء", fr: "Annuler", en: "Cancel" })}</AlertDialogCancel>
-          <Button variant="rust" onClick={onConfirm}>
-            <CheckCircle2 /> {t(confirmLabel)}
+          <AlertDialogCancel disabled={submitting}>{t({ ar: "إلغاء", fr: "Annuler", en: "Cancel" })}</AlertDialogCancel>
+          <Button variant="rust" onClick={onConfirm} disabled={submitting}>
+            {submitting ? (
+              <span className="flex items-center gap-2">
+                <span className="size-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                {t({ ar: "جاري الإرسال...", fr: "Envoi en cours...", en: "Sending..." })}
+              </span>
+            ) : (
+              <>
+                <CheckCircle2 /> {t(confirmLabel)}
+              </>
+            )}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

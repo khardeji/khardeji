@@ -1,10 +1,10 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { ArrowLeft, ArrowRight, Gavel, HandCoins, Heart, Home, ListChecks, Package, Plus } from "lucide-react";
+import { ArrowLeft, ArrowRight, Gavel, HandCoins, Heart, Home, ListChecks, Package, Plus, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useI18n } from "@/hooks/use-i18n";
 
 export interface AccountNavProps {
-  current?: "annonces" | "offres" | "demandes" | "favoris" | "publier";
+  current?: "annonces" | "offres" | "demandes" | "favoris" | "publier" | "achats";
 }
 
 export function AccountNav({ current }: AccountNavProps) {
@@ -17,6 +17,13 @@ export function AccountNav({ current }: AccountNavProps) {
       to: "/mes-annonces" as const,
       icon: ListChecks,
       label: { ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" },
+    },
+    {
+      id: "achats",
+      to: "/tableau-de-bord" as const,
+      search: { tab: "purchases" as const },
+      icon: Receipt,
+      label: { ar: "مشترياتي", fr: "Mes achats", en: "My purchases" },
     },
     {
       id: "favoris",
@@ -72,7 +79,7 @@ export function AccountNav({ current }: AccountNavProps) {
                   active ? "font-semibold shadow-sm" : "text-muted-foreground hover:text-foreground"
                 }`}
               >
-                <Link to={tab.to}>
+                <Link to={tab.to} search={(tab as any).search}>
                   <Icon className="size-4" />
                   <span>{t(tab.label)}</span>
                 </Link>

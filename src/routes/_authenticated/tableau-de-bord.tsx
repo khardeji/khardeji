@@ -8,6 +8,7 @@ import {
   Calendar,
   Check,
   CheckCircle2,
+  Clock,
   Coins,
   CreditCard,
   Edit3,
@@ -21,6 +22,7 @@ import {
   Package,
   Phone,
   Plus,
+  Receipt,
   Rocket,
   ShieldCheck,
   ShoppingBag,
@@ -34,19 +36,28 @@ import { BoostDialog } from "@/components/site/BoostDialog";
 import { EditListingDialog } from "@/components/site/EditListingDialog";
 import { MessengerChat } from "@/components/site/MessengerChat";
 import { OffersPanel } from "@/components/site/OffersPanel";
+import { PurchasesPanel } from "@/components/site/PurchasesPanel";
 import { QuantityRequestsPanel } from "@/components/site/QuantityRequestsPanel";
 import { PageHeader } from "@/components/site/SectionHeading";
 import { BuyTokensDialog, SubscribePlanDialog } from "@/components/site/ServiceOrderDialogs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LISTING_STATUS_LABEL, SALE_TYPE_LABEL, type Listing, type ListingStatus } from "@/data/catalog";
+import {
+  BOOST_NAMES,
+  getBoostTimeRemaining,
+  isBoostActive,
+  LISTING_STATUS_LABEL,
+  SALE_TYPE_LABEL,
+  type Listing,
+  type ListingStatus,
+} from "@/data/catalog";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { deleteMyListing, getMyListings, markListingSold } from "@/lib/listings.functions";
 import { getEffectivePlan, PLAN_CONFIG } from "@/lib/listing-rules";
-import { getIncomingOffers, getSellerQuantityRequests } from "@/lib/marketplace.functions";
+import { getIncomingOffers, getMyPurchases, getSellerQuantityRequests } from "@/lib/marketplace.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 import {
   getMyBoosts,
@@ -60,8 +71,8 @@ import {
 } from "@/lib/services.functions";
 
 export const Route = createFileRoute("/_authenticated/tableau-de-bord")({
-  validateSearch: (search: Record<string, unknown>): { tab?: "overview" | "listings" | "messages" | "offers" | "requests" | "subscription" } => ({
-    tab: (["overview", "listings", "messages", "offers", "requests", "subscription"] as const).includes(search.tab as any)
+  validateSearch: (search: Record<string, unknown>): { tab?: "overview" | "listings" | "messages" | "offers" | "requests" | "purchases" | "subscription" } => ({
+    tab: (["overview", "listings", "messages", "offers", "requests", "purchases", "subscription"] as const).includes(search.tab as any)
       ? (search.tab as any)
       : undefined,
   }),
@@ -110,6 +121,7 @@ export function DashboardPage() {
   const setRead = useServerFn(markMessageRead);
   const fetchIncomingOffers = useServerFn(getIncomingOffers);
   const fetchSellerQtyReqs = useServerFn(getSellerQuantityRequests);
+  const fetchPurchases = useServerFn(getMyPurchases);
 
   const { data: overview, isLoading: overviewLoading } = useQuery({
     queryKey: ["me", "overview"],
@@ -153,13 +165,20 @@ export function DashboardPage() {
     enabled: !!user,
     retry: false,
   });
+  const { data: purchasesData } = useQuery({
+    queryKey: ["me", "purchases"],
+    queryFn: () => fetchPurchases(),
+    enabled: !!user,
+    retry: false,
+  });
 
   const search = Route.useSearch();
-  const [activeTab, setActiveTab] = useState<"overview" | "listings" | "messages" | "offers" | "requests" | "subscription">(
+  const [activeTab, setActiveTab] = useState<"overview" | "listings" | "messages" | "offers" | "requests" | "purchases" | "subscription">(
     search.tab || "overview"
   );
   const pendingOffersCount = (incomingOffers ?? []).filter((o) => o.status === "pending").length;
   const pendingQtyReqsCount = (sellerQtyReqs ?? []).filter((r) => r.status === "pending").length;
+  const confirmedPurchasesCount = purchasesData?.summary.confirmedPurchases ?? 0;
   const [boostListingId, setBoostListingId] = useState<string | undefined>();
   const [boostOpen, setBoostOpen] = useState(false);
   const [buyPackOpen, setBuyPackOpen] = useState(false);
@@ -429,6 +448,15 @@ export function DashboardPage() {
                   </Badge>
                 )}
               </TabsTrigger>
+              <TabsTrigger value="purchases" className="gap-2 px-4 py-2">
+                <Receipt className="size-4" />
+                {t({ ar: "مشترياتي", fr: "Mes achats", en: "My purchases" })}
+                {confirmedPurchasesCount > 0 && (
+                  <Badge variant="outline" className="ms-1 border-olive bg-olive/10 text-olive px-1.5 py-0 text-[0.65rem]">
+                    {confirmedPurchasesCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
               <TabsTrigger value="subscription" className="gap-2 px-4 py-2">
                 <Layers className="size-4" />
                 {t({ ar: "الاشتراكات والطلبات", fr: "Forfait & Demandes", en: "Plan & Requests" })}
@@ -674,6 +702,8 @@ export function DashboardPage() {
                 <div className="space-y-3">
                   {listings.map((l) => {
                     const st = l.status ?? "pending";
+                    const isBoosted = l.activeBoost && isBoostActive(l.activeBoost);
+                    const remaining = isBoosted ? getBoostTimeRemaining(l.activeBoost!.expiresAt) : null;
                     const listingBoosts = (boosts ?? []).filter((b) => b.listingId === l.id);
                     const hasUrgent = l.urgent || listingBoosts.some((b) => b.boostId === "urgent");
                     const hasFeatured = l.featured || listingBoosts.some((b) => b.boostId === "a-la-une" || b.boostId === "premium-7j");
@@ -690,20 +720,40 @@ export function DashboardPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <Badge variant={STATUS_BADGE[st]}>{t(LISTING_STATUS_LABEL[st])}</Badge>
                             <Badge variant="outline">{t(SALE_TYPE_LABEL[l.saleType])}</Badge>
-                            {hasUrgent && (
-                              <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
-                                <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                            {isBoosted ? (
+                              <Badge className="bg-gradient-to-r from-rust to-brass text-white text-[0.7rem] gap-1.5 px-2 py-0.5 font-semibold shadow-sm">
+                                {l.activeBoost!.boostId === "urgent" ? (
+                                  <Flame className="size-3.5 fill-white" />
+                                ) : l.activeBoost!.boostId === "remonter" ? (
+                                  <Rocket className="size-3.5" />
+                                ) : (
+                                  <BadgeCheck className="size-3.5 fill-white text-brass" />
+                                )}
+                                <span>{t(BOOST_NAMES[l.activeBoost!.boostId])}</span>
+                                <span className="opacity-75">·</span>
+                                <span className="font-normal flex items-center gap-1">
+                                  <Clock className="size-3" />
+                                  {t(remaining!.label)}
+                                </span>
                               </Badge>
-                            )}
-                            {hasFeatured && (
-                              <Badge className="bg-brass text-brass-foreground font-semibold text-[0.65rem] gap-1 px-1.5 py-0">
-                                <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
-                              </Badge>
-                            )}
-                            {hasBumped && (
-                              <Badge variant="outline" className="border-olive text-olive text-[0.65rem] gap-1 px-1.5 py-0">
-                                <Rocket className="size-3" /> {t({ ar: "تم ترويجها", fr: "Remontée", en: "Bumped" })}
-                              </Badge>
+                            ) : (
+                              <>
+                                {hasUrgent && (
+                                  <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
+                                    <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                                  </Badge>
+                                )}
+                                {hasFeatured && (
+                                  <Badge className="bg-brass text-brass-foreground font-semibold text-[0.65rem] gap-1 px-1.5 py-0">
+                                    <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
+                                  </Badge>
+                                )}
+                                {hasBumped && (
+                                  <Badge variant="outline" className="border-olive text-olive text-[0.65rem] gap-1 px-1.5 py-0">
+                                    <Rocket className="size-3" /> {t({ ar: "تم ترويجها", fr: "Remontée", en: "Bumped" })}
+                                  </Badge>
+                                )}
+                              </>
                             )}
                           </div>
                           <h4 className="mt-1 truncate font-semibold text-foreground">{t(l.title)}</h4>
@@ -720,18 +770,33 @@ export function DashboardPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           {st === "approved" && (
                             <>
-                              <Button
-                                size="sm"
-                                variant="rust"
-                                className="gap-1.5"
-                                onClick={() => {
-                                  setBoostListingId(l.id);
-                                  setBoostOpen(true);
-                                }}
-                              >
-                                <Rocket className="size-3.5" />
-                                {t({ ar: "ترويج", fr: "Booster", en: "Boost" })}
-                              </Button>
+                              {isBoosted ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5 border-rust/40 text-rust hover:bg-rust/10 font-semibold text-xs"
+                                  onClick={() => {
+                                    setBoostListingId(l.id);
+                                    setBoostOpen(true);
+                                  }}
+                                >
+                                  <Rocket className="size-3.5 text-rust animate-pulse" />
+                                  {t({ ar: "إدارة الترويج", fr: "Gérer le boost", en: "Manage boost" })}
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="rust"
+                                  className="gap-1.5"
+                                  onClick={() => {
+                                    setBoostListingId(l.id);
+                                    setBoostOpen(true);
+                                  }}
+                                >
+                                  <Rocket className="size-3.5" />
+                                  {t({ ar: "ترويج", fr: "Booster", en: "Boost" })}
+                                </Button>
+                              )}
                               <Confirm
                                 title={{ ar: "تحديد كمباع ؟", fr: "Marquer comme vendue ?", en: "Mark as sold?" }}
                                 message={{
@@ -826,7 +891,12 @@ export function DashboardPage() {
               <QuantityRequestsPanel />
             </TabsContent>
 
-            {/* TAB 6: SUBSCRIPTION & REQUESTS */}
+            {/* TAB 6: MES ACHATS */}
+            <TabsContent value="purchases" className="space-y-4">
+              <PurchasesPanel />
+            </TabsContent>
+
+            {/* TAB 7: SUBSCRIPTION & REQUESTS */}
             <TabsContent value="subscription" className="space-y-6">
               <div className="surface-card p-6">
                 <h3 className="text-lg font-semibold">{t({ ar: "تفاصيل الباقة والاشتراك", fr: "Détails de votre offre & forfait", en: "Subscription plan details" })}</h3>

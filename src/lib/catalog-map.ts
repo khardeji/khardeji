@@ -1,6 +1,6 @@
 // Database rows → the app's catalogue shapes. Shared by public, member and admin server functions.
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { resolveImage, type Category, type Listing, type ListingStatus, type SaleType, type Seller, type SellerKind } from "@/data/catalog";
+import { resolveImage, type ActiveBoost, type Category, type Listing, type ListingStatus, type SaleType, type Seller, type SellerKind } from "@/data/catalog";
 import type { Database, Json } from "@/integrations/supabase/types";
 import type { Msg } from "@/lib/i18n";
 import type { SaleUnit } from "@/lib/quantity";
@@ -75,8 +75,49 @@ function toAuction(v: Json | null): Listing["auction"] {
   };
 }
 
+function toActiveBoost(sellerJson: Json | null | undefined, r: Partial<ListingRow>): ActiveBoost | null {
+  if (sellerJson && typeof sellerJson === "object" && !Array.isArray(sellerJson)) {
+    const boost = (sellerJson as any).activeBoost;
+    if (boost && typeof boost === "object" && boost.boostId && boost.expiresAt) {
+      const isStillActive = new Date(boost.expiresAt).getTime() > Date.now();
+      if (isStillActive) {
+        return {
+          boostId: boost.boostId,
+          appliedAt: String(boost.appliedAt || ""),
+          expiresAt: String(boost.expiresAt || ""),
+          cost: Number(boost.cost || 0),
+        };
+      }
+    }
+  }
+
+  // Fallback for legacy rows with urgent or featured set
+  if (r.urgent || r.featured) {
+    const boostedAt = (r as any).boosted_at || r.published_at || r.created_at;
+    if (boostedAt) {
+      const appliedTime = new Date(boostedAt).getTime();
+      const durationMs = 7 * 24 * 60 * 60 * 1000;
+      const expiresTime = appliedTime + durationMs;
+      if (expiresTime > Date.now()) {
+        return {
+          boostId: r.urgent ? "urgent" : "a-la-une",
+          appliedAt: new Date(appliedTime).toISOString(),
+          expiresAt: new Date(expiresTime).toISOString(),
+          cost: r.urgent ? 3 : 15,
+        };
+      }
+    }
+  }
+
+  return null;
+}
+
 export function rowToListing(r: Partial<ListingRow> & Pick<ListingRow, "id">): Listing {
   const images = (r.images ?? []).length ? r.images! : [FALLBACK_IMAGE];
+  const activeBoost = toActiveBoost(r.seller, r);
+  const isUrgent = activeBoost ? activeBoost.boostId === "urgent" : Boolean(r.urgent);
+  const isFeatured = activeBoost ? (activeBoost.boostId === "premium-7j" || activeBoost.boostId === "a-la-une") : Boolean(r.featured);
+
   return {
     id: r.id,
     title: toMsg(r.title),
@@ -92,9 +133,10 @@ export function rowToListing(r: Partial<ListingRow> & Pick<ListingRow, "id">): L
     images,
     publishedAt: r.published_at ?? "",
     seller: toSeller(r.seller ?? {}),
-    featured: r.featured ?? false,
-    urgent: r.urgent ?? false,
+    featured: isFeatured,
+    urgent: isUrgent,
     boostedAt: (r as any).boosted_at ?? null,
+    activeBoost,
     auction: toAuction(r.auction ?? null),
     status: (r.status ?? "approved") as ListingStatus,
     ownerId: r.owner_id ?? null,
