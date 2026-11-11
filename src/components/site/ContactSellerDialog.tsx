@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
+import { useIsAdmin } from "@/hooks/use-is-admin";
 import { sendMessageToSeller, type SendMessageResult } from "@/lib/services.functions";
 
 interface ContactSellerDialogProps {
@@ -22,6 +23,7 @@ interface ContactSellerDialogProps {
 export function ContactSellerDialog({ listingId, listingTitle, sellerName, trigger }: ContactSellerDialogProps) {
   const { t, dir } = useI18n();
   const { user } = useAuth();
+  const { isAdmin } = useIsAdmin();
   const send = useServerFn(sendMessageToSeller);
 
   const [open, setOpen] = useState(false);
@@ -53,13 +55,19 @@ export function ContactSellerDialog({ listingId, listingTitle, sellerName, trigg
     }
 
     setBusy(true);
+    const senderDefaultName = isAdmin
+      ? "Administrateur"
+      : user
+      ? (user.email?.split("@")[0] || "Membre")
+      : "Visiteur";
+
     const res: SendMessageResult = await send({
       data: {
         listingId,
         content: content.trim(),
         phone: phone.trim(),
         email: email.trim(),
-        name: name.trim() || (user ? "" : "Visiteur"),
+        name: name.trim() || senderDefaultName,
       },
     }).catch(() => ({ ok: false, error: "failed" }) as const);
     setBusy(false);
@@ -117,11 +125,15 @@ export function ContactSellerDialog({ listingId, listingTitle, sellerName, trigg
                 <MessageSquare className="size-5 text-rust" />
                 {t({ ar: "مراسلة البائع", fr: "Contacter le vendeur", en: "Contact seller" })}
               </DialogTitle>
-              {!user && (
+              {isAdmin ? (
+                <Badge variant="rust" className="text-[0.65rem]">
+                  {t({ ar: "مدير الموقع", fr: "Administrateur", en: "Admin" })}
+                </Badge>
+              ) : !user ? (
                 <Badge variant="outline" className="text-[0.65rem] border-olive/40 text-olive">
                   {t({ ar: "إرسال مباشر", fr: "Sans compte requis", en: "No account required" })}
                 </Badge>
-              )}
+              ) : null}
             </div>
             <DialogDescription>
               {t({ ar: "للبائع :", fr: "Vendeur :", en: "Seller:" })} <span className="font-semibold text-foreground">{sellerName}</span> · « {listingTitle} »
