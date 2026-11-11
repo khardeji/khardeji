@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   BOOST_DURATIONS,
   BOOST_NAMES,
+  boostPriority,
   getBoostTimeRemaining,
   isBoostActive,
   type ActiveBoost,
+  type Listing,
 } from "@/data/catalog";
 
 describe("Boost Rules & Time Calculations", () => {
@@ -67,4 +69,66 @@ describe("Boost Rules & Time Calculations", () => {
     expect(BOOST_NAMES.urgent.fr).toBe("Urgent");
     expect(BOOST_NAMES["a-la-une"].fr).toBe("À la une");
   });
+
+  it("boostPriority returns correct tier scores", () => {
+    const makeBoost = (boostId: ActiveBoost["boostId"]): ActiveBoost => ({
+      boostId,
+      appliedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 24 * 3600 * 1000 * 5).toISOString(),
+      cost: 1,
+    });
+    const withBoost = (boost: ActiveBoost) =>
+      ({ activeBoost: boost } as unknown as Listing);
+
+    expect(boostPriority(withBoost(makeBoost("a-la-une")))).toBe(4);
+    expect(boostPriority(withBoost(makeBoost("premium-7j")))).toBe(3);
+    expect(boostPriority(withBoost(makeBoost("urgent")))).toBe(2);
+    expect(boostPriority(withBoost(makeBoost("remonter")))).toBe(1);
+    expect(boostPriority({ activeBoost: null } as unknown as Listing)).toBe(0);
+    expect(boostPriority({ activeBoost: undefined } as unknown as Listing)).toBe(0);
+
+    // Expired boost → treated as no boost
+    const expired: ActiveBoost = {
+      boostId: "a-la-une",
+      appliedAt: new Date(Date.now() - 10 * 24 * 3600 * 1000).toISOString(),
+      expiresAt: new Date(Date.now() - 1000).toISOString(), // already past
+      cost: 15,
+    };
+    expect(boostPriority(withBoost(expired))).toBe(0);
+  });
+
+  it("boost sort order: a-la-une > premium-7j > urgent > remonter > none", () => {
+    const makeActive = (boostId: ActiveBoost["boostId"]): ActiveBoost => ({
+      boostId,
+      appliedAt: new Date().toISOString(),
+      expiresAt: new Date(Date.now() + 24 * 3600 * 1000 * 5).toISOString(),
+      cost: 1,
+    });
+    const toListing = (boost?: ActiveBoost) =>
+      ({ activeBoost: boost ?? null } as unknown as Listing);
+
+    const listings = [
+      toListing(undefined),                        // no boost
+      toListing(makeActive("urgent")),             // tier 2
+      toListing(makeActive("a-la-une")),           // tier 4
+      toListing(undefined),                        // no boost
+      toListing(makeActive("remonter")),           // tier 1
+      toListing(makeActive("premium-7j")),         // tier 3
+    ];
+
+    const sorted = [...listings].sort((a, b) => boostPriority(b) - boostPriority(a));
+    const priorities = sorted.map(boostPriority);
+
+    // Should be non-increasing (descending)
+    for (let i = 0; i < priorities.length - 1; i++) {
+      expect(priorities[i]).toBeGreaterThanOrEqual(priorities[i + 1]!);
+    }
+    expect(priorities[0]).toBe(4); // a-la-une first
+    expect(priorities[1]).toBe(3); // premium-7j second
+    expect(priorities[2]).toBe(2); // urgent third
+    expect(priorities[3]).toBe(1); // remonter fourth
+    expect(priorities[4]).toBe(0); // no boost
+    expect(priorities[5]).toBe(0); // no boost
+  });
 });
+

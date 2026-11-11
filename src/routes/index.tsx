@@ -10,6 +10,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { catalogQuery, statsQuery, useCatalog } from "@/lib/catalog-queries";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, SHARE_IMAGE } from "@/lib/i18n";
+import { boostPriority } from "@/data/catalog";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) =>
@@ -75,7 +76,12 @@ function Home() {
   const { t, num } = useI18n();
   const { listings, categories } = useCatalog();
   const { data: stats } = useSuspenseQuery(statsQuery);
-  const recent = [...listings].sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, 8);
+  const recent = [...listings].sort((a, b) => {
+    // Boosted listings (a-la-une, premium-7j, urgent, remonter) bubble up first
+    const boostDiff = boostPriority(b) - boostPriority(a);
+    if (boostDiff !== 0) return boostDiff;
+    return b.publishedAt.localeCompare(a.publishedAt);
+  }).slice(0, 8);
   const auctions = listings.filter((l) => l.saleType === "enchere" && l.auction).slice(0, 4);
 
   return (

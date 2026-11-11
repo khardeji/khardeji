@@ -285,6 +285,26 @@ export function auctionCurrentPrice(l: Listing): number {
   return l.auction.bids.length ? Math.max(...l.auction.bids.map((b) => b.amount)) : l.auction.startPrice;
 }
 
+/**
+ * Returns a numeric priority for a listing's active boost.
+ * Higher = shown first. 0 = no active boost.
+ *   a-la-une   → 4  (homepage featured, highest tier)
+ *   premium-7j → 3  (priority position, gold border)
+ *   urgent     → 2  (urgent badge)
+ *   remonter   → 1  (bumped to top of recents)
+ *   none       → 0
+ */
+export function boostPriority(listing: Listing): number {
+  if (!listing.activeBoost || !isBoostActive(listing.activeBoost)) return 0;
+  switch (listing.activeBoost.boostId) {
+    case "a-la-une":   return 4;
+    case "premium-7j": return 3;
+    case "urgent":     return 2;
+    case "remonter":   return 1;
+    default:           return 0;
+  }
+}
+
 /** All-language text of a listing, for search. */
 export function listingSearchText(l: Listing): string {
   const sub = subcategoryLabel(l.subcategory);
