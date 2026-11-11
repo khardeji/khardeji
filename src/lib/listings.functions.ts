@@ -118,7 +118,7 @@ export const getMyListings = createServerFn({ method: "GET" })
       .from("listings")
       .select("*")
       .eq("owner_id", userId)
-      .or("moderation_note.is.null,moderation_note.neq.owner_deleted")
+      .or("moderation_note.is.null,moderation_note.not.in.(owner_deleted,reposted)")
       .order("created_at", { ascending: false });
     if (error) throw new Error("my_listings_unavailable");
     return resolveListingImages(supabase, data.map(rowToListing));
@@ -209,7 +209,7 @@ export const setMyListingStock = createServerFn({ method: "POST" })
 
 /**
  * Republish a listing as a brand-new post on the owner's account.
- * The sold listing stays sold; the copy is a separate row so it counts in the account total.
+ * The original is removed from the owner's list and cannot be reposted again.
  */
 export const repostMyListing = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -227,6 +227,7 @@ export const repostMyListing = createServerFn({ method: "POST" })
       .maybeSingle();
 
     if (fetchErr || !row) return { ok: false as const, error: "not_found" };
+    if (row.moderation_note === "reposted") return { ok: false as const, error: "already" };
 
     const stock =
       row.unit === "libre"
@@ -276,6 +277,20 @@ export const repostMyListing = createServerFn({ method: "POST" })
     await supabase.from("offers").update({ listing_id: created.id }).eq("listing_id", data.id).eq("seller_id", userId);
     await supabase.from("quantity_requests").update({ listing_id: created.id }).eq("listing_id", data.id).eq("seller_id", userId);
     await supabase.from("messages").update({ listing_id: created.id }).eq("listing_id", data.id).or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
+    await supabase.from("listing_private").update({ listing_id: created.id }).eq("listing_id", data.id).eq("owner_id", userId);
+    await supabase.from("favorites").update({ listing_id: created.id }).eq("listing_id", data.id);
+
+    const seller = row.seller && typeof row.seller === "object" && !Array.isArray(row.seller) ? { ...(row.seller as object) } : {};
+    delete (seller as { activeBoost?: unknown }).activeBoost;
+    const { error: hideErr } = await supabase
+      .from("listings")
+      .update({ status: "hidden", urgent: false, featured: false, seller, moderation_note: "reposted" } as any)
+      .eq("id", data.id)
+      .eq("owner_id", userId);
+    if (hideErr) {
+      console.error("repostMyListing hide original failed", hideErr.message);
+      return { ok: false as const, error: "failed" };
+    }
 
     return { ok: true as const, id: created.id };
   });
