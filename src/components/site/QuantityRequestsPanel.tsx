@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/hooks/use-i18n";
+import { useRealtimeQuantityRequests } from "@/hooks/use-realtime";
 import {
   getBuyerQuantityRequests,
   getSellerQuantityRequests,
@@ -51,6 +52,9 @@ import { resolveImage } from "@/data/catalog";
 export function QuantityRequestsPanel() {
   const { t, dt, date, num } = useI18n();
   const qc = useQueryClient();
+
+  // Listen to realtime updates for quantity requests
+  useRealtimeQuantityRequests();
 
   const fetchSellerReqs = useServerFn(getSellerQuantityRequests);
   const fetchBuyerReqs = useServerFn(getBuyerQuantityRequests);

@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/hooks/use-i18n";
+import { useRealtimeOffers } from "@/hooks/use-realtime";
 import {
   getIncomingOffers,
   getOutgoingOffers,
@@ -40,6 +41,9 @@ import { UNIT_LABEL } from "@/lib/quantity";
 export function OffersPanel() {
   const { t, dt, date } = useI18n();
   const qc = useQueryClient();
+
+  // Listen to realtime updates for offers & bids
+  useRealtimeOffers();
 
   const fetchIncoming = useServerFn(getIncomingOffers);
   const fetchOutgoing = useServerFn(getOutgoingOffers);

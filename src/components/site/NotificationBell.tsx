@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
+import { useRealtimeNotifications } from "@/hooks/use-realtime";
 import { getMyNotifications, markNotificationRead } from "@/lib/marketplace.functions";
 
 export function NotificationBell() {
@@ -30,6 +31,9 @@ export function NotificationBell() {
 
   const fetchNotifs = useServerFn(getMyNotifications);
   const markRead = useServerFn(markNotificationRead);
+
+  // Instant real-time badge updates when a notification arrives
+  useRealtimeNotifications();
 
   const { data } = useQuery({
     queryKey: ["me", "notifications"],
