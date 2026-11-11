@@ -300,12 +300,12 @@ export function DashboardPage() {
           <div className="surface-card flex flex-col justify-between p-5 ring-1 ring-border">
             <div className="flex items-start justify-between">
               <div>
-                <p className="label-stamp text-xs text-olive">{t({ ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" })}</p>
+                <p className="label-stamp text-xs text-olive">{t({ ar: "الإعلانات المنشورة", fr: "Annonces publiées", en: "Posts published" })}</p>
                 <p className="mt-2 font-display text-4xl font-bold text-foreground">
                   {num(overview?.listingsCount.total ?? 0)}
                 </p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {overview?.listingsCount.approved ?? 0} {t({ ar: "منشورة", fr: "en ligne", en: "live" })} · {overview?.listingsCount.pending ?? 0} {t({ ar: "قيد المراجعة", fr: "en attente", en: "pending" })}
+                  {overview?.listingsCount.approved ?? 0} {t({ ar: "منشورة", fr: "en ligne", en: "live" })} · {overview?.listingsCount.pending ?? 0} {t({ ar: "قيد المراجعة", fr: "en attente", en: "pending" })} · {t({ ar: "العدد يبقى بعد الحذف", fr: "le total reste après suppression", en: "the total stays after a delete" })}
                 </p>
               </div>
               <span className="grid size-10 place-items-center rounded-xl bg-olive/15 text-olive">

@@ -94,7 +94,12 @@ export const getMyListings = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
     const { supabase, userId } = context;
-    const { data, error } = await supabase.from("listings").select("*").eq("owner_id", userId).order("created_at", { ascending: false });
+    const { data, error } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("owner_id", userId)
+      .or("moderation_note.is.null,moderation_note.neq.owner_deleted")
+      .order("created_at", { ascending: false });
     if (error) throw new Error("my_listings_unavailable");
     return resolveListingImages(supabase, data.map(rowToListing));
   });
@@ -104,12 +109,15 @@ export const deleteMyListing = createServerFn({ method: "POST" })
   .inputValidator((d: { id: string }) => d)
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const { data: row } = await supabase.from("listings").select("images").eq("id", data.id).eq("owner_id", userId).maybeSingle();
+    const { data: row } = await supabase.from("listings").select("id").eq("id", data.id).eq("owner_id", userId).maybeSingle();
     if (!row) return { ok: false as const };
-    const { error } = await supabase.from("listings").delete().eq("id", data.id).eq("owner_id", userId);
+    // Keep the row so the account total stays the number of posts ever published.
+    const { error } = await supabase
+      .from("listings")
+      .update({ status: "hidden", moderation_note: "owner_deleted" } as any)
+      .eq("id", data.id)
+      .eq("owner_id", userId);
     if (error) return { ok: false as const };
-    const paths = row.images.filter((i) => i.startsWith(STORAGE_PREFIX)).map((i) => i.slice(STORAGE_PREFIX.length));
-    if (paths.length) await supabase.storage.from("listing-photos").remove(paths);
     return { ok: true as const };
   });
 
