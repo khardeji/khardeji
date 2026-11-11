@@ -315,8 +315,8 @@ export const replyToConversation = createServerFn({ method: "POST" })
       sender_id: userId,
       recipient_id: targetRecipient,
       sender_name: profile?.full_name || "Vendeur",
-      sender_phone: profile?.phone || "",
-      sender_email: profile?.email || "",
+      sender_phone: data.recipientPhone || profile?.phone || "",
+      sender_email: data.recipientEmail || profile?.email || "",
       content: data.content,
       is_read: false,
     };

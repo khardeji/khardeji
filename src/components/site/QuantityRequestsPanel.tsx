@@ -499,3 +499,4 @@ export function QuantityRequestsPanel() {
     </div>
   );
 }
+
