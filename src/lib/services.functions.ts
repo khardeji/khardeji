@@ -8,13 +8,24 @@ import type { Msg } from "./i18n";
 
 const missingRelation = (code?: string) => code === "PGRST205" || code === "42P01" || code === "42703";
 
+const DEFAULT_SUPABASE_URL = "https://pzjgadriuimximczqnfy.supabase.co";
+const DEFAULT_SUPABASE_KEY = "sb_publishable_w3dlGMmx2g9u85yf4W-TAA_i7Wz6sTx";
+
 function getPublicSupabase(token?: string | null) {
-  const url = (process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "") as string;
-  const key = (process.env.SUPABASE_PUBLISHABLE_KEY ||
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    "") as string;
+  const url = (
+    process.env["SUPABASE_URL"] ||
+    import.meta.env?.["VITE_SUPABASE_URL"] ||
+    process.env["VITE_SUPABASE_URL"] ||
+    DEFAULT_SUPABASE_URL
+  ) as string;
+  const key = (
+    process.env["SUPABASE_PUBLISHABLE_KEY"] ||
+    process.env["SUPABASE_ANON_KEY"] ||
+    import.meta.env?.["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+    process.env["VITE_SUPABASE_PUBLISHABLE_KEY"] ||
+    process.env["VITE_SUPABASE_ANON_KEY"] ||
+    DEFAULT_SUPABASE_KEY
+  ) as string;
   return createClient<Database>(url, key, {
     auth: {
       storage: undefined,
