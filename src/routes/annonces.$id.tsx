@@ -1,5 +1,5 @@
 import { createFileRoute, Link, notFound } from "@tanstack/react-router";
-import { BadgeCheck, CalendarDays, Flame, Heart, MapPin, MessageSquare, Package, Phone, Share2, Tag } from "lucide-react";
+import { BadgeCheck, CalendarDays, Clock, Flame, Heart, MapPin, MessageSquare, Package, Phone, Rocket, Share2, Tag } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
@@ -9,7 +9,7 @@ import { ContactSellerDialog } from "@/components/site/ContactSellerDialog";
 import { ListingCard } from "@/components/site/ListingCard";
 import { ReportButton } from "@/components/site/ReportButton";
 import { AuctionPanel, FixedPricePanel, OfferPanel } from "@/components/site/PurchasePanels";
-import { governorateLabel, SALE_TYPE_LABEL, SELLER_KIND_LABEL, subcategoryLabel } from "@/data/catalog";
+import { BOOST_NAMES, getBoostTimeRemaining, governorateLabel, isBoostActive, SALE_TYPE_LABEL, SELLER_KIND_LABEL, subcategoryLabel } from "@/data/catalog";
 import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
@@ -148,15 +148,39 @@ function ListingDetail() {
           <div className="surface-card p-6">
             <div className="flex flex-wrap gap-1.5">
               <Badge variant={listing.saleType === "enchere" ? "rust" : listing.saleType === "negociable" ? "brass" : "olive"}>{t(SALE_TYPE_LABEL[listing.saleType])}</Badge>
-              {listing.urgent && (
-                <Badge variant="destructive" className="bg-rust text-white border-transparent gap-1">
-                  <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+              {listing.activeBoost && isBoostActive(listing.activeBoost) ? (
+                <Badge className="bg-gradient-to-r from-rust to-brass text-white font-semibold gap-1.5 shadow-sm">
+                  {listing.activeBoost.boostId === "urgent" ? (
+                    <Flame className="size-3.5 fill-white" />
+                  ) : listing.activeBoost.boostId === "remonter" ? (
+                    <Rocket className="size-3.5" />
+                  ) : (
+                    <BadgeCheck className="size-3.5 fill-white text-brass" />
+                  )}
+                  <span>{t(BOOST_NAMES[listing.activeBoost.boostId])}</span>
+                  {user && listing.ownerId === user.id && (
+                    <>
+                      <span className="opacity-75">·</span>
+                      <span className="font-normal flex items-center gap-1">
+                        <Clock className="size-3" />
+                        {t(getBoostTimeRemaining(listing.activeBoost.expiresAt).label)}
+                      </span>
+                    </>
+                  )}
                 </Badge>
-              )}
-              {listing.featured && (
-                <Badge className="bg-brass text-brass-foreground font-semibold gap-1">
-                  <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
-                </Badge>
+              ) : (
+                <>
+                  {listing.urgent && (
+                    <Badge variant="destructive" className="bg-rust text-white border-transparent gap-1">
+                      <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                    </Badge>
+                  )}
+                  {listing.featured && (
+                    <Badge className="bg-brass text-brass-foreground font-semibold gap-1">
+                      <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
+                    </Badge>
+                  )}
+                </>
               )}
             </div>
             <h1 className="mt-3 text-3xl font-semibold leading-tight">{t(listing.title)}</h1>

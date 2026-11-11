@@ -8,6 +8,7 @@ import {
   Calendar,
   Check,
   CheckCircle2,
+  Clock,
   Coins,
   CreditCard,
   Edit3,
@@ -42,7 +43,15 @@ import { BuyTokensDialog, SubscribePlanDialog } from "@/components/site/ServiceO
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LISTING_STATUS_LABEL, SALE_TYPE_LABEL, type Listing, type ListingStatus } from "@/data/catalog";
+import {
+  BOOST_NAMES,
+  getBoostTimeRemaining,
+  isBoostActive,
+  LISTING_STATUS_LABEL,
+  SALE_TYPE_LABEL,
+  type Listing,
+  type ListingStatus,
+} from "@/data/catalog";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
@@ -676,6 +685,8 @@ export function DashboardPage() {
                 <div className="space-y-3">
                   {listings.map((l) => {
                     const st = l.status ?? "pending";
+                    const isBoosted = l.activeBoost && isBoostActive(l.activeBoost);
+                    const remaining = isBoosted ? getBoostTimeRemaining(l.activeBoost!.expiresAt) : null;
                     const listingBoosts = (boosts ?? []).filter((b) => b.listingId === l.id);
                     const hasUrgent = l.urgent || listingBoosts.some((b) => b.boostId === "urgent");
                     const hasFeatured = l.featured || listingBoosts.some((b) => b.boostId === "a-la-une" || b.boostId === "premium-7j");
@@ -692,20 +703,40 @@ export function DashboardPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <Badge variant={STATUS_BADGE[st]}>{t(LISTING_STATUS_LABEL[st])}</Badge>
                             <Badge variant="outline">{t(SALE_TYPE_LABEL[l.saleType])}</Badge>
-                            {hasUrgent && (
-                              <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
-                                <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                            {isBoosted ? (
+                              <Badge className="bg-gradient-to-r from-rust to-brass text-white text-[0.7rem] gap-1.5 px-2 py-0.5 font-semibold shadow-sm">
+                                {l.activeBoost!.boostId === "urgent" ? (
+                                  <Flame className="size-3.5 fill-white" />
+                                ) : l.activeBoost!.boostId === "remonter" ? (
+                                  <Rocket className="size-3.5" />
+                                ) : (
+                                  <BadgeCheck className="size-3.5 fill-white text-brass" />
+                                )}
+                                <span>{t(BOOST_NAMES[l.activeBoost!.boostId])}</span>
+                                <span className="opacity-75">·</span>
+                                <span className="font-normal flex items-center gap-1">
+                                  <Clock className="size-3" />
+                                  {t(remaining!.label)}
+                                </span>
                               </Badge>
-                            )}
-                            {hasFeatured && (
-                              <Badge className="bg-brass text-brass-foreground font-semibold text-[0.65rem] gap-1 px-1.5 py-0">
-                                <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
-                              </Badge>
-                            )}
-                            {hasBumped && (
-                              <Badge variant="outline" className="border-olive text-olive text-[0.65rem] gap-1 px-1.5 py-0">
-                                <Rocket className="size-3" /> {t({ ar: "تم ترويجها", fr: "Remontée", en: "Bumped" })}
-                              </Badge>
+                            ) : (
+                              <>
+                                {hasUrgent && (
+                                  <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
+                                    <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                                  </Badge>
+                                )}
+                                {hasFeatured && (
+                                  <Badge className="bg-brass text-brass-foreground font-semibold text-[0.65rem] gap-1 px-1.5 py-0">
+                                    <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
+                                  </Badge>
+                                )}
+                                {hasBumped && (
+                                  <Badge variant="outline" className="border-olive text-olive text-[0.65rem] gap-1 px-1.5 py-0">
+                                    <Rocket className="size-3" /> {t({ ar: "تم ترويجها", fr: "Remontée", en: "Bumped" })}
+                                  </Badge>
+                                )}
+                              </>
                             )}
                           </div>
                           <h4 className="mt-1 truncate font-semibold text-foreground">{t(l.title)}</h4>
@@ -722,18 +753,33 @@ export function DashboardPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           {st === "approved" && (
                             <>
-                              <Button
-                                size="sm"
-                                variant="rust"
-                                className="gap-1.5"
-                                onClick={() => {
-                                  setBoostListingId(l.id);
-                                  setBoostOpen(true);
-                                }}
-                              >
-                                <Rocket className="size-3.5" />
-                                {t({ ar: "ترويج", fr: "Booster", en: "Boost" })}
-                              </Button>
+                              {isBoosted ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="gap-1.5 border-rust/40 text-rust hover:bg-rust/10 font-semibold text-xs"
+                                  onClick={() => {
+                                    setBoostListingId(l.id);
+                                    setBoostOpen(true);
+                                  }}
+                                >
+                                  <Rocket className="size-3.5 text-rust animate-pulse" />
+                                  {t({ ar: "إدارة الترويج", fr: "Gérer le boost", en: "Manage boost" })}
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="rust"
+                                  className="gap-1.5"
+                                  onClick={() => {
+                                    setBoostListingId(l.id);
+                                    setBoostOpen(true);
+                                  }}
+                                >
+                                  <Rocket className="size-3.5" />
+                                  {t({ ar: "ترويج", fr: "Booster", en: "Boost" })}
+                                </Button>
+                              )}
                               <Confirm
                                 title={{ ar: "تحديد كمباع ؟", fr: "Marquer comme vendue ?", en: "Mark as sold?" }}
                                 message={{

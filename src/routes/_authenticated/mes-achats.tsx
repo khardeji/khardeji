@@ -10,3 +10,4 @@ export const Route = createFileRoute("/_authenticated/mes-achats")({
   },
   component: () => null,
 });
+

@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { BadgeCheck, Flame, Gavel, Heart, MapPin, Package } from "lucide-react";
+import { BadgeCheck, Flame, Gavel, Heart, MapPin, Package, Rocket } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { auctionCurrentPrice, governorateLabel, SALE_TYPE_LABEL, subcategoryLabel, type Listing } from "@/data/catalog";
+import { auctionCurrentPrice, governorateLabel, isBoostActive, SALE_TYPE_LABEL, subcategoryLabel, type Listing } from "@/data/catalog";
 import { useI18n } from "@/hooks/use-i18n";
 import { useFavorites } from "@/lib/favorites";
 import { AccountRequiredDialog } from "./ActionDialogs";
@@ -40,15 +40,33 @@ export function ListingCard({ listing }: { listing: Listing }) {
             </Badge>
           )}
           {listing.saleType === "negociable" && <Badge variant="brass">{t(SALE_TYPE_LABEL.negociable)}</Badge>}
-          {listing.urgent && (
-            <Badge variant="dark" className="bg-rust text-white border-transparent">
-              <Flame className="me-1 size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
-            </Badge>
-          )}
-          {listing.featured && (
-            <Badge variant="brass" className="bg-brass text-brass-foreground font-semibold">
-              <BadgeCheck className="me-1 size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
-            </Badge>
+          {listing.activeBoost && isBoostActive(listing.activeBoost) ? (
+            listing.activeBoost.boostId === "urgent" ? (
+              <Badge variant="dark" className="bg-rust text-white border-transparent">
+                <Flame className="me-1 size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+              </Badge>
+            ) : listing.activeBoost.boostId === "remonter" ? (
+              <Badge variant="olive" className="bg-olive text-white border-transparent">
+                <Rocket className="me-1 size-3" /> {t({ ar: "محدّث", fr: "Remontée", en: "Bumped" })}
+              </Badge>
+            ) : (
+              <Badge variant="brass" className="bg-brass text-brass-foreground font-semibold">
+                <BadgeCheck className="me-1 size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
+              </Badge>
+            )
+          ) : (
+            <>
+              {listing.urgent && (
+                <Badge variant="dark" className="bg-rust text-white border-transparent">
+                  <Flame className="me-1 size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
+                </Badge>
+              )}
+              {listing.featured && (
+                <Badge variant="brass" className="bg-brass text-brass-foreground font-semibold">
+                  <BadgeCheck className="me-1 size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
+                </Badge>
+              )}
+            </>
           )}
         </div>
         <button
