@@ -18,6 +18,7 @@ import { Route as EncheresRouteImport } from './routes/encheres'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as ServicesRouteImport } from './routes/services'
 import { Route as AuthenticatedAdminRouteImport } from './routes/_authenticated/admin'
+import { Route as AuthenticatedMesAchatsRouteImport } from './routes/_authenticated/mes-achats'
 import { Route as AuthenticatedMesAnnoncesRouteImport } from './routes/_authenticated/mes-annonces'
 import { Route as AuthenticatedMesDemandesRouteImport } from './routes/_authenticated/mes-demandes'
 import { Route as AuthenticatedMesFavorisRouteImport } from './routes/_authenticated/mes-favoris'
@@ -69,6 +70,11 @@ const ServicesRoute = ServicesRouteImport.update({
 const AuthenticatedAdminRoute = AuthenticatedAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMesAchatsRoute = AuthenticatedMesAchatsRouteImport.update({
+  id: '/mes-achats',
+  path: '/mes-achats',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMesAnnoncesRoute =
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/reset-password': typeof ResetPasswordRoute
   '/services': typeof ServicesRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/mes-achats': typeof AuthenticatedMesAchatsRoute
   '/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
   '/mes-demandes': typeof AuthenticatedMesDemandesRoute
   '/mes-favoris': typeof AuthenticatedMesFavorisRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/reset-password': typeof ResetPasswordRoute
   '/services': typeof ServicesRoute
   '/admin': typeof AuthenticatedAdminRoute
+  '/mes-achats': typeof AuthenticatedMesAchatsRoute
   '/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
   '/mes-demandes': typeof AuthenticatedMesDemandesRoute
   '/mes-favoris': typeof AuthenticatedMesFavorisRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/reset-password': typeof ResetPasswordRoute
   '/services': typeof ServicesRoute
   '/_authenticated/admin': typeof AuthenticatedAdminRoute
+  '/_authenticated/mes-achats': typeof AuthenticatedMesAchatsRoute
   '/_authenticated/mes-annonces': typeof AuthenticatedMesAnnoncesRoute
   '/_authenticated/mes-demandes': typeof AuthenticatedMesDemandesRoute
   '/_authenticated/mes-favoris': typeof AuthenticatedMesFavorisRoute
@@ -182,6 +191,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/services'
     | '/admin'
+    | '/mes-achats'
     | '/mes-annonces'
     | '/mes-demandes'
     | '/mes-favoris'
@@ -200,6 +210,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/services'
     | '/admin'
+    | '/mes-achats'
     | '/mes-annonces'
     | '/mes-demandes'
     | '/mes-favoris'
@@ -219,6 +230,7 @@ export interface FileRouteTypes {
     | '/reset-password'
     | '/services'
     | '/_authenticated/admin'
+    | '/_authenticated/mes-achats'
     | '/_authenticated/mes-annonces'
     | '/_authenticated/mes-demandes'
     | '/_authenticated/mes-favoris'
@@ -307,6 +319,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/mes-achats': {
+      id: '/_authenticated/mes-achats'
+      path: '/mes-achats'
+      fullPath: '/mes-achats'
+      preLoaderRoute: typeof AuthenticatedMesAchatsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mes-annonces': {
       id: '/_authenticated/mes-annonces'
       path: '/mes-annonces'
@@ -368,6 +387,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAdminRoute: typeof AuthenticatedAdminRoute
+  AuthenticatedMesAchatsRoute: typeof AuthenticatedMesAchatsRoute
   AuthenticatedMesAnnoncesRoute: typeof AuthenticatedMesAnnoncesRoute
   AuthenticatedMesDemandesRoute: typeof AuthenticatedMesDemandesRoute
   AuthenticatedMesFavorisRoute: typeof AuthenticatedMesFavorisRoute
@@ -378,6 +398,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAdminRoute: AuthenticatedAdminRoute,
+  AuthenticatedMesAchatsRoute: AuthenticatedMesAchatsRoute,
   AuthenticatedMesAnnoncesRoute: AuthenticatedMesAnnoncesRoute,
   AuthenticatedMesDemandesRoute: AuthenticatedMesDemandesRoute,
   AuthenticatedMesFavorisRoute: AuthenticatedMesFavorisRoute,

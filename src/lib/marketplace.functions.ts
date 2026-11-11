@@ -1529,3 +1529,330 @@ export const getSellerBiddingRequests = createServerFn({ method: "GET" })
       };
     });
   });
+
+// --------------------------------------------------------------------------
+// 6. BUYER PURCHASES (ORDERS, ACCEPTED OFFERS & AUCTIONS)
+// --------------------------------------------------------------------------
+export interface UserPurchase {
+  id: string;
+  type: "direct" | "negociation" | "auction";
+  listingId: string;
+  listingTitle: Record<string, string>;
+  listingImage: string | null;
+  unit: string;
+  quantity: number;
+  unitPrice: number;
+  totalPrice: number;
+  status: "accepted" | "pending" | "rejected" | "cancelled" | "won" | "outbid" | "active";
+  createdAt: string;
+  deliveryLocation?: string;
+  notes?: string;
+  seller: {
+    id: string;
+    name: string;
+    phone: string;
+    email: string;
+    accountType?: string;
+  };
+}
+
+export interface PurchasesOverview {
+  purchases: UserPurchase[];
+  summary: {
+    totalPurchases: number;
+    confirmedPurchases: number;
+    pendingPurchases: number;
+    totalSpent: number;
+  };
+}
+
+export const getMyPurchases = createServerFn({ method: "GET" })
+  .middleware([requireSupabaseAuth])
+  .handler(async ({ context }): Promise<PurchasesOverview> => {
+    const { supabase, userId } = context;
+
+    const purchases: UserPurchase[] = [];
+
+    // 1. Fetch Quantity Requests (Direct purchases)
+    let dbQtyReqs: any[] = [];
+    const { data: qData, error: qErr } = await supabase
+      .from("quantity_requests")
+      .select("*")
+      .eq("buyer_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (!qErr && qData && qData.length > 0) {
+      dbQtyReqs = qData;
+    } else if (qErr && missingTable(qErr.code)) {
+      const { data: messages } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("sender_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (messages) {
+        for (const m of messages) {
+          try {
+            const p = JSON.parse(m.content);
+            if (p.__kind === "quantity_request") {
+              dbQtyReqs.push({
+                id: m.id,
+                listing_id: m.listing_id,
+                seller_id: m.recipient_id,
+                buyer_id: userId,
+                requested_quantity: p.requested_quantity,
+                unit_price: p.unit_price,
+                total_value: p.total_value,
+                unit: p.unit,
+                delivery_location: p.delivery_location,
+                notes: p.notes,
+                status: p.status || "pending",
+                created_at: m.created_at,
+              });
+            }
+          } catch {}
+        }
+      }
+    }
+
+    // 2. Fetch Offers (Negotiated purchases)
+    let dbOffers: any[] = [];
+    const { data: oData, error: oErr } = await supabase
+      .from("offers")
+      .select("*")
+      .eq("buyer_id", userId)
+      .order("created_at", { ascending: false });
+
+    if (!oErr && oData && oData.length > 0) {
+      dbOffers = oData;
+    } else if (oErr && missingTable(oErr.code)) {
+      const { data: messages } = await supabase
+        .from("messages")
+        .select("*")
+        .eq("sender_id", userId)
+        .order("created_at", { ascending: false });
+
+      if (messages) {
+        for (const m of messages) {
+          try {
+            const p = JSON.parse(m.content);
+            if (p.__kind === "offer") {
+              dbOffers.push({
+                id: m.id,
+                listing_id: m.listing_id,
+                seller_id: m.recipient_id,
+                buyer_id: userId,
+                original_price: p.original_price,
+                offered_price: p.offered_price,
+                quantity: p.quantity,
+                unit: p.unit,
+                difference: p.difference,
+                percentage: p.percentage,
+                notes: p.notes,
+                status: p.status || "pending",
+                created_at: m.created_at,
+              });
+            }
+          } catch {}
+        }
+      }
+    }
+
+    // 3. Fetch auction listings where the user placed bids
+    const { data: auctionListings } = await supabase
+      .from("listings")
+      .select("id, title, images, price, stock, unit, auction, created_at, status, seller, owner_id")
+      .eq("sale_type", "enchere");
+
+    const userAuctionItems: any[] = [];
+    if (auctionListings && auctionListings.length > 0) {
+      for (const al of auctionListings) {
+        const a = (al.auction && typeof al.auction === "object" ? al.auction : {}) as AuctionJson;
+        const bids: any[] = Array.isArray(a.bids) ? a.bids : [];
+        const userBids = bids.filter((b: any) => (b.bidderId || b.bidder_id) === userId);
+        if (userBids.length > 0) {
+          const sortedAllBids = [...bids].sort((x, y) => Number(y.amount) - Number(x.amount));
+          const highestBidObj = sortedAllBids[0];
+          const isHighest = (highestBidObj?.bidderId || highestBidObj?.bidder_id) === userId;
+          const userHighestBid = Math.max(...userBids.map((b) => Number(b.amount)));
+          const latestUserBid = userBids[userBids.length - 1];
+
+          let auctionStatus: "won" | "active" | "outbid" = "active";
+          if (al.status === "sold" || (a.endsAt && new Date(a.endsAt) < new Date())) {
+            auctionStatus = isHighest ? "won" : "outbid";
+          } else {
+            auctionStatus = isHighest ? "active" : "outbid";
+          }
+
+          userAuctionItems.push({
+            id: `auction_bid_${al.id}`,
+            listingId: al.id,
+            sellerId: al.owner_id,
+            amount: userHighestBid,
+            status: auctionStatus,
+            createdAt: latestUserBid?.createdAt || latestUserBid?.created_at || latestUserBid?.timestamp || al.created_at,
+            listing: al,
+          });
+        }
+      }
+    }
+
+    // Collect all listing IDs and seller IDs
+    const listingIdSet = new Set<string>();
+    const sellerIdSet = new Set<string>();
+
+    for (const r of dbQtyReqs) {
+      if (r.listing_id) listingIdSet.add(r.listing_id);
+      if (r.seller_id) sellerIdSet.add(r.seller_id);
+    }
+    for (const o of dbOffers) {
+      if (o.listing_id) listingIdSet.add(o.listing_id);
+      if (o.seller_id) sellerIdSet.add(o.seller_id);
+    }
+    for (const a of userAuctionItems) {
+      if (a.listingId) listingIdSet.add(a.listingId);
+      if (a.sellerId) sellerIdSet.add(a.sellerId);
+    }
+
+    // Fetch listings
+    const listingsMap = new Map<string, any>();
+    let signedImagesMap = new Map<string, string>();
+    if (listingIdSet.size > 0) {
+      const { data: listings } = await supabase
+        .from("listings")
+        .select("id, title, images, price, unit, seller, stock, status, owner_id")
+        .in("id", Array.from(listingIdSet));
+
+      if (listings) {
+        signedImagesMap = await signListingImages(supabase, listings);
+        for (const l of listings) {
+          listingsMap.set(l.id, l);
+          if (l.owner_id) sellerIdSet.add(l.owner_id);
+        }
+      }
+    }
+
+    // Fetch seller profiles
+    const profilesMap = new Map<string, any>();
+    if (sellerIdSet.size > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, phone, email, account_type")
+        .in("id", Array.from(sellerIdSet));
+
+      if (profiles) {
+        for (const p of profiles) {
+          profilesMap.set(p.id, p);
+        }
+      }
+    }
+
+    // Helper to resolve seller
+    const resolveSeller = (sellerId: string, listing?: any) => {
+      const prof = profilesMap.get(sellerId);
+      const lSeller = (listing?.seller && typeof listing.seller === "object" ? listing.seller : {}) as any;
+      return {
+        id: sellerId,
+        name: prof?.full_name || lSeller?.name || "Vendeur",
+        phone: prof?.phone || lSeller?.phone || "",
+        email: prof?.email || "",
+        accountType: prof?.account_type || "particulier",
+      };
+    };
+
+    // 1. Process Quantity Requests (Direct)
+    for (const r of dbQtyReqs) {
+      const l = listingsMap.get(r.listing_id);
+      const sellerId = r.seller_id || l?.owner_id || "";
+      const titleObj = (l?.title && typeof l.title === "object" ? l.title : { ar: "إعلان", fr: "Article", en: "Item" }) as any;
+      const unit = r.unit || l?.unit || "piece";
+      const qty = Number(r.requested_quantity || 1);
+      const unitPrice = Number(r.unit_price || l?.price || 0);
+      const totalPrice = Number(r.total_value || (unitPrice * qty));
+
+      purchases.push({
+        id: r.id,
+        type: "direct",
+        listingId: r.listing_id,
+        listingTitle: titleObj,
+        listingImage: getListingFirstImage(l, signedImagesMap),
+        unit,
+        quantity: qty,
+        unitPrice,
+        totalPrice,
+        status: (r.status || "pending") as any,
+        createdAt: r.created_at,
+        deliveryLocation: r.delivery_location || "",
+        notes: r.notes || "",
+        seller: resolveSeller(sellerId, l),
+      });
+    }
+
+    // 2. Process Offers (Negotiation)
+    for (const o of dbOffers) {
+      const l = listingsMap.get(o.listing_id);
+      const sellerId = o.seller_id || l?.owner_id || "";
+      const titleObj = (l?.title && typeof l.title === "object" ? l.title : { ar: "إعلان", fr: "Article", en: "Item" }) as any;
+      const unit = o.unit || l?.unit || "piece";
+      const qty = Number(o.quantity || 1);
+      const offeredPrice = Number(o.offered_price || 0);
+      const unitPrice = qty > 0 ? (offeredPrice / qty) : offeredPrice;
+
+      purchases.push({
+        id: o.id,
+        type: "negociation",
+        listingId: o.listing_id,
+        listingTitle: titleObj,
+        listingImage: getListingFirstImage(l, signedImagesMap),
+        unit,
+        quantity: qty,
+        unitPrice,
+        totalPrice: offeredPrice,
+        status: (o.status || "pending") as any,
+        createdAt: o.created_at,
+        notes: o.notes || "",
+        seller: resolveSeller(sellerId, l),
+      });
+    }
+
+    // 3. Process Auctions
+    for (const a of userAuctionItems) {
+      const l = a.listing || listingsMap.get(a.listingId);
+      const titleObj = (l?.title && typeof l.title === "object" ? l.title : { ar: "مزاد", fr: "Enchère", en: "Auction" }) as any;
+      const unit = l?.unit || "piece";
+      const qty = Number(l?.stock || 1);
+
+      purchases.push({
+        id: a.id,
+        type: "auction",
+        listingId: a.listingId,
+        listingTitle: titleObj,
+        listingImage: getListingFirstImage(l, signedImagesMap),
+        unit,
+        quantity: qty,
+        unitPrice: a.amount,
+        totalPrice: a.amount,
+        status: a.status,
+        createdAt: a.createdAt,
+        seller: resolveSeller(a.sellerId, l),
+      });
+    }
+
+    // Sort all purchases by date descending
+    purchases.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+    // Compute summary
+    const confirmedList = purchases.filter((p) => p.status === "accepted" || p.status === "won");
+    const pendingList = purchases.filter((p) => p.status === "pending" || p.status === "active");
+    const totalSpent = confirmedList.reduce((acc, p) => acc + (p.totalPrice || 0), 0);
+
+    return {
+      purchases,
+      summary: {
+        totalPurchases: purchases.length,
+        confirmedPurchases: confirmedList.length,
+        pendingPurchases: pendingList.length,
+        totalSpent,
+      },
+    };
+  });
