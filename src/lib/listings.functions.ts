@@ -141,6 +141,37 @@ export const markListingSold = createServerFn({ method: "POST" })
     return { ok: true } as const;
   });
 
+/** Change the quantity still for sale. Zero stock marks the listing sold so it leaves the catalog. */
+export const setMyListingStock = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; stock: number }) => ({
+    id: String(d.id),
+    stock: Math.max(0, Number(d.stock) || 0),
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error: fetchErr } = await supabase
+      .from("listings")
+      .select("id, owner_id, unit, status")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    if (fetchErr || !row) return { ok: false as const, error: "not_found" };
+    if (row.owner_id !== userId) return { ok: false as const, error: "not_owner" };
+
+    const stock = row.unit === "libre" ? 0 : data.stock;
+    const status = row.unit !== "libre" && stock <= 0 ? "sold" : row.status === "sold" && stock > 0 ? "approved" : row.status;
+
+    const { error } = await supabase
+      .from("listings")
+      .update({ stock, status } as any)
+      .eq("id", data.id)
+      .eq("owner_id", userId);
+
+    if (error) return { ok: false as const, error: "failed" };
+    return { ok: true as const, stock, status };
+  });
+
 /**
  * Republish a listing as a brand-new post on the owner's account.
  * The sold listing stays sold; the copy is a separate row so it counts in the account total.

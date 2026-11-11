@@ -1,4 +1,5 @@
 import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import {
   AlertCircle,
@@ -33,6 +34,7 @@ import { minimumNextBid, participantCount, validateBid, type AuctionState } from
 import { auctionEndsAt } from "@/lib/demo-clock";
 import { getNegotiationRule, validateNegotiationOffer } from "@/lib/negotiation";
 import { clampQuantity, quantityTotal, UNIT_LABEL } from "@/lib/quantity";
+import { repostMyListing, setMyListingStock } from "@/lib/listings.functions";
 import {
   getListingBidders,
   placeAuctionBid,
@@ -42,6 +44,105 @@ import {
 
 const field =
   "h-11 w-full rounded-md border border-input bg-card px-3 text-sm outline-none focus:border-rust focus:ring-2 focus:ring-rust/25";
+
+function OwnerStockEditor({ listing }: { listing: Listing }) {
+  const { t, num } = useI18n();
+  const qc = useQueryClient();
+  const router = useRouter();
+  const saveStock = useServerFn(setMyListingStock);
+  const repost = useServerFn(repostMyListing);
+  const uObj = UNIT_LABEL[listing.unit as keyof typeof UNIT_LABEL] || UNIT_LABEL.piece;
+  const step = uObj.step;
+  const short = t(uObj.short);
+  const [stock, setStock] = useState(listing.stock);
+  const [busy, setBusy] = useState(false);
+
+  async function save() {
+    setBusy(true);
+    try {
+      const res = await saveStock({ data: { id: listing.id, stock } });
+      if (!res.ok) {
+        toast.error(t({ ar: "تعذر تحديث الكمية", fr: "Impossible de mettre à jour la quantité", en: "Could not update the quantity" }));
+        return;
+      }
+      toast.success(
+        res.status === "sold"
+          ? t({ ar: "الكمية صفر. الإعلان ما عادش يبان.", fr: "Quantité à zéro. L'annonce n'est plus en ligne.", en: "Quantity is zero. The listing is no longer public." })
+          : t({ ar: "تم تحديث الكمية المتوفرة.", fr: "Quantité disponible mise à jour.", en: "Available quantity updated." }),
+      );
+      await qc.invalidateQueries({ queryKey: ["catalog"] });
+      await qc.invalidateQueries({ queryKey: ["me", "listings"] });
+      await router.invalidate();
+    } catch {
+      toast.error(t({ ar: "تعذر تحديث الكمية", fr: "Impossible de mettre à jour la quantité", en: "Could not update the quantity" }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function republish() {
+    setBusy(true);
+    try {
+      const res = await repost({ data: { id: listing.id, stock: stock > 0 ? stock : undefined } });
+      if (!res.ok) {
+        toast.error(t({ ar: "تعذر إعادة النشر", fr: "Republication impossible", en: "Could not repost" }));
+        return;
+      }
+      toast.success(t({
+        ar: "أُعيد نشر الإعلان كإعلان جديد في حسابك.",
+        fr: "Annonce republiée : elle compte comme une nouvelle annonce sur votre compte.",
+        en: "Listing reposted. It counts as a new post on your account.",
+      }));
+      await qc.invalidateQueries({ queryKey: ["me", "listings"] });
+    } catch {
+      toast.error(t({ ar: "تعذر إعادة النشر", fr: "Republication impossible", en: "Could not repost" }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <OwnerWarningBanner />
+      <div>
+        <label htmlFor="owner-stock" className="label-stamp text-xs text-muted-foreground">
+          {t({ ar: "الكمية المتوفرة", fr: "Quantité disponible", en: "Available quantity" })}
+        </label>
+        <div className="mt-2 flex items-center gap-2">
+          <Button type="button" variant="outline" size="icon" className="size-11" disabled={busy || stock <= 0} onClick={() => setStock((n) => Math.max(0, Math.round((n - step) * 1000) / 1000))}>
+            <Minus />
+          </Button>
+          <div className="relative flex-1">
+            <input
+              id="owner-stock"
+              type="number"
+              min={0}
+              step={step}
+              value={stock}
+              onChange={(e) => setStock(Math.max(0, Number(e.target.value) || 0))}
+              className={`${field} pe-14 text-center font-display text-lg font-semibold`}
+            />
+            <span className="pointer-events-none absolute end-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">{short}</span>
+          </div>
+          <Button type="button" variant="outline" size="icon" className="size-11" disabled={busy} onClick={() => setStock((n) => Math.round((n + step) * 1000) / 1000)}>
+            <Plus />
+          </Button>
+        </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          {t({ ar: "المخزون الحالي:", fr: "Stock actuel :", en: "Current stock:" })} {num(listing.stock)} {short}
+        </p>
+      </div>
+      <Button type="button" variant="rust" size="lg" className="w-full" disabled={busy || stock === listing.stock} onClick={() => void save()}>
+        <Package /> {t({ ar: "حفظ الكمية المتوفرة", fr: "Enregistrer la quantité", en: "Save available quantity" })}
+      </Button>
+      {listing.stock <= 0 && (
+        <Button type="button" variant="outline" size="lg" className="w-full border-olive text-olive" disabled={busy} onClick={() => void republish()}>
+          {t({ ar: "إعادة النشر", fr: "Republier", en: "Repost" })}
+        </Button>
+      )}
+    </div>
+  );
+}
 
 function OwnerWarningBanner() {
   const { t } = useI18n();
@@ -179,11 +280,11 @@ export function FixedPricePanel({ listing }: { listing: Listing }) {
     }
   }
 
+  if (isOwner) return <OwnerStockEditor listing={listing} />;
+
   return (
     <div className="space-y-5">
-      {isOwner && <OwnerWarningBanner />}
-
-      {listing.stock > 1 && <QuantityStepper listing={listing} value={qty} onChange={setQty} disabled={isOwner} />}
+      {listing.stock > 1 && <QuantityStepper listing={listing} value={qty} onChange={setQty} />}
 
       <dl className="space-y-2 rounded-lg bg-muted/70 p-4 text-sm">
         <div className="flex justify-between">
@@ -211,7 +312,6 @@ export function FixedPricePanel({ listing }: { listing: Listing }) {
           className={`${field} mt-1.5`}
           value={delivery}
           onChange={(e) => setDelivery(e.target.value)}
-          disabled={isOwner}
         />
       </div>
 
@@ -220,7 +320,7 @@ export function FixedPricePanel({ listing }: { listing: Listing }) {
         size="lg"
         className="w-full"
         onClick={flow.start}
-        disabled={isOwner || listing.stock <= 0}
+        disabled={listing.stock <= 0}
       >
         <ShoppingCart /> {t({ ar: "اطلب هذه الكمية", fr: "Demander cette quantité", en: "Request this quantity" })}
       </Button>
@@ -318,9 +418,10 @@ export function OfferPanel({ listing }: { listing: Listing }) {
     }
   }
 
+  if (isOwner) return <OwnerStockEditor listing={listing} />;
+
   return (
     <form className="space-y-5" onSubmit={onSubmitForm}>
-      {isOwner && <OwnerWarningBanner />}
 
       {/* Dynamic Rule Info Banner */}
       <div className="rounded-lg border border-border bg-muted/60 p-3.5 text-xs">
@@ -337,7 +438,7 @@ export function OfferPanel({ listing }: { listing: Listing }) {
         </p>
       </div>
 
-      {listing.stock > 1 && <QuantityStepper listing={listing} value={qty} onChange={setQty} disabled={isOwner} />}
+      {listing.stock > 1 && <QuantityStepper listing={listing} value={qty} onChange={setQty} />}
 
       <div>
         <div className="flex items-center justify-between">
@@ -360,7 +461,6 @@ export function OfferPanel({ listing }: { listing: Listing }) {
           className={`${field} mt-1.5 ${!validation.ok && offerNum > 0 ? "border-destructive focus:ring-destructive/25" : ""}`}
           value={offer}
           onChange={(e) => setOffer(e.target.value)}
-          disabled={isOwner}
         />
         {!validation.ok && offerNum > 0 && validation.message && (
           <p className="mt-1.5 flex items-center gap-1 text-xs text-destructive">
@@ -377,7 +477,7 @@ export function OfferPanel({ listing }: { listing: Listing }) {
         </span>
       </div>
 
-      <Button type="submit" variant="rust" size="lg" className="w-full" disabled={isOwner || !validation.ok}>
+      <Button type="submit" variant="rust" size="lg" className="w-full" disabled={!validation.ok}>
         <HandCoins /> {t({ ar: "قدّم عرض", fr: "Faire une offre", en: "Make an offer" })}
       </Button>
 
