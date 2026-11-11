@@ -167,14 +167,19 @@ CREATE POLICY "sub_requests_delete_admin" ON public.subscription_requests
 CREATE TABLE IF NOT EXISTS public.messages (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   listing_id text REFERENCES public.listings(id) ON DELETE CASCADE,
-  sender_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  sender_id uuid REFERENCES auth.users(id) ON DELETE CASCADE,
   recipient_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  sender_name text DEFAULT '',
   content text NOT NULL CHECK (char_length(content) > 0 AND char_length(content) <= 2000),
   sender_phone text DEFAULT '',
   sender_email text DEFAULT '',
   is_read boolean NOT NULL DEFAULT false,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Rendre sender_id optionnel pour permettre aux visiteurs sans compte d'envoyer un message
+ALTER TABLE public.messages ALTER COLUMN sender_id DROP NOT NULL;
+ALTER TABLE public.messages ADD COLUMN IF NOT EXISTS sender_name text DEFAULT '';
 
 CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON public.messages(recipient_id);
 CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON public.messages(sender_id);
@@ -183,6 +188,7 @@ CREATE INDEX IF NOT EXISTS idx_messages_created_at ON public.messages(created_at
 
 ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
 GRANT SELECT, INSERT, UPDATE, DELETE ON public.messages TO authenticated;
+GRANT INSERT ON public.messages TO anon;
 GRANT ALL ON public.messages TO service_role;
 
 DROP POLICY IF EXISTS "messages_select_involved" ON public.messages;
@@ -198,9 +204,15 @@ DROP POLICY IF EXISTS "messages_insert_sender" ON public.messages;
 CREATE POLICY "messages_insert_sender" ON public.messages
   FOR INSERT TO authenticated
   WITH CHECK (
-    auth.uid() = sender_id
-    AND auth.uid() != recipient_id
+    recipient_id IS NOT NULL
     AND NOT public.is_blocked(auth.uid())
+  );
+
+DROP POLICY IF EXISTS "messages_insert_anon" ON public.messages;
+CREATE POLICY "messages_insert_anon" ON public.messages
+  FOR INSERT TO anon
+  WITH CHECK (
+    recipient_id IS NOT NULL
   );
 
 DROP POLICY IF EXISTS "messages_update_recipient" ON public.messages;

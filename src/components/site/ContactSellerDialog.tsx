@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
-import { Loader2, MessageSquare, Send } from "lucide-react";
+import { Loader2, MessageSquare, Send, User } from "lucide-react";
 import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -10,7 +11,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { sendMessageToSeller, type SendMessageResult } from "@/lib/services.functions";
-import { AccountRequiredDialog } from "./ActionDialogs";
 
 interface ContactSellerDialogProps {
   listingId: string;
@@ -25,16 +25,13 @@ export function ContactSellerDialog({ listingId, listingTitle, sellerName, trigg
   const send = useServerFn(sendMessageToSeller);
 
   const [open, setOpen] = useState(false);
-  const [needAccount, setNeedAccount] = useState(false);
   const [content, setContent] = useState("");
+  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [busy, setBusy] = useState(false);
 
   const handleOpen = () => {
-    if (!user) {
-      setNeedAccount(true);
-      return;
-    }
     setOpen(true);
   };
 
@@ -44,30 +41,59 @@ export function ContactSellerDialog({ listingId, listingTitle, sellerName, trigg
       return;
     }
 
+    if (!user && !phone.trim() && !email.trim()) {
+      toast.error(
+        t({
+          ar: "الرجاء إدخال رقم هاتفك أو بريدك الإلكتروني ليتمكن البائع من الرد عليك.",
+          fr: "Veuillez indiquer un numéro de téléphone ou un email pour que le vendeur puisse vous répondre.",
+          en: "Please provide a phone number or email so the seller can get back to you.",
+        })
+      );
+      return;
+    }
+
     setBusy(true);
     const res: SendMessageResult = await send({
-      data: { listingId, content: content.trim(), phone: phone.trim() },
+      data: {
+        listingId,
+        content: content.trim(),
+        phone: phone.trim(),
+        email: email.trim(),
+        name: name.trim() || (user ? "" : "Visiteur"),
+      },
     }).catch(() => ({ ok: false, error: "failed" }) as const);
     setBusy(false);
 
     if (res.ok) {
-      toast.success(t({ ar: "تم إرسال الرسالة إلى البائع بنجاح!", fr: "Message envoyé avec succès au vendeur !", en: "Message sent successfully to seller!" }), {
-        description: t({
-          ar: "البائع سيتلقى رسالتك في صندوق رسائله على الموقع.",
-          fr: "Le vendeur recevra votre message dans son espace membre.",
-          en: "The seller will receive your message in their member space.",
+      toast.success(
+        t({
+          ar: "تم إرسال الرسالة إلى البائع بنجاح!",
+          fr: "Message envoyé avec succès au vendeur !",
+          en: "Message sent successfully to seller!",
         }),
-      });
+        {
+          description: t({
+            ar: "سيتلقى البائع رسالتك ويمكنه مراسلتك مباشرة على الموقع أو عبر الهاتف/الواتساب.",
+            fr: "Le vendeur a reçu votre message et pourra vous répondre directement sur le site ou par téléphone/WhatsApp.",
+            en: "The seller received your message and can reply directly on the site or via phone/WhatsApp.",
+          }),
+        }
+      );
       setContent("");
+      setName("");
+      setPhone("");
+      setEmail("");
       setOpen(false);
     } else if (res.error === "self") {
       toast.error(t({ ar: "هذا إعلانك الخاص!", fr: "C'est votre propre annonce !", en: "This is your own listing!" }));
     } else if (res.error === "not_ready") {
-      toast.error(t({
-        ar: "المراسلة قيد التفعيل. حاول لاحقاً.",
-        fr: "La messagerie est en cours d'activation. Réessayez plus tard.",
-        en: "Messaging is being set up. Try again later.",
-      }));
+      toast.error(
+        t({
+          ar: "المراسلة قيد التفعيل. حاول لاحقاً.",
+          fr: "La messagerie est en cours d'activation. Réessayez plus tard.",
+          en: "Messaging is being set up. Try again later.",
+        })
+      );
     } else {
       toast.error(t({ ar: "فشل إرسال الرسالة. حاول ثانية.", fr: "Échec de l'envoi. Réessayez.", en: "Failed to send message. Try again." }));
     }
@@ -83,34 +109,70 @@ export function ContactSellerDialog({ listingId, listingTitle, sellerName, trigg
         </Button>
       )}
 
-      <AccountRequiredDialog open={needAccount} onClose={() => setNeedAccount(false)} reason="contacter" />
-
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent dir={dir} className="max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MessageSquare className="size-5 text-rust" />
-              {t({ ar: "مراسلة البائع", fr: "Contacter le vendeur", en: "Contact seller" })}
-            </DialogTitle>
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle className="flex items-center gap-2">
+                <MessageSquare className="size-5 text-rust" />
+                {t({ ar: "مراسلة البائع", fr: "Contacter le vendeur", en: "Contact seller" })}
+              </DialogTitle>
+              {!user && (
+                <Badge variant="outline" className="text-[0.65rem] border-olive/40 text-olive">
+                  {t({ ar: "إرسال مباشر", fr: "Sans compte requis", en: "No account required" })}
+                </Badge>
+              )}
+            </div>
             <DialogDescription>
               {t({ ar: "للبائع :", fr: "Vendeur :", en: "Seller:" })} <span className="font-semibold text-foreground">{sellerName}</span> · « {listingTitle} »
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            <div className="space-y-1.5">
-              <Label htmlFor="contact-phone">
-                {t({ ar: "رقم هاتفك (اختياري للرد السريع)", fr: "Votre téléphone (facultatif pour rappel rapide)", en: "Your phone (optional for quick reply)" })}
-              </Label>
-              <Input
-                id="contact-phone"
-                type="tel"
-                placeholder="+216 00 000 000"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                dir="ltr"
-              />
-            </div>
+          <div className="space-y-3.5 py-2">
+            {!user && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="contact-name">
+                    {t({ ar: "اسمك", fr: "Votre nom", en: "Your name" })}
+                  </Label>
+                  <Input
+                    id="contact-name"
+                    placeholder={t({ ar: "مثال: منصف", fr: "Ex. : Moncef", en: "e.g. Moncef" })}
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="contact-phone">
+                    {t({ ar: "رقم هاتفك", fr: "Votre téléphone", en: "Your phone" })} <span className="text-destructive">*</span>
+                  </Label>
+                  <Input
+                    id="contact-phone"
+                    type="tel"
+                    placeholder="+216 00 000 000"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    dir="ltr"
+                  />
+                </div>
+              </div>
+            )}
+
+            {user && (
+              <div className="space-y-1.5">
+                <Label htmlFor="contact-phone">
+                  {t({ ar: "رقم هاتفك (اختياري للرد السريع)", fr: "Votre téléphone (facultatif pour rappel rapide)", en: "Your phone (optional for quick reply)" })}
+                </Label>
+                <Input
+                  id="contact-phone"
+                  type="tel"
+                  placeholder="+216 00 000 000"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  dir="ltr"
+                />
+              </div>
+            )}
 
             <div className="space-y-1.5">
               <Label htmlFor="contact-message">
@@ -121,9 +183,9 @@ export function ContactSellerDialog({ listingId, listingTitle, sellerName, trigg
                 rows={4}
                 maxLength={2000}
                 placeholder={t({
-                  ar: "مثال: مرحباً، السلعة مازالت متوفرة؟ وين نجم نشوفها؟",
-                  fr: "Ex. : Bonjour, l'article est-il toujours disponible ? Est-il possible de le voir ?",
-                  en: "e.g. Hello, is this item still available? Can I inspect it?",
+                  ar: "مثال: مرحباً، السلعة مازالت متوفرة؟ كلمني نتفاهمو.",
+                  fr: "Ex. : Bonjour, l'article est-il toujours disponible ? Contactez-moi pour convenir d'un rendez-vous.",
+                  en: "e.g. Hello, is this item still available? Contact me to discuss.",
                 })}
                 value={content}
                 onChange={(e) => setContent(e.target.value)}

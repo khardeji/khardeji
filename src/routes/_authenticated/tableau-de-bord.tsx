@@ -30,6 +30,7 @@ import { STATUS_BADGE } from "@/components/admin/Listings";
 import { Confirm, Loading } from "@/components/admin/shared";
 import { BoostDialog } from "@/components/site/BoostDialog";
 import { EditListingDialog } from "@/components/site/EditListingDialog";
+import { MessengerChat } from "@/components/site/MessengerChat";
 import { PageHeader } from "@/components/site/SectionHeading";
 import { BuyTokensDialog, SubscribePlanDialog } from "@/components/site/ServiceOrderDialogs";
 import { Badge } from "@/components/ui/badge";
@@ -723,77 +724,32 @@ export function DashboardPage() {
 
             {/* TAB 3: MESSAGES & CONTACTS */}
             <TabsContent value="messages" className="space-y-4">
-              <div className="surface-card p-6">
-                <h3 className="text-lg font-semibold">{t({ ar: "المراسلات الواردة من المشترين", fr: "Messages reçus de vos acheteurs", en: "Messages received from buyers" })}</h3>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {t({
-                    ar: "المستخدمون الذين قاموا بالضغط على «راسل» في إعلاناتك للاتصال بك.",
-                    fr: "Les visiteurs et acheteurs qui ont utilisé le bouton « Contacter » sur vos annonces.",
-                    en: "Buyers who contacted you through the 'Contact' button on your listings.",
-                  })}
-                </p>
-
-                {messagesLoading ? (
-                  <div className="p-8"><Loading /></div>
-                ) : !messages || messages.length === 0 ? (
-                  <p className="mt-6 rounded-md bg-muted p-8 text-center text-sm text-muted-foreground">
-                    {t({ ar: "لم تتلق أي رسائل بعد.", fr: "Aucun message reçu pour le moment.", en: "No messages received yet." })}
+              <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <h3 className="text-lg font-semibold">
+                    {t({ ar: "المحادثات والرسائل المباشرة", fr: "Messagerie & Discussions en direct", en: "Live Messaging & Chat" })}
+                  </h3>
+                  <p className="text-xs text-muted-foreground">
+                    {t({
+                      ar: "تبادل الرسائل مع المشترين مثل الماسنجر والرد عليهم مباشرة أو عبر الواتساب.",
+                      fr: "Discutez avec vos acheteurs en direct comme sur Messenger et répondez-leur en un clic.",
+                      en: "Chat with buyers back and forth like Messenger and reply instantly.",
+                    })}
                   </p>
-                ) : (
-                  <div className="mt-6 space-y-3">
-                    {messages.map((m: MessageItem) => (
-                      <div
-                        key={m.id}
-                        className={`rounded-xl border p-4 transition ${
-                          !m.isRead && !m.isMine ? "border-rust bg-rust/5" : "border-border bg-card"
-                        }`}
-                      >
-                        <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-                          <div className="flex items-center gap-2">
-                            <span className="font-semibold text-foreground">{m.senderName}</span>
-                            {m.isMine && (
-                              <Badge variant="outline" className="text-[0.65rem]">{t({ ar: "مرسلة منّي", fr: "Envoyé par moi", en: "Sent by me" })}</Badge>
-                            )}
-                            {!m.isRead && !m.isMine && (
-                              <Badge variant="destructive" className="text-[0.65rem]">{t({ ar: "جديدة", fr: "Nouveau", en: "New" })}</Badge>
-                            )}
-                          </div>
-                          <span className="text-xs text-muted-foreground">{date(m.createdAt)}</span>
-                        </div>
-
-                        {m.listingTitle && (
-                          <p className="mt-1 text-xs text-rust font-medium">
-                            {t({ ar: "بخصوص :", fr: "Concerne :", en: "About:" })} « {t(m.listingTitle)} »
-                          </p>
-                        )}
-
-                        <p className="mt-3 rounded-lg bg-background/80 p-3 text-sm text-foreground whitespace-pre-line border border-border/50">
-                          {m.content}
-                        </p>
-
-                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/40 text-xs">
-                          <div className="flex items-center gap-3">
-                            {m.senderPhone && (
-                              <a href={`tel:${m.senderPhone}`} className="flex items-center gap-1 text-olive hover:underline font-mono">
-                                <Phone className="size-3.5" /> {m.senderPhone}
-                              </a>
-                            )}
-                            {m.senderEmail && (
-                              <span className="text-muted-foreground">{m.senderEmail}</span>
-                            )}
-                          </div>
-
-                          {!m.isRead && !m.isMine && (
-                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => void handleMarkRead(m.id)}>
-                              <Check className="size-3.5" /> {t({ ar: "تحديد كمقروء", fr: "Marquer comme lu", en: "Mark as read" })}
-                            </Button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
+                </div>
               </div>
+
+              {messagesLoading ? (
+                <div className="surface-card p-12"><Loading /></div>
+              ) : (
+                <MessengerChat
+                  messages={messages ?? []}
+                  onReplySent={() => {
+                    void qc.invalidateQueries({ queryKey: ["me", "messages"] });
+                    void qc.invalidateQueries({ queryKey: ["me", "overview"] });
+                  }}
+                />
+              )}
             </TabsContent>
 
             {/* TAB 4: SUBSCRIPTION & REQUESTS */}

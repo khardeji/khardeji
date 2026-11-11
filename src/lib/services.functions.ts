@@ -1,8 +1,23 @@
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
+import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import type { Database } from "@/integrations/supabase/types";
 import type { Msg } from "./i18n";
 
 const missingRelation = (code?: string) => code === "PGRST205" || code === "42P01" || code === "42703";
+
+function getPublicSupabase() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "";
+  const key = process.env.SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.VITE_SUPABASE_PUBLISHABLE_KEY || "";
+  return createClient<Database>(url, key, {
+    auth: {
+      storage: undefined,
+      persistSession: false,
+      autoRefreshToken: false,
+    },
+  });
+}
 
 export interface AccountOverview {
   tokensBalance: number;
@@ -133,12 +148,13 @@ export const getMyMessages = createServerFn({ method: "GET" })
 
       return rawMessages.map((m) => {
         const otherProfile = profilesMap.get(m.sender_id === userId ? m.recipient_id : m.sender_id);
+        const customName = (m as any).sender_name;
         return {
           id: m.id,
           listingId: m.listing_id,
           listingTitle: m.listing_id ? listingsMap.get(m.listing_id) ?? null : null,
           senderId: m.sender_id,
-          senderName: otherProfile?.full_name || (m.sender_id === userId ? "Moi" : "Visiteur"),
+          senderName: customName || otherProfile?.full_name || (m.sender_id === userId ? "Moi" : "Visiteur"),
           senderPhone: m.sender_phone || otherProfile?.phone || "",
           senderEmail: m.sender_email || otherProfile?.email || "",
           recipientId: m.recipient_id,
@@ -166,38 +182,123 @@ export const markMessageRead = createServerFn({ method: "POST" })
 
 export type SendMessageResult = { ok: true } | { ok: false; error: "empty" | "self" | "not_found" | "not_ready" | "failed" };
 
-/** Send a message to a seller regarding a listing. */
+/** Send a message to a seller regarding a listing (supports both members and visitors). */
 export const sendMessageToSeller = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
-  .inputValidator((d: { listingId: string; content: string; phone?: string }) => ({
-    listingId: String(d.listingId),
-    content: String(d.content).trim().slice(0, 2000),
-    phone: String(d.phone ?? "").trim().slice(0, 30),
-  }))
-  .handler(async ({ data, context }): Promise<SendMessageResult> => {
-    const { supabase, userId } = context;
+  .inputValidator(
+    (d: {
+      listingId: string;
+      content: string;
+      phone?: string;
+      email?: string;
+      name?: string;
+    }) => ({
+      listingId: String(d.listingId),
+      content: String(d.content).trim().slice(0, 2000),
+      phone: String(d.phone ?? "").trim().slice(0, 30),
+      email: String(d.email ?? "").trim().slice(0, 100),
+      name: String(d.name ?? "").trim().slice(0, 120),
+    })
+  )
+  .handler(async ({ data }): Promise<SendMessageResult> => {
     if (!data.content) return { ok: false, error: "empty" };
 
-    const { data: listing, error: listErr } = await supabase.from("listings").select("owner_id").eq("id", data.listingId).maybeSingle();
-    if (listErr || !listing) return { ok: false, error: "not_found" };
-    if (!listing.owner_id || listing.owner_id === userId) return { ok: false, error: "self" };
+    const sb = getPublicSupabase();
 
-    const { data: profile } = await supabase.from("profiles").select("email, phone").eq("id", userId).maybeSingle();
+    // Check optional token if user is signed in
+    let userId: string | null = null;
+    let userProfile: { email?: string; phone?: string; full_name?: string } | null = null;
+    try {
+      const request = getRequest();
+      const authHeader = request?.headers?.get("authorization");
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.replace("Bearer ", "");
+        const claims = await sb.auth.getClaims(token).catch(() => null);
+        if (claims?.data?.claims?.sub) {
+          userId = claims.data.claims.sub;
+          const { data: prof } = await sb.from("profiles").select("email, phone, full_name").eq("id", userId).maybeSingle();
+          userProfile = prof;
+        }
+      }
+    } catch {
+      // Unauthenticated visitor
+    }
 
-    const { error } = await supabase.from("messages").insert({
+    const { data: listing, error: listErr } = await sb
+      .from("listings")
+      .select("owner_id")
+      .eq("id", data.listingId)
+      .maybeSingle();
+
+    if (listErr || !listing || !listing.owner_id) return { ok: false, error: "not_found" };
+    if (userId && listing.owner_id === userId) return { ok: false, error: "self" };
+
+    const senderName = data.name || userProfile?.full_name || "Visiteur";
+    const senderPhone = data.phone || userProfile?.phone || "";
+    const senderEmail = data.email || userProfile?.email || "";
+
+    const { error } = await sb.from("messages").insert({
       listing_id: data.listingId,
       sender_id: userId,
       recipient_id: listing.owner_id,
+      sender_name: senderName,
+      sender_phone: senderPhone,
+      sender_email: senderEmail,
       content: data.content,
-      sender_phone: data.phone || profile?.phone || "",
-      sender_email: profile?.email || "",
       is_read: false,
-    });
+    } as any);
 
     if (!error) return { ok: true };
     if (missingRelation(error.code)) return { ok: false, error: "not_ready" };
     console.error("send message error", error.message);
     return { ok: false, error: "failed" };
+  });
+
+/** Reply to a discussion thread as the seller/member. */
+export const replyToConversation = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: {
+      listingId: string;
+      recipientId?: string | null;
+      content: string;
+      recipientPhone?: string;
+      recipientEmail?: string;
+    }) => ({
+      listingId: String(d.listingId),
+      recipientId: d.recipientId ? String(d.recipientId) : null,
+      content: String(d.content).trim().slice(0, 2000),
+      recipientPhone: String(d.recipientPhone ?? "").trim().slice(0, 30),
+      recipientEmail: String(d.recipientEmail ?? "").trim().slice(0, 100),
+    })
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    if (!data.content) return { ok: false as const, error: "empty" };
+
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("full_name, phone, email")
+      .eq("id", userId)
+      .maybeSingle();
+
+    const targetRecipient = data.recipientId && data.recipientId !== userId ? data.recipientId : userId;
+
+    const { error } = await supabase.from("messages").insert({
+      listing_id: data.listingId || null,
+      sender_id: userId,
+      recipient_id: targetRecipient,
+      sender_name: profile?.full_name || "Vendeur",
+      sender_phone: profile?.phone || "",
+      sender_email: profile?.email || "",
+      content: data.content,
+      is_read: false,
+    } as any);
+
+    if (error) {
+      console.error("replyToConversation error:", error.message);
+      return { ok: false as const, error: "failed" };
+    }
+    return { ok: true as const };
   });
 
 export const BOOST_COSTS: Record<string, number> = {
