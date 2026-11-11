@@ -39,7 +39,8 @@ export function NotificationBell() {
     queryKey: ["me", "notifications"],
     queryFn: () => fetchNotifs(),
     enabled: !!user,
-    refetchInterval: 15_000, // Poll every 15s for real-time responsiveness
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
   });
 
   if (!user) return null;

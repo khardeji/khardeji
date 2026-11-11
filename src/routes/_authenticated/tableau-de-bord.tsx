@@ -131,48 +131,64 @@ export function DashboardPage() {
     queryKey: ["me", "overview"],
     queryFn: () => fetchOverview(),
     enabled: !!user,
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
     retry: false,
   });
   const { data: listings, isLoading: listingsLoading } = useQuery({
     queryKey: ["me", "listings"],
     queryFn: () => fetchListings(),
     enabled: !!user,
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
     retry: false,
   });
   const { data: messages, isLoading: messagesLoading } = useQuery({
     queryKey: ["me", "messages"],
     queryFn: () => fetchMessages(),
     enabled: !!user,
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
     retry: false,
   });
   const { data: requests } = useQuery({
     queryKey: ["me", "requests"],
     queryFn: () => fetchRequests(),
     enabled: !!user,
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
     retry: false,
   });
   const { data: boosts } = useQuery({
     queryKey: ["me", "boosts"],
     queryFn: () => fetchBoosts(),
     enabled: !!user,
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
     retry: false,
   });
   const { data: incomingOffers } = useQuery({
     queryKey: ["me", "offers", "incoming"],
     queryFn: () => fetchIncomingOffers(),
     enabled: !!user,
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
     retry: false,
   });
   const { data: sellerQtyReqs } = useQuery({
     queryKey: ["me", "qty_requests", "seller"],
     queryFn: () => fetchSellerQtyReqs(),
     enabled: !!user,
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
     retry: false,
   });
   const { data: purchasesData } = useQuery({
     queryKey: ["me", "purchases"],
     queryFn: () => fetchPurchases(),
     enabled: !!user,
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
     retry: false,
   });
 
