@@ -19,12 +19,6 @@ export function AccountNav({ current }: AccountNavProps) {
       label: { ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" },
     },
     {
-      id: "demandes",
-      to: "/mes-demandes" as const,
-      icon: Package,
-      label: { ar: "طلبات الكميات", fr: "Demandes de quantité", en: "Quantity requests" },
-    },
-    {
       id: "favoris",
       to: "/mes-favoris" as const,
       icon: Heart,

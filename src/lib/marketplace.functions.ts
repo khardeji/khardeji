@@ -705,7 +705,7 @@ export const submitQuantityRequest = createServerFn({ method: "POST" })
           en: `Order request of ${data.quantity} ${listing.unit} on "${titleStr}".`,
         },
         listingId: data.listingId,
-        link: "/mes-demandes",
+        link: "/tableau-de-bord?tab=requests",
       });
     }
 
@@ -922,7 +922,7 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
           en: `The seller confirmed your order for ${reqQty} ${currentReq.unit}.`,
         },
         listingId: currentReq.listing_id,
-        link: "/mes-demandes",
+        link: "/tableau-de-bord?tab=requests",
       });
 
       return { ok: true as const, status: "accepted", remainingStock: newStock };
@@ -953,7 +953,7 @@ export const respondToQuantityRequest = createServerFn({ method: "POST" })
           en: `The seller was unable to fulfill your request for ${currentReq.requested_quantity} ${currentReq.unit}.`,
         },
         listingId: currentReq.listing_id,
-        link: "/mes-demandes",
+        link: "/tableau-de-bord?tab=requests",
       });
 
       return { ok: true as const, status: "rejected" };

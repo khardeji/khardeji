@@ -213,7 +213,7 @@ function ListingDetail() {
                     </Button>
                   ) : (
                     <Button asChild variant="rust" size="sm">
-                      <Link to="/mes-demandes">
+                      <Link to="/tableau-de-bord" search={{ tab: "requests" }}>
                         {t({ ar: "الطلبات", fr: "Commandes", en: "Requests" })}
                       </Link>
                     </Button>
