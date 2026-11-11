@@ -384,7 +384,7 @@ export const submitOffer = createServerFn({ method: "POST" })
           en: `A buyer offered ${data.offeredPrice} DT for "${titleStr}" (diff of ${diff} DT).`,
         },
         listingId: data.listingId,
-        link: "/mes-offres",
+        link: "/tableau-de-bord?tab=offers",
       });
     }
 
@@ -576,7 +576,7 @@ export const respondToOffer = createServerFn({ method: "POST" })
           : `The seller declined your offer of ${currentOffer.offered_price} DT.`,
       },
       listingId: currentOffer.listing_id,
-      link: "/mes-offres",
+      link: "/tableau-de-bord?tab=offers",
     });
 
     return { ok: true as const, status: data.action };

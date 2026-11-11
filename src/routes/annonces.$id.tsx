@@ -207,7 +207,7 @@ function ListingDetail() {
                   </Button>
                   {listing.saleType === "negociable" ? (
                     <Button asChild variant="rust" size="sm">
-                      <Link to="/mes-offres">
+                      <Link to="/tableau-de-bord" search={{ tab: "offers" }}>
                         {t({ ar: "العروض", fr: "Voir offres", en: "View offers" })}
                       </Link>
                     </Button>

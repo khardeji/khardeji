@@ -96,9 +96,6 @@ function AccountMenu() {
         <DropdownMenuItem onSelect={() => navigate({ to: "/mes-annonces" })}>
           <ListChecks /> {t(MY_LISTINGS)}
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => navigate({ to: "/mes-offres" })}>
-          <HandCoins /> {t(MY_OFFERS)}
-        </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => navigate({ to: "/mes-demandes" })}>
           <Package /> {t(MY_REQUESTS)}
         </DropdownMenuItem>
@@ -190,9 +187,6 @@ export function Header() {
                     </Link>
                     <Link to="/mes-annonces" className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
                       <ListChecks className="size-5" /> {t(MY_LISTINGS)}
-                    </Link>
-                    <Link to="/mes-offres" className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
-                      <HandCoins className="size-5" /> {t(MY_OFFERS)}
                     </Link>
                     <Link to="/mes-demandes" className="flex items-center gap-2 rounded-md px-3 py-3 font-display text-lg text-foreground hover:bg-accent/60 data-[status=active]:text-rust">
                       <Package className="size-5" /> {t(MY_REQUESTS)}

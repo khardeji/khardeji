@@ -13,6 +13,7 @@ import {
   Edit3,
   ExternalLink,
   Flame,
+  HandCoins,
   Home,
   Layers,
   Mail,
@@ -31,6 +32,7 @@ import { Confirm, Loading } from "@/components/admin/shared";
 import { BoostDialog } from "@/components/site/BoostDialog";
 import { EditListingDialog } from "@/components/site/EditListingDialog";
 import { MessengerChat } from "@/components/site/MessengerChat";
+import { OffersPanel } from "@/components/site/OffersPanel";
 import { PageHeader } from "@/components/site/SectionHeading";
 import { BuyTokensDialog, SubscribePlanDialog } from "@/components/site/ServiceOrderDialogs";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +43,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { deleteMyListing, getMyListings, markListingSold } from "@/lib/listings.functions";
+import { getIncomingOffers } from "@/lib/marketplace.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 import {
   getMyBoosts,
@@ -54,6 +57,11 @@ import {
 } from "@/lib/services.functions";
 
 export const Route = createFileRoute("/_authenticated/tableau-de-bord")({
+  validateSearch: (search: Record<string, unknown>): { tab?: "overview" | "listings" | "messages" | "offers" | "subscription" } => ({
+    tab: (["overview", "listings", "messages", "offers", "subscription"] as const).includes(search.tab as any)
+      ? (search.tab as any)
+      : undefined,
+  }),
   ssr: false,
   head: ({ match }) => ({
     meta: [
@@ -97,6 +105,7 @@ export function DashboardPage() {
   const removeListing = useServerFn(deleteMyListing);
   const markSold = useServerFn(markListingSold);
   const setRead = useServerFn(markMessageRead);
+  const fetchIncomingOffers = useServerFn(getIncomingOffers);
 
   const { data: overview, isLoading: overviewLoading } = useQuery({
     queryKey: ["me", "overview"],
@@ -128,8 +137,18 @@ export function DashboardPage() {
     enabled: !!user,
     retry: false,
   });
+  const { data: incomingOffers } = useQuery({
+    queryKey: ["me", "offers", "incoming"],
+    queryFn: () => fetchIncomingOffers(),
+    enabled: !!user,
+    retry: false,
+  });
 
-  const [activeTab, setActiveTab] = useState<"overview" | "listings" | "messages" | "subscription">("overview");
+  const search = Route.useSearch();
+  const [activeTab, setActiveTab] = useState<"overview" | "listings" | "messages" | "offers" | "subscription">(
+    search.tab || "overview"
+  );
+  const pendingOffersCount = (incomingOffers ?? []).filter((o) => o.status === "pending").length;
   const [boostListingId, setBoostListingId] = useState<string | undefined>();
   const [boostOpen, setBoostOpen] = useState(false);
   const [buyPackOpen, setBuyPackOpen] = useState(false);
@@ -362,6 +381,15 @@ export function DashboardPage() {
                 {(overview?.messagesCount.unread ?? 0) > 0 && (
                   <Badge variant="destructive" className="ms-1 px-1.5 py-0 text-[0.65rem]">
                     {overview?.messagesCount.unread}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="offers" className="gap-2 px-4 py-2">
+                <HandCoins className="size-4" />
+                {t({ ar: "عروض الأسعار", fr: "Offres & Négociations", en: "Offers & Deals" })}
+                {pendingOffersCount > 0 && (
+                  <Badge variant="destructive" className="ms-1 px-1.5 py-0 text-[0.65rem]">
+                    {pendingOffersCount}
                   </Badge>
                 )}
               </TabsTrigger>
@@ -752,7 +780,12 @@ export function DashboardPage() {
               )}
             </TabsContent>
 
-            {/* TAB 4: SUBSCRIPTION & REQUESTS */}
+            {/* TAB 4: OFFRES DE NÉGOCIATION */}
+            <TabsContent value="offers" className="space-y-4">
+              <OffersPanel />
+            </TabsContent>
+
+            {/* TAB 5: SUBSCRIPTION & REQUESTS */}
             <TabsContent value="subscription" className="space-y-6">
               <div className="surface-card p-6">
                 <h3 className="text-lg font-semibold">{t({ ar: "تفاصيل الباقة والاشتراك", fr: "Détails de votre offre & forfait", en: "Subscription plan details" })}</h3>
