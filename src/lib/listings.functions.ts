@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Json } from "@/integrations/supabase/types";
 import { resolveListingImages, rowToListing, STORAGE_PREFIX } from "./catalog-map";
-import { listingProblems, type ListingInput, type ListingProblem } from "./listing-rules";
+import { getEffectivePlan, listingProblems, PLAN_CONFIG, type ListingInput, type ListingProblem } from "./listing-rules";
 
 export type CreateListingResult = { ok: true; id: string } | { ok: false; error: ListingProblem | "blocked" | "failed" };
 
@@ -18,10 +18,30 @@ export const createListing = createServerFn({ method: "POST" })
 
     const { data: profile } = await supabase
       .from("profiles")
-      .select("full_name, phone, account_type, is_blocked, created_at, tokens_balance")
+      .select("full_name, phone, account_type, is_blocked, created_at, tokens_balance, subscription_plan, subscription_status, subscription_expires_at")
       .eq("id", userId)
       .maybeSingle();
     if (profile?.is_blocked) return { ok: false, error: "blocked" };
+
+    const userPlan = (profile as any)?.subscription_plan || "basique";
+    const expiresAt = (profile as any)?.subscription_expires_at;
+    const effectivePlan = getEffectivePlan(userPlan, expiresAt);
+    const planLimits = PLAN_CONFIG[effectivePlan] ?? PLAN_CONFIG.basique;
+
+    // Quota check: active and pending listings cannot exceed the user's plan limit
+    const { count: activeCount } = await supabase
+      .from("listings")
+      .select("id", { count: "exact", head: true })
+      .eq("owner_id", userId)
+      .in("status", ["approved", "pending"]);
+
+    if ((activeCount ?? 0) >= planLimits.maxListings) {
+      return { ok: false, error: "plan_limit_reached" };
+    }
+
+    if (data.photos.length > planLimits.maxPhotos) {
+      return { ok: false, error: "photos" };
+    }
 
     let tokenCost = 0;
     if (data.urgent) tokenCost += 3;
