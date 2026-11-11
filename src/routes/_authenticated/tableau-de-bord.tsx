@@ -7,8 +7,10 @@ import {
   Building2,
   Calendar,
   Check,
+  CheckCircle2,
   Coins,
   CreditCard,
+  Edit3,
   ExternalLink,
   Flame,
   Home,
@@ -27,16 +29,17 @@ import { toast } from "sonner";
 import { STATUS_BADGE } from "@/components/admin/Listings";
 import { Confirm, Loading } from "@/components/admin/shared";
 import { BoostDialog } from "@/components/site/BoostDialog";
+import { EditListingDialog } from "@/components/site/EditListingDialog";
 import { PageHeader } from "@/components/site/SectionHeading";
 import { BuyTokensDialog, SubscribePlanDialog } from "@/components/site/ServiceOrderDialogs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { LISTING_STATUS_LABEL, SALE_TYPE_LABEL, type ListingStatus } from "@/data/catalog";
+import { LISTING_STATUS_LABEL, SALE_TYPE_LABEL, type Listing, type ListingStatus } from "@/data/catalog";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
-import { deleteMyListing, getMyListings } from "@/lib/listings.functions";
+import { deleteMyListing, getMyListings, markListingSold } from "@/lib/listings.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 import {
   getMyBoosts,
@@ -91,6 +94,7 @@ export function DashboardPage() {
   const fetchRequests = useServerFn(getMyRequests);
   const fetchBoosts = useServerFn(getMyBoosts);
   const removeListing = useServerFn(deleteMyListing);
+  const markSold = useServerFn(markListingSold);
   const setRead = useServerFn(markMessageRead);
 
   const { data: overview, isLoading: overviewLoading } = useQuery({
@@ -129,8 +133,29 @@ export function DashboardPage() {
   const [boostOpen, setBoostOpen] = useState(false);
   const [buyPackOpen, setBuyPackOpen] = useState(false);
   const [planDialog, setPlanDialog] = useState<{ id: "pro" | "entreprise"; name: Msg; price: number; isRenewal?: boolean } | null>(null);
+  const [editingListing, setEditingListing] = useState<Listing | null>(null);
 
   const approvedListings = (listings ?? []).filter((l) => l.status === "approved");
+
+  const handleMarkSold = async (id: string) => {
+    const res = await markSold({ data: { id } }).catch(() => ({ ok: false as const }));
+    if (res.ok) {
+      toast.success(
+        t({
+          ar: "تم تحديد الإعلان كمباع! لم يعد يظهر على الموقع.",
+          fr: "Annonce marquée comme vendue ! Elle n'apparaît plus sur le site public.",
+          en: "Listing marked as sold! It is no longer visible on the site.",
+        })
+      );
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["me", "listings"] }),
+        qc.invalidateQueries({ queryKey: ["me", "overview"] }),
+        qc.invalidateQueries({ queryKey: ["catalog"] }),
+      ]);
+    } else {
+      toast.error(t({ ar: "فشل تحديث حالة الإعلان.", fr: "Échec de l'opération.", en: "Failed to mark as sold." }));
+    }
+  };
 
   const handleDeleteListing = async (id: string) => {
     const res = await removeListing({ data: { id } }).catch(() => ({ ok: false as const }));
@@ -425,7 +450,13 @@ export function DashboardPage() {
                   </p>
                 ) : (
                   <div className="mt-4 divide-y divide-border">
-                    {approvedListings.slice(0, 5).map((l) => (
+                    {approvedListings.slice(0, 5).map((l) => {
+                      const listingBoosts = (boosts ?? []).filter((b) => b.listingId === l.id);
+                      const hasUrgent = l.urgent || listingBoosts.some((b) => b.boostId === "urgent");
+                      const hasFeatured = l.featured || listingBoosts.some((b) => b.boostId === "a-la-une" || b.boostId === "premium-7j");
+                      const hasBumped = !!l.boostedAt || listingBoosts.some((b) => b.boostId === "remonter");
+
+                      return (
                       <div key={l.id} className="flex flex-col justify-between gap-3 py-3 sm:flex-row sm:items-center">
                         <div className="flex items-center gap-3">
                           {l.images?.[0] ? (
@@ -437,22 +468,22 @@ export function DashboardPage() {
                             <p className="font-semibold text-foreground">{t(l.title)}</p>
                             <p className="text-xs text-muted-foreground">{dt(l.price)} · {t(SALE_TYPE_LABEL[l.saleType])}</p>
                             <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                              {l.urgent && (
+                              {hasUrgent && (
                                 <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
                                   <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
                                 </Badge>
                               )}
-                              {l.featured && (
+                              {hasFeatured && (
                                 <Badge className="bg-brass text-brass-foreground font-semibold text-[0.65rem] gap-1 px-1.5 py-0">
                                   <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
                                 </Badge>
                               )}
-                              {l.boostedAt && (
+                              {hasBumped && (
                                 <Badge variant="outline" className="border-olive text-olive text-[0.65rem] gap-1 px-1.5 py-0">
                                   <Rocket className="size-3" /> {t({ ar: "تم ترويجها", fr: "Remontée", en: "Bumped" })}
                                 </Badge>
                               )}
-                              {!l.urgent && !l.featured && !l.boostedAt && (
+                              {!hasUrgent && !hasFeatured && !hasBumped && (
                                 <span className="text-[0.65rem] text-muted-foreground">{t({ ar: "بدون ترويج حالياً", fr: "Aucun boost actif", en: "No active boost" })}</span>
                               )}
                             </div>
@@ -478,7 +509,8 @@ export function DashboardPage() {
                           </Button>
                         </div>
                       </div>
-                    ))}
+                    );
+                  })}
                   </div>
                 )}
               </div>
@@ -577,6 +609,11 @@ export function DashboardPage() {
                 <div className="space-y-3">
                   {listings.map((l) => {
                     const st = l.status ?? "pending";
+                    const listingBoosts = (boosts ?? []).filter((b) => b.listingId === l.id);
+                    const hasUrgent = l.urgent || listingBoosts.some((b) => b.boostId === "urgent");
+                    const hasFeatured = l.featured || listingBoosts.some((b) => b.boostId === "a-la-une" || b.boostId === "premium-7j");
+                    const hasBumped = !!l.boostedAt || listingBoosts.some((b) => b.boostId === "remonter");
+
                     return (
                       <div key={l.id} className="surface-card flex flex-col gap-4 p-4 sm:flex-row sm:items-center">
                         {l.images?.[0] ? (
@@ -588,17 +625,17 @@ export function DashboardPage() {
                           <div className="flex flex-wrap items-center gap-2">
                             <Badge variant={STATUS_BADGE[st]}>{t(LISTING_STATUS_LABEL[st])}</Badge>
                             <Badge variant="outline">{t(SALE_TYPE_LABEL[l.saleType])}</Badge>
-                            {l.urgent && (
+                            {hasUrgent && (
                               <Badge variant="destructive" className="bg-rust text-white text-[0.65rem] gap-1 px-1.5 py-0 font-medium">
                                 <Flame className="size-3" /> {t({ ar: "مستعجل", fr: "Urgent", en: "Urgent" })}
                               </Badge>
                             )}
-                            {l.featured && (
+                            {hasFeatured && (
                               <Badge className="bg-brass text-brass-foreground font-semibold text-[0.65rem] gap-1 px-1.5 py-0">
                                 <BadgeCheck className="size-3" /> {t({ ar: "في الواجهة", fr: "À la une", en: "Featured" })}
                               </Badge>
                             )}
-                            {l.boostedAt && (
+                            {hasBumped && (
                               <Badge variant="outline" className="border-olive text-olive text-[0.65rem] gap-1 px-1.5 py-0">
                                 <Rocket className="size-3" /> {t({ ar: "تم ترويجها", fr: "Remontée", en: "Bumped" })}
                               </Badge>
@@ -606,28 +643,66 @@ export function DashboardPage() {
                           </div>
                           <h4 className="mt-1 truncate font-semibold text-foreground">{t(l.title)}</h4>
                           <p className="text-xs text-muted-foreground">{dt(l.price)} / {t(UNIT_LABEL[l.unit].short)}</p>
+                          {l.moderationNote && (
+                            <p className="mt-1 text-xs text-muted-foreground bg-muted/60 px-2 py-0.5 rounded inline-block">
+                              {l.moderationNote}
+                            </p>
+                          )}
                         </div>
 
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           {st === "approved" && (
+                            <>
+                              <Button
+                                size="sm"
+                                variant="rust"
+                                className="gap-1.5"
+                                onClick={() => {
+                                  setBoostListingId(l.id);
+                                  setBoostOpen(true);
+                                }}
+                              >
+                                <Rocket className="size-3.5" />
+                                {t({ ar: "ترويج", fr: "Booster", en: "Boost" })}
+                              </Button>
+                              <Confirm
+                                title={{ ar: "تحديد كمباع ؟", fr: "Marquer comme vendue ?", en: "Mark as sold?" }}
+                                message={{
+                                  ar: "هل تم بيع هذا المنتوج؟ لن يظهر الإعلان بعد ذلك على الموقع العام.",
+                                  fr: "Ce produit a-t-il été vendu ? L'annonce n'apparaîtra plus sur le site public.",
+                                  en: "Has this product been sold? It will no longer appear on the public site.",
+                                }}
+                                confirmLabel={t({ ar: "تأكيد البيع", fr: "Confirmer la vente", en: "Confirm sold" })}
+                                variant="rust"
+                                onConfirm={() => void handleMarkSold(l.id)}
+                                trigger={
+                                  <Button size="sm" variant="outline" className="gap-1 text-olive border-olive/30 hover:bg-olive/10">
+                                    <CheckCircle2 className="size-3.5" /> {t({ ar: "تم البيع", fr: "Vendue", en: "Sold" })}
+                                  </Button>
+                                }
+                              />
+                            </>
+                          )}
+
+                          {st !== "sold" && (
                             <Button
                               size="sm"
-                              variant="rust"
-                              className="gap-1.5"
-                              onClick={() => {
-                                setBoostListingId(l.id);
-                                setBoostOpen(true);
-                              }}
+                              variant="outline"
+                              className="gap-1"
+                              onClick={() => setEditingListing(l)}
                             >
-                              <Rocket className="size-3.5" />
-                              {t({ ar: "ترويج", fr: "Booster", en: "Boost" })}
+                              <Edit3 className="size-3.5" /> {t({ ar: "تعديل", fr: "Modifier", en: "Edit" })}
                             </Button>
                           )}
-                          <Button asChild size="sm" variant="outline">
-                            <Link to="/annonces/$id" params={{ id: l.id }}>
-                              <ExternalLink className="size-3.5" /> {t({ ar: "عرض", fr: "Voir", en: "View" })}
-                            </Link>
-                          </Button>
+
+                          {st === "approved" && (
+                            <Button asChild size="sm" variant="outline">
+                              <Link to="/annonces/$id" params={{ id: l.id }}>
+                                <ExternalLink className="size-3.5" /> {t({ ar: "عرض", fr: "Voir", en: "View" })}
+                              </Link>
+                            </Button>
+                          )}
+
                           <Confirm
                             onConfirm={() => void handleDeleteListing(l.id)}
                             trigger={
@@ -835,6 +910,16 @@ export function DashboardPage() {
         onClose={() => setPlanDialog(null)}
         onSuccess={() => {
           void qc.invalidateQueries({ queryKey: ["me", "requests"] });
+        }}
+      />
+
+      {/* Edit Listing Modal */}
+      <EditListingDialog
+        listing={editingListing}
+        open={!!editingListing}
+        onClose={() => setEditingListing(null)}
+        onSuccess={() => {
+          void qc.invalidateQueries({ queryKey: ["me", "listings"] });
         }}
       />
     </>

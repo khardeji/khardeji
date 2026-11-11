@@ -112,3 +112,90 @@ export const deleteMyListing = createServerFn({ method: "POST" })
     if (paths.length) await supabase.storage.from("listing-photos").remove(paths);
     return { ok: true as const };
   });
+
+/** Mark a listing as sold so it immediately disappears from public view. */
+export const markListingSold = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error: fetchErr } = await supabase
+      .from("listings")
+      .select("id, owner_id")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    if (fetchErr || !row) return { ok: false, error: "not_found" } as const;
+    if (row.owner_id !== userId) return { ok: false, error: "not_owner" } as const;
+
+    const { error } = await supabase
+      .from("listings")
+      .update({ status: "sold" } as any)
+      .eq("id", data.id)
+      .eq("owner_id", userId);
+
+    if (error) {
+      console.error("markListingSold failed", error.message);
+      return { ok: false, error: "failed" } as const;
+    }
+    return { ok: true } as const;
+  });
+
+/**
+ * Update listing details.
+ * Setting status to 'pending' ensures the modified listing undergoes
+ * admin re-moderation before going live again.
+ */
+export const updateMyListing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (d: {
+      id: string;
+      title: string;
+      description: string;
+      category: string;
+      subcategory: string;
+      governorate: string;
+      city: string;
+      price: number;
+      unit: string;
+      stock: number;
+    }) => d
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error: fetchErr } = await supabase
+      .from("listings")
+      .select("id, owner_id")
+      .eq("id", data.id)
+      .maybeSingle();
+
+    if (fetchErr || !row) return { ok: false, error: "not_found" } as const;
+    if (row.owner_id !== userId) return { ok: false, error: "not_owner" } as const;
+
+    const same = (s: string) => ({ ar: s.trim(), fr: s.trim(), en: s.trim() });
+
+    const { error } = await supabase
+      .from("listings")
+      .update({
+        title: same(data.title),
+        description: same(data.description.slice(0, 4000)),
+        category: data.category,
+        subcategory: data.subcategory,
+        governorate: data.governorate,
+        city: same(data.city.slice(0, 80)),
+        price: data.price,
+        unit: data.unit as any,
+        stock: data.unit === "libre" ? 0 : data.stock,
+        status: "pending", // Re-moderation required by admin
+        moderation_note: "Modification soumise par le vendeur — en attente de validation admin",
+      } as any)
+      .eq("id", data.id)
+      .eq("owner_id", userId);
+
+    if (error) {
+      console.error("updateMyListing failed", error.message);
+      return { ok: false, error: "failed" } as const;
+    }
+    return { ok: true } as const;
+  });

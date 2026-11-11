@@ -11,6 +11,7 @@ import { ReportButton } from "@/components/site/ReportButton";
 import { AuctionPanel, FixedPricePanel, OfferPanel } from "@/components/site/PurchasePanels";
 import { governorateLabel, SALE_TYPE_LABEL, SELLER_KIND_LABEL, subcategoryLabel } from "@/data/catalog";
 import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
+import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { useFavorites } from "@/lib/favorites";
 import { formatDT } from "@/lib/format";
@@ -68,6 +69,8 @@ function NotFound() {
 
 function ListingDetail() {
   const { listing } = Route.useLoaderData();
+  const { user } = useAuth();
+  const isOwner = Boolean(user?.id && listing.ownerId && user.id === listing.ownerId);
   const [active, setActive] = useState(0);
   const { isFavorite, toggle, needAccount, closeAccount } = useFavorites();
   const { t, dt, num, date } = useI18n();
@@ -188,11 +191,19 @@ function ListingDetail() {
               </div>
             </div>
             <div className="mt-4 grid grid-cols-2 gap-2">
-              <ContactSellerDialog
-                listingId={listing.id}
-                listingTitle={t(listing.title)}
-                sellerName={listing.seller.name}
-              />
+              {isOwner ? (
+                <Button variant="rust" asChild className="gap-1.5">
+                  <Link to="/tableau-de-bord">
+                    {t({ ar: "إدارة إعلاني", fr: "Gérer mon annonce", en: "Manage listing" })}
+                  </Link>
+                </Button>
+              ) : (
+                <ContactSellerDialog
+                  listingId={listing.id}
+                  listingTitle={t(listing.title)}
+                  sellerName={listing.seller.name}
+                />
+              )}
               {listing.seller.phone ? (
                 <Button variant="outline" asChild>
                   <a href={`tel:${listing.seller.phone.replace(/[^+\d]/g, "")}`} dir="ltr">

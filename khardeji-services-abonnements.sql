@@ -242,3 +242,22 @@ CREATE POLICY "listing_boosts_insert" ON public.listing_boosts
   FOR INSERT TO authenticated
   WITH CHECK (auth.uid() = user_id AND NOT public.is_blocked(auth.uid()));
 
+-- ----------------------------------------------------------------------------
+-- 8. Politiques RLS pour les annonces (public.listings) : Modification & Suppression
+-- ----------------------------------------------------------------------------
+-- Permet aux propriétaires de modifier leurs annonces (ex: boosts, vendu, modifications)
+-- et aux administrateurs de tout modérer.
+GRANT SELECT, INSERT, UPDATE, DELETE ON public.listings TO authenticated;
+
+DROP POLICY IF EXISTS "listings_update_owner" ON public.listings;
+CREATE POLICY "listings_update_owner" ON public.listings
+  FOR UPDATE TO authenticated
+  USING (auth.uid() = owner_id OR public.has_role(auth.uid(), 'admin'::public.app_role))
+  WITH CHECK (auth.uid() = owner_id OR public.has_role(auth.uid(), 'admin'::public.app_role));
+
+DROP POLICY IF EXISTS "listings_delete_owner" ON public.listings;
+CREATE POLICY "listings_delete_owner" ON public.listings
+  FOR DELETE TO authenticated
+  USING (auth.uid() = owner_id OR public.has_role(auth.uid(), 'admin'::public.app_role));
+
+

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
 import { ArrowUpCircle, BadgeCheck, Coins, Flame, Home, Loader2, Rocket } from "lucide-react";
@@ -78,6 +78,14 @@ export function BoostDialog({
   const [selectedListingId, setSelectedListingId] = useState<string>(initialListingId || (approvedListings[0]?.id ?? ""));
   const [selectedBoost, setSelectedBoost] = useState<BoostType>("remonter");
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (initialListingId) {
+      setSelectedListingId(initialListingId);
+    } else if (approvedListings[0]?.id && !selectedListingId) {
+      setSelectedListingId(approvedListings[0].id);
+    }
+  }, [initialListingId, open, approvedListings]);
 
   const currentTokens = overview?.tokensBalance ?? 0;
   const cost = BOOST_COSTS[selectedBoost] ?? 2;

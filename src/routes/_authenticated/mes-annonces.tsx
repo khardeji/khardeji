@@ -1,20 +1,21 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { BadgeCheck, ExternalLink, Flame, Gauge, Plus, Rocket, Trash2 } from "lucide-react";
+import { BadgeCheck, CheckCircle2, Edit3, ExternalLink, Flame, Gauge, Plus, Rocket, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { STATUS_BADGE } from "@/components/admin/Listings";
 import { A, Confirm, Loading } from "@/components/admin/shared";
 import { BoostDialog } from "@/components/site/BoostDialog";
+import { EditListingDialog } from "@/components/site/EditListingDialog";
 import { PageHeader } from "@/components/site/SectionHeading";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { governorateLabel, LISTING_STATUS_LABEL, SALE_TYPE_LABEL, type ListingStatus } from "@/data/catalog";
+import { governorateLabel, LISTING_STATUS_LABEL, SALE_TYPE_LABEL, type Listing, type ListingStatus } from "@/data/catalog";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
-import { deleteMyListing, getMyListings } from "@/lib/listings.functions";
+import { deleteMyListing, getMyListings, markListingSold } from "@/lib/listings.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 
 export const Route = createFileRoute("/_authenticated/mes-annonces")({
@@ -49,11 +50,33 @@ function MyListings() {
   const { user, loading: authLoading } = useAuth();
   const fetchMine = useServerFn(getMyListings);
   const remove = useServerFn(deleteMyListing);
+  const markSold = useServerFn(markListingSold);
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["me", "listings"], queryFn: () => fetchMine(), enabled: !!user, retry: false });
 
   const [boostListingId, setBoostListingId] = useState<string | undefined>();
   const [boostOpen, setBoostOpen] = useState(false);
+  const [editingListing, setEditingListing] = useState<Listing | null>(null);
+
+  async function handleMarkSold(id: string) {
+    const res = await markSold({ data: { id } }).catch(() => ({ ok: false as const }));
+    if (res.ok) {
+      toast.success(
+        t({
+          ar: "تم تحديد الإعلان كمباع! لم يعد يظهر على الموقع.",
+          fr: "Annonce marquée comme vendue ! Elle n'apparaît plus sur le site public.",
+          en: "Listing marked as sold! It is no longer visible on the site.",
+        })
+      );
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["me", "listings"] }),
+        qc.invalidateQueries({ queryKey: ["me", "overview"] }),
+        qc.invalidateQueries({ queryKey: ["catalog"] }),
+      ]);
+    } else {
+      toast.error(t({ ar: "فشل تحديث حالة الإعلان.", fr: "Échec de l'opération.", en: "Failed to mark as sold." }));
+    }
+  }
 
   async function del(id: string) {
     const res = await remove({ data: { id } }).catch(() => ({ ok: false as const }));
@@ -125,7 +148,7 @@ function MyListings() {
                       </p>
                     )}
                   </div>
-                  <div className="flex gap-2 sm:flex-col">
+                  <div className="flex flex-wrap gap-2 sm:flex-col">
                     {st === "approved" && (
                       <>
                         <Button
@@ -139,10 +162,36 @@ function MyListings() {
                         >
                           <Rocket className="size-3.5" /> {t({ ar: "ترويج", fr: "Booster", en: "Boost" })}
                         </Button>
+                        <Confirm
+                          title={{ ar: "تحديد كمباع ؟", fr: "Marquer comme vendue ?", en: "Mark as sold?" }}
+                          message={{
+                            ar: "هل تم بيع هذا المنتوج؟ لن يظهر الإعلان بعد ذلك على الموقع العام.",
+                            fr: "Ce produit a-t-il été vendu ? L'annonce n'apparaîtra plus sur le site public.",
+                            en: "Has this product been sold? It will no longer appear on the public site.",
+                          }}
+                          confirmLabel={t({ ar: "تأكيد البيع", fr: "Confirmer la vente", en: "Confirm sold" })}
+                          variant="rust"
+                          onConfirm={() => void handleMarkSold(l.id)}
+                          trigger={
+                            <Button size="sm" variant="outline" className="gap-1 text-olive border-olive/30 hover:bg-olive/10">
+                              <CheckCircle2 className="size-3.5" /> {t({ ar: "تم البيع", fr: "Vendue", en: "Sold" })}
+                            </Button>
+                          }
+                        />
                         <Button asChild size="sm" variant="outline">
                           <Link to="/annonces/$id" params={{ id: l.id }}><ExternalLink /> {t({ ar: "شوف", fr: "Voir", en: "View" })}</Link>
                         </Button>
                       </>
+                    )}
+                    {st !== "sold" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1"
+                        onClick={() => setEditingListing(l)}
+                      >
+                        <Edit3 className="size-3.5" /> {t({ ar: "تعديل", fr: "Modifier", en: "Edit" })}
+                      </Button>
                     )}
                     <Confirm
                       onConfirm={() => void del(l.id)}
@@ -160,6 +209,13 @@ function MyListings() {
         initialListingId={boostListingId}
         open={boostOpen}
         onClose={() => setBoostOpen(false)}
+      />
+
+      <EditListingDialog
+        listing={editingListing}
+        open={!!editingListing}
+        onClose={() => setEditingListing(null)}
+        onSuccess={() => void qc.invalidateQueries({ queryKey: ["me", "listings"] })}
       />
     </>
   );
