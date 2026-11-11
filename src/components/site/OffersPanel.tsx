@@ -353,7 +353,12 @@ export function OffersPanel() {
                                     en: "Listing reposted. It counts as a new post on your account.",
                                   }),
                                 );
-                                await qc.invalidateQueries({ queryKey: ["me", "listings"] });
+                                await Promise.all([
+                                  qc.invalidateQueries({ queryKey: ["me", "listings"] }),
+                                  qc.invalidateQueries({ queryKey: ["me", "offers"] }),
+                                  qc.invalidateQueries({ queryKey: ["me", "qty_requests"] }),
+                                  qc.invalidateQueries({ queryKey: ["me", "purchases"] }),
+                                ]);
                               } else {
                                 toast.error(t({ ar: "تعذر إعادة النشر", fr: "Republication impossible", en: "Could not repost" }));
                               }

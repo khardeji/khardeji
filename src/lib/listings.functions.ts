@@ -235,6 +235,13 @@ export const repostMyListing = createServerFn({ method: "POST" })
       console.error("repostMyListing failed", error?.message);
       return { ok: false as const, error: "failed" };
     }
+
+    // Keep accepted offers and quantity deals on the new post.
+    // They reference the listing, and deleting the sold original would otherwise remove them.
+    await supabase.from("offers").update({ listing_id: created.id }).eq("listing_id", data.id).eq("seller_id", userId);
+    await supabase.from("quantity_requests").update({ listing_id: created.id }).eq("listing_id", data.id).eq("seller_id", userId);
+    await supabase.from("messages").update({ listing_id: created.id }).eq("listing_id", data.id).or(`sender_id.eq.${userId},recipient_id.eq.${userId}`);
+
     return { ok: true as const, id: created.id };
   });
 

@@ -241,8 +241,13 @@ function MyListings() {
                               fr: "Annonce republiée : elle compte comme une nouvelle annonce sur votre compte.",
                               en: "Listing reposted. It counts as a new post on your account.",
                             }));
-                            await qc.invalidateQueries({ queryKey: ["me", "listings"] });
-                            await qc.invalidateQueries({ queryKey: ["me", "overview"] });
+                            await Promise.all([
+                              qc.invalidateQueries({ queryKey: ["me", "listings"] }),
+                              qc.invalidateQueries({ queryKey: ["me", "overview"] }),
+                              qc.invalidateQueries({ queryKey: ["me", "offers"] }),
+                              qc.invalidateQueries({ queryKey: ["me", "qty_requests"] }),
+                              qc.invalidateQueries({ queryKey: ["me", "purchases"] }),
+                            ]);
                           } else {
                             toast.error(t({ ar: "تعذر إعادة النشر. حدّد كمية في التعديل أولاً إن كان المخزون صفراً.", fr: "Republication impossible. Indiquez une quantité si le stock est à zéro.", en: "Could not repost. Set a quantity first if stock is zero." }));
                           }

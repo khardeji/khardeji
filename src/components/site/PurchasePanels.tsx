@@ -93,7 +93,12 @@ function OwnerStockEditor({ listing }: { listing: Listing }) {
         fr: "Annonce republiée : elle compte comme une nouvelle annonce sur votre compte.",
         en: "Listing reposted. It counts as a new post on your account.",
       }));
-      await qc.invalidateQueries({ queryKey: ["me", "listings"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["me", "listings"] }),
+        qc.invalidateQueries({ queryKey: ["me", "offers"] }),
+        qc.invalidateQueries({ queryKey: ["me", "qty_requests"] }),
+        qc.invalidateQueries({ queryKey: ["me", "purchases"] }),
+      ]);
     } catch {
       toast.error(t({ ar: "تعذر إعادة النشر", fr: "Republication impossible", en: "Could not repost" }));
     } finally {

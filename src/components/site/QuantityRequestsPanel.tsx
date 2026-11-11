@@ -74,11 +74,13 @@ export function QuantityRequestsPanel() {
 
   const filteredSellerReqs = sellerReqs.filter((r) => {
     if (sellerStatusFilter === "all") return true;
+    if (sellerStatusFilter === "accepted") return r.status === "accepted" || r.status === "cancelled";
     return r.status === sellerStatusFilter;
   });
 
   const filteredBuyerReqs = buyerReqs.filter((r) => {
     if (buyerStatusFilter === "all") return true;
+    if (buyerStatusFilter === "accepted") return r.status === "accepted" || r.status === "cancelled";
     return r.status === buyerStatusFilter;
   });
 
@@ -427,7 +429,12 @@ export function QuantityRequestsPanel() {
                                               en: "Listing reposted. It counts as a new post on your account.",
                                             }),
                                           );
-                                          await qc.invalidateQueries({ queryKey: ["me", "listings"] });
+                                          await Promise.all([
+                                            qc.invalidateQueries({ queryKey: ["me", "listings"] }),
+                                            qc.invalidateQueries({ queryKey: ["me", "offers"] }),
+                                            qc.invalidateQueries({ queryKey: ["me", "qty_requests"] }),
+                                            qc.invalidateQueries({ queryKey: ["me", "purchases"] }),
+                                          ]);
                                         } else {
                                           toast.error(t({ ar: "تعذر إعادة النشر", fr: "Republication impossible", en: "Could not repost" }));
                                         }
