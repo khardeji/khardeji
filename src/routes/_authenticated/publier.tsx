@@ -1,18 +1,19 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { Check, ChevronLeft, ChevronRight, Coins, Flame, Gavel, HandCoins, Home, ImagePlus, Loader2, Rocket, BadgeCheck, Tag, X } from "lucide-react";
+import { BadgeCheck, Building2, Check, ChevronLeft, ChevronRight, Coins, Flame, Gavel, HandCoins, Home, ImagePlus, Loader2, Rocket, ShieldAlert, Tag, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { PageHeader } from "@/components/site/SectionHeading";
+import { SubscribePlanDialog } from "@/components/site/ServiceOrderDialogs";
 import { governorateLabel, GOVERNORATES, SALE_TYPE_LABEL, subcategoryLabel, type SaleType } from "@/data/catalog";
 import { useI18n } from "@/hooks/use-i18n";
 import { supabase } from "@/integrations/supabase/client";
 import { PHOTO_BUCKET } from "@/lib/catalog-map";
 import { catalogQuery, useCatalog } from "@/lib/catalog-queries";
-import { MAX_PHOTOS, type ListingProblem } from "@/lib/listing-rules";
+import { getEffectivePlan, MAX_PHOTOS, PLAN_CONFIG, type ListingProblem } from "@/lib/listing-rules";
 import { createListing } from "@/lib/listings.functions";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { UNIT_LABEL, type SaleUnit } from "@/lib/quantity";
@@ -85,6 +86,11 @@ const PROBLEM_MSG: Record<ListingProblem | "blocked" | "failed" | "upload", Msg>
   dates: { ar: "تاريخ النهاية لازم يكون بعد تاريخ البداية.", fr: "La date de fin doit suivre la date de début.", en: "The end date must be after the start date." },
   stock: { ar: "اكتب الكمية المتوفرة.", fr: "Indiquez la quantité disponible.", en: "Enter the available quantity." },
   insufficient_tokens: { ar: "رصيد النقاط غير كافٍ لخيارات الترويج المختارة. اشري نقاط من صفحة الخدمات.", fr: "Solde de jetons insuffisant pour les options de boost. Rechargez sur la page Services.", en: "Insufficient tokens for the chosen boosts. Buy tokens on Services page." },
+  plan_limit_reached: {
+    ar: "وصلت للحدّ الأقصى للإعلانات في باقتك الحالية. رقّي حسابك لـ Pro ولا Entreprise باش تنشر إعلانات جديدة.",
+    fr: "Limite d'annonces atteinte pour votre offre actuelle. Passez à une offre Pro ou Entreprise pour continuer à publier.",
+    en: "Listing limit reached for your current plan. Upgrade to Pro or Enterprise to post more listings.",
+  },
   blocked: { ar: "حسابك مسكّر: ما تنجمش تنشر إعلانات. اتصل بالإدارة.", fr: "Votre compte est bloqué : vous ne pouvez pas publier. Contactez l'administration.", en: "Your account is blocked: you can't post. Contact the administrators." },
   failed: { ar: "ما نجمناش نسجّلو الإعلان. عاود جرّب.", fr: "L'annonce n'a pas pu être enregistrée. Réessayez.", en: "The listing could not be saved. Try again." },
   upload: { ar: "ما نجمناش نرفعو التصاور. ثبّت في الكونكسيون وعاود.", fr: "L'envoi des photos a échoué. Vérifiez votre connexion et réessayez.", en: "Photo upload failed. Check your connection and try again." },
@@ -116,7 +122,13 @@ function Publish() {
   const qc = useQueryClient();
   const createListingFn = useServerFn(createListing);
   const fetchOverview = useServerFn(getMyOverview);
-  const { data: overview } = useQuery({ queryKey: ["me", "overview"], queryFn: () => fetchOverview() });
+  const { data: overview, isLoading: loadingOverview } = useQuery({ queryKey: ["me", "overview"], queryFn: () => fetchOverview() });
+  const [subscribingPlan, setSubscribingPlan] = useState<{ id: "pro" | "entreprise"; name: Msg; price: number } | null>(null);
+
+  const effectivePlan = getEffectivePlan(overview?.subscriptionPlan, overview?.subscriptionExpiresAt);
+  const planLimits = PLAN_CONFIG[effectivePlan] ?? PLAN_CONFIG.basique;
+  const activeCount = (overview?.listingsCount.approved ?? 0) + (overview?.listingsCount.pending ?? 0);
+  const isLimitReached = !loadingOverview && activeCount >= planLimits.maxListings;
   const currentTokens = overview?.tokensBalance ?? 0;
 
   const boostCost = (d.urgent ? 3 : 0) + (d.featured ? 15 : 0);
@@ -156,9 +168,16 @@ function Publish() {
   function addPhotos(files: FileList | null) {
     if (!files) return;
     const all = Array.from(files);
-    const ok = all.filter((f) => f.type.startsWith("image/") && f.size <= MAX_PHOTO_BYTES).slice(0, MAX_PHOTOS - d.photos.length);
+    const maxPhotos = planLimits.maxPhotos;
+    const ok = all.filter((f) => f.type.startsWith("image/") && f.size <= MAX_PHOTO_BYTES).slice(0, maxPhotos - d.photos.length);
     if (ok.length < all.length) {
-      toast.error(t({ ar: "بعض التصاور ما تزادوش: تصاور برك، 8 ميغا على الأكثر، و12 في الجملة.", fr: "Certaines photos ont été ignorées : images uniquement, 8 Mo max, 12 au total.", en: "Some photos were skipped: images only, 8 MB max, 12 in total." }));
+      toast.error(
+        t({
+          ar: `بعض التصاور ما تزادوش: تصاور برك، 8 ميغا على الأكثر، و${maxPhotos} في الجملة.`,
+          fr: `Certaines photos ont été ignorées : images uniquement, 8 Mo max, ${maxPhotos} au total.`,
+          en: `Some photos were skipped: images only, 8 MB max, ${maxPhotos} in total.`,
+        }),
+      );
     }
     set("photos", [...d.photos, ...ok.map((file) => ({ file, url: URL.createObjectURL(file) }))]);
   }
@@ -169,6 +188,10 @@ function Publish() {
   }
 
   async function publish() {
+    if (isLimitReached) {
+      toast.error(t(PROBLEM_MSG.plan_limit_reached));
+      return;
+    }
     for (const s of [0, 2]) {
       const err = validate(s);
       if (err) {
@@ -265,7 +288,139 @@ function Publish() {
         intro={t({ ar: "أربع مراحل باش تعرض الموادّ متاعك للبيع. النشر العادي بلاش.", fr: "Quatre étapes pour mettre vos matériaux en vente. La publication de base est gratuite.", en: "Four steps to put your materials up for sale. Basic posting is free." })}
       />
       <div className="mx-auto max-w-4xl px-4 py-10 sm:px-6">
-        <ol className="mb-8 grid grid-cols-4 gap-2">
+        {isLimitReached ? (
+          <div className="surface-card overflow-hidden p-6 sm:p-10 text-center ring-1 ring-rust/30">
+            <span className="mx-auto grid size-16 place-items-center rounded-2xl bg-rust/15 text-rust">
+              <ShieldAlert className="size-8" />
+            </span>
+            <h2 className="mt-4 font-display text-2xl sm:text-3xl font-bold text-foreground">
+              {t({
+                ar: `وصلت للحدّ الأقصى للإعلانات (${activeCount} / ${planLimits.maxListings})`,
+                fr: `Limite d'annonces atteinte (${activeCount} / ${planLimits.maxListings})`,
+                en: `Listing limit reached (${activeCount} / ${planLimits.maxListings})`,
+              })}
+            </h2>
+            <p className="mx-auto mt-2 max-w-xl text-sm sm:text-base text-muted-foreground">
+              {t({
+                ar: `باقتك الحالية (${t(planLimits.name)}) تسمح لك بنشر حتى ${planLimits.maxListings} إعلانات نشيطة. عندك حالياً ${overview?.listingsCount.approved ?? 0} مباشر و${overview?.listingsCount.pending ?? 0} في الانتظار. باش تنشر أكثر، لازم ترقّي باقتك.`,
+                fr: `Votre forfait actuel (${t(planLimits.name)}) vous permet de publier jusqu'à ${planLimits.maxListings} annonces actives. Vous en avez actuellement ${overview?.listingsCount.approved ?? 0} en ligne et ${overview?.listingsCount.pending ?? 0} en attente de validation. Pour continuer à publier, passez à un forfait supérieur.`,
+                en: `Your current plan (${t(planLimits.name)}) allows up to ${planLimits.maxListings} active listings. You currently have ${overview?.listingsCount.approved ?? 0} live and ${overview?.listingsCount.pending ?? 0} pending review. To post more, upgrade your plan.`,
+              })}
+            </p>
+
+            {/* Upgrade offers */}
+            <div className="mt-8 grid gap-4 sm:grid-cols-2 text-start">
+              {/* Pro Ferrailleur */}
+              <div className="surface-card relative flex flex-col justify-between rounded-xl border-2 border-rust bg-card p-6 shadow-sm">
+                <div>
+                  <span className="label-stamp rounded bg-rust px-2 py-0.5 text-[0.62rem] text-rust-foreground">
+                    {t({ ar: "الموصى به للمحترفين", fr: "Recommandé pour les pros", en: "Recommended for pros" })}
+                  </span>
+                  <h3 className="mt-2 text-xl font-bold text-foreground flex items-center gap-1.5">
+                    Pro Ferrailleur <BadgeCheck className="size-5 text-rust" />
+                  </h3>
+                  <p className="mt-2 font-display text-3xl font-bold text-foreground">
+                    49 DT <span className="text-xs font-normal text-muted-foreground">/ {t({ ar: "شهر", fr: "mois", en: "month" })}</span>
+                  </p>
+                  <ul className="mt-4 space-y-2 text-sm text-foreground">
+                    <li className="flex items-center gap-2">
+                      <Check className="size-4 text-olive shrink-0" />
+                      <strong className="text-rust">50 {t({ ar: "إعلانات نشيطة", fr: "annonces actives", en: "active listings" })}</strong>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="size-4 text-olive shrink-0" />
+                      <strong>40 {t({ ar: "نقطة هدية كل شهر", fr: "jetons offerts chaque mois", en: "free monthly tokens" })}</strong>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="size-4 text-olive shrink-0" />
+                      {t({ ar: "علامة بائع محترف", fr: "Badge vendeur professionnel", en: "Pro seller badge" })}
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="size-4 text-olive shrink-0" />
+                      {t({ ar: "إحصائيات المشاهدة وتسيير المخزون", fr: "Statistiques & gestion des stocks", en: "View stats & stock" })}
+                    </li>
+                  </ul>
+                </div>
+                <Button
+                  variant="rust"
+                  className="mt-6 w-full"
+                  onClick={() =>
+                    setSubscribingPlan({
+                      id: "pro",
+                      name: { ar: "محترف خردة", fr: "Pro Ferrailleur", en: "Scrap Pro" },
+                      price: 49,
+                    })
+                  }
+                >
+                  <Rocket className="size-4" />
+                  {t({ ar: "اختيار Pro Ferrailleur (49 DT)", fr: "Choisir Pro Ferrailleur (49 DT)", en: "Choose Scrap Pro (49 DT)" })}
+                </Button>
+              </div>
+
+              {/* Entreprise */}
+              <div className="surface-card relative flex flex-col justify-between rounded-xl border border-border bg-card p-6 shadow-sm">
+                <div>
+                  <span className="label-stamp rounded bg-charcoal px-2 py-0.5 text-[0.62rem] text-brass">
+                    {t({ ar: "للشركات", fr: "Entreprises", en: "Enterprise" })}
+                  </span>
+                  <h3 className="mt-2 text-xl font-bold text-foreground flex items-center gap-1.5">
+                    Entreprise <Building2 className="size-5 text-olive" />
+                  </h3>
+                  <p className="mt-2 font-display text-3xl font-bold text-foreground">
+                    149 DT <span className="text-xs font-normal text-muted-foreground">/ {t({ ar: "شهر", fr: "mois", en: "month" })}</span>
+                  </p>
+                  <ul className="mt-4 space-y-2 text-sm text-foreground">
+                    <li className="flex items-center gap-2">
+                      <Check className="size-4 text-olive shrink-0" />
+                      <strong className="text-olive">{t({ ar: "إعلانات غير محدودة", fr: "Annonces illimitées", en: "Unlimited listings" })}</strong>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="size-4 text-olive shrink-0" />
+                      <strong className="text-rust">{t({ ar: "حانوت / بوتيك باسمك", fr: "Boutique à votre nom", en: "Branded shop" })}</strong>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="size-4 text-olive shrink-0" />
+                      <strong>150 {t({ ar: "نقطة هدية كل شهر", fr: "jetons offerts chaque mois", en: "free monthly tokens" })}</strong>
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="size-4 text-olive shrink-0" />
+                      {t({ ar: "حسابات متعددة ومرافقة خاصة", fr: "Multi-comptes & accompagnement dédié", en: "Team accounts & dedicated support" })}
+                    </li>
+                  </ul>
+                </div>
+                <Button
+                  variant="default"
+                  className="mt-6 w-full"
+                  onClick={() =>
+                    setSubscribingPlan({
+                      id: "entreprise",
+                      name: { ar: "شركة", fr: "Entreprise", en: "Business" },
+                      price: 149,
+                    })
+                  }
+                >
+                  <Building2 className="size-4" />
+                  {t({ ar: "اختيار باقة Entreprise (149 DT)", fr: "Choisir Entreprise (149 DT)", en: "Choose Enterprise (149 DT)" })}
+                </Button>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap justify-center items-center gap-3">
+              <Button asChild variant="outline" size="sm">
+                <Link to="/mes-annonces">
+                  {t({ ar: "إدارة إعلاناتي الحالية", fr: "Gérer mes annonces existantes", en: "Manage my current listings" })}
+                </Link>
+              </Button>
+              <Button asChild variant="ghost" size="sm">
+                <Link to="/services">
+                  {t({ ar: "مقارنة كافة العروض والخدمات", fr: "Comparer toutes les offres", en: "Compare all plans" })}
+                </Link>
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <ol className="mb-8 grid grid-cols-4 gap-2">
           {STEPS.map((s, i) => (
             <li key={s.fr} className="flex flex-col gap-2">
               <span className={cn("h-1.5 rounded-full", i <= step ? "bg-rust" : "bg-border")} />
@@ -279,6 +434,19 @@ function Publish() {
         <div className="surface-card p-6 sm:p-8">
           {step === 0 && (
             <div className="grid gap-5">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-card/60 p-3 text-xs text-muted-foreground">
+                <div className="flex items-center gap-1.5">
+                  <span>{t({ ar: "الباقة الحالية :", fr: "Forfait actuel :", en: "Current plan:" })}</span>
+                  <span className="font-semibold uppercase text-foreground">{t(planLimits.name)}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span>{t({ ar: "الإعلانات النشيطة :", fr: "Annonces actives :", en: "Active listings:" })}</span>
+                  <span className={cn("font-bold", activeCount >= planLimits.maxListings ? "text-rust" : "text-foreground")}>
+                    {activeCount} / {planLimits.maxListings < 9999 ? planLimits.maxListings : "∞"}
+                  </span>
+                </div>
+              </div>
+
               <Field label={t({ ar: "العنوان", fr: "Titre", en: "Title" })} htmlFor="p-title">
                 <input id="p-title" className={field} value={d.title} maxLength={90} onChange={(e) => set("title", e.target.value)} placeholder={t({ ar: "مثال: نحاس مسترجع — خيوط منظفة", fr: "Ex. Cuivre récupéré — fils nettoyés", en: "E.g. Recovered copper — cleaned wires" })} />
               </Field>
@@ -314,7 +482,7 @@ function Publish() {
                 </p>
               )}
               <div>
-                <p className="text-sm font-medium">{t({ ar: "التصاور", fr: "Photos", en: "Photos" })} ({d.photos.length}/12)</p>
+                <p className="text-sm font-medium">{t({ ar: "التصاور", fr: "Photos", en: "Photos" })} ({d.photos.length}/{planLimits.maxPhotos})</p>
                 <div className="mt-2 grid grid-cols-3 gap-3 sm:grid-cols-6">
                   {d.photos.map((p, i) => (
                     <div key={p.url} className="relative aspect-square overflow-hidden rounded-md border border-border">
@@ -324,7 +492,7 @@ function Publish() {
                       </button>
                     </div>
                   ))}
-                  {d.photos.length < 12 && (
+                  {d.photos.length < planLimits.maxPhotos && (
                     <label className="grid aspect-square cursor-pointer place-items-center rounded-md border-2 border-dashed border-border text-muted-foreground transition hover:border-rust hover:text-rust">
                       <ImagePlus className="size-6" />
                       <span className="sr-only">{t({ ar: "زيد تصاور", fr: "Ajouter des photos", en: "Add photos" })}</span>
@@ -520,7 +688,15 @@ function Publish() {
           {t({ ar: "تحب إعلانك يبان أكثر؟", fr: "Besoin de plus de visibilité ?", en: "Need more visibility?" })}{" "}
           <Link to="/services" className="text-rust hover:underline">{t({ ar: "اكتشف خدمات الترويج", fr: "Découvrez les boosts", en: "Discover boosts" })}</Link>
         </p>
+        </>
+      )}
       </div>
+
+      <SubscribePlanDialog
+        plan={subscribingPlan}
+        open={!!subscribingPlan}
+        onClose={() => setSubscribingPlan(null)}
+      />
     </>
   );
 }

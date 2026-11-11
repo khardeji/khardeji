@@ -45,6 +45,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { deleteMyListing, getMyListings, markListingSold } from "@/lib/listings.functions";
+import { getEffectivePlan, PLAN_CONFIG } from "@/lib/listing-rules";
 import { getIncomingOffers, getSellerQuantityRequests } from "@/lib/marketplace.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 import {
@@ -240,6 +241,10 @@ export function DashboardPage() {
   const plan = overview?.subscriptionPlan ?? "basique";
   const planExpiry = overview?.subscriptionExpiresAt;
   const isPro = plan === "pro" || plan === "entreprise";
+  const effectivePlan = getEffectivePlan(plan, planExpiry);
+  const planLimits = PLAN_CONFIG[effectivePlan] ?? PLAN_CONFIG.basique;
+  const activeCount = (overview?.listingsCount.approved ?? 0) + (overview?.listingsCount.pending ?? 0);
+  const isLimitReached = activeCount >= planLimits.maxListings;
 
   return (
     <>
@@ -282,21 +287,33 @@ export function DashboardPage() {
             <div className="flex items-start justify-between">
               <div>
                 <p className="label-stamp text-xs text-olive">{t({ ar: "إعلاناتي", fr: "Mes annonces", en: "My listings" })}</p>
-                <p className="mt-2 font-display text-4xl font-bold text-foreground">
-                  {num(overview?.listingsCount.total ?? 0)}
-                </p>
+                <div className="mt-2 flex items-baseline gap-2">
+                  <p className="font-display text-4xl font-bold text-foreground">
+                    {num(overview?.listingsCount.total ?? 0)}
+                  </p>
+                  {planLimits.maxListings < 9999 && (
+                    <span className="text-xs font-semibold text-muted-foreground">
+                      / {planLimits.maxListings} {t({ ar: "أقصى", fr: "max", en: "max" })}
+                    </span>
+                  )}
+                </div>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {overview?.listingsCount.approved ?? 0} {t({ ar: "منشورة", fr: "en ligne", en: "live" })} · {overview?.listingsCount.pending ?? 0} {t({ ar: "قيد المراجعة", fr: "en attente", en: "pending" })}
                 </p>
+                {isLimitReached && (
+                  <span className="mt-2 inline-flex items-center gap-1 rounded bg-rust/15 px-2 py-0.5 text-[0.68rem] font-bold text-rust">
+                    {t({ ar: "تم بلوغ الحد الأقصى", fr: "Limite atteinte", en: "Limit reached" })}
+                  </span>
+                )}
               </div>
               <span className="grid size-10 place-items-center rounded-xl bg-olive/15 text-olive">
                 <ShoppingBag className="size-6" />
               </span>
             </div>
             <div className="mt-4 flex gap-2">
-              <Button asChild size="sm" variant="outline" className="w-full text-xs">
+              <Button asChild size="sm" variant={isLimitReached ? "rust" : "outline"} className="w-full text-xs">
                 <Link to="/publier">
-                  <Plus className="size-3.5" /> {t({ ar: "نشر إعلان", fr: "Publier", en: "Post" })}
+                  <Plus className="size-3.5" /> {isLimitReached ? t({ ar: "ترقية الباقة", fr: "Passer en Pro", en: "Upgrade" }) : t({ ar: "نشر إعلان", fr: "Publier", en: "Post" })}
                 </Link>
               </Button>
             </div>
@@ -818,10 +835,10 @@ export function DashboardPage() {
                     <span className="font-display text-2xl font-bold uppercase text-rust">{plan}</span>
                     <p className="mt-1 text-sm text-muted-foreground">
                       {plan === "basique"
-                        ? t({ ar: "باقة أساسية مجانية — نشر حتى 5 إعلانات.", fr: "Plan Basique gratuit — jusqu'à 5 annonces actives.", en: "Free basic plan — up to 5 active listings." })
+                        ? t({ ar: "باقة أساسية مجانية — حتى 5 إعلانات نشيطة و12 صورة لكل إعلان.", fr: "Plan Basique gratuit — jusqu'à 5 annonces actives et 12 photos par annonce.", en: "Free basic plan — up to 5 active listings and 12 photos per listing." })
                         : plan === "pro"
-                        ? t({ ar: "باقة محترف خردة — 50 إعلان و40 نقطة شهرياً.", fr: "Pro Ferrailleur — 50 annonces et 40 jetons offerts chaque mois.", en: "Pro Scrap plan — 50 listings & 40 monthly tokens." })
-                        : t({ ar: "باقة شركات — إعلانات غير محدودة و150 نقطة شهرياً.", fr: "Entreprise — Annonces illimitées et 150 jetons offerts chaque mois.", en: "Enterprise plan — Unlimited listings & 150 monthly tokens." })}
+                        ? t({ ar: "باقة محترف خردة — 50 إعلان نشيط، 40 نقطة هدية شهرياً وشارة بائع محترف.", fr: "Pro Ferrailleur — 50 annonces actives, 40 jetons offerts chaque mois et badge pro.", en: "Pro Scrap plan — 50 active listings, 40 free monthly tokens and pro badge." })
+                        : t({ ar: "باقة شركات — إعلانات غير محدودة، بوتيك باسمك و150 نقطة هدية شهرياً.", fr: "Entreprise — Annonces illimitées, Boutique à votre nom et 150 jetons offerts chaque mois.", en: "Enterprise plan — Unlimited listings, Branded shop and 150 free monthly tokens." })}
                     </p>
                   </div>
                   <div className="flex gap-2">

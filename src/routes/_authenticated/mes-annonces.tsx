@@ -15,7 +15,9 @@ import { governorateLabel, LISTING_STATUS_LABEL, SALE_TYPE_LABEL, type Listing, 
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
+import { getEffectivePlan, PLAN_CONFIG } from "@/lib/listing-rules";
 import { deleteMyListing, getMyListings, markListingSold } from "@/lib/listings.functions";
+import { getMyOverview } from "@/lib/services.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 
 export const Route = createFileRoute("/_authenticated/mes-annonces")({
@@ -49,10 +51,16 @@ function MyListings() {
   const { t, dt, date } = useI18n();
   const { user, loading: authLoading } = useAuth();
   const fetchMine = useServerFn(getMyListings);
+  const fetchOverview = useServerFn(getMyOverview);
   const remove = useServerFn(deleteMyListing);
   const markSold = useServerFn(markListingSold);
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["me", "listings"], queryFn: () => fetchMine(), enabled: !!user, retry: false });
+  const overviewQuery = useQuery({ queryKey: ["me", "overview"], queryFn: () => fetchOverview(), enabled: !!user });
+  const effectivePlan = getEffectivePlan(overviewQuery.data?.subscriptionPlan, overviewQuery.data?.subscriptionExpiresAt);
+  const planLimits = PLAN_CONFIG[effectivePlan] ?? PLAN_CONFIG.basique;
+  const activeCount = (overviewQuery.data?.listingsCount.approved ?? 0) + (overviewQuery.data?.listingsCount.pending ?? 0);
+  const isLimitReached = !overviewQuery.isLoading && activeCount >= planLimits.maxListings;
 
   const [boostListingId, setBoostListingId] = useState<string | undefined>();
   const [boostOpen, setBoostOpen] = useState(false);
@@ -100,8 +108,34 @@ function MyListings() {
               <Gauge className="size-4" /> {t({ ar: "لوحة التحكم", fr: "Tableau de bord membre", en: "Dashboard" })}
             </Link>
           </Button>
-          <Button asChild variant="rust"><Link to="/publier"><Plus /> {t({ ar: "انشر إعلان", fr: "Publier une annonce", en: "Post a listing" })}</Link></Button>
+          <Button asChild variant={isLimitReached ? "outline" : "rust"}><Link to="/publier"><Plus /> {t({ ar: "انشر إعلان", fr: "Publier une annonce", en: "Post a listing" })}</Link></Button>
         </div>
+
+        {isLimitReached && (
+          <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-rust/30 bg-rust/10 p-4 text-sm text-foreground">
+            <div>
+              <p className="font-semibold text-rust">
+                {t({
+                  ar: `وصلت للحدّ الأقصى للإعلانات في باقتك (${activeCount} / ${planLimits.maxListings})`,
+                  fr: `Limite d'annonces atteinte (${activeCount} / ${planLimits.maxListings}) pour votre forfait ${t(planLimits.name)}`,
+                  en: `Listing limit reached (${activeCount} / ${planLimits.maxListings}) for your plan`,
+                })}
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t({
+                  ar: "باش تنشر إعلانات جديدة، رقّي حسابك لـ Pro (50 إعلان و40 نقطة) ولا Entreprise (غير محدود).",
+                  fr: "Passez au forfait Pro Ferrailleur (50 annonces, 40 jetons offerts chaque mois) ou Entreprise (illimité, 150 jetons) pour publier plus.",
+                  en: "Upgrade to Pro (50 listings, 40 tokens/mo) or Enterprise (unlimited) to post more.",
+                })}
+              </p>
+            </div>
+            <Button asChild size="sm" variant="rust" className="shrink-0 text-xs">
+              <Link to="/services">
+                {t({ ar: "ترقية الباقة", fr: "Passer en Pro", en: "Upgrade" })}
+              </Link>
+            </Button>
+          </div>
+        )}
         {!q.data ? (
           <Loading error={q.isError} />
         ) : q.data.length === 0 ? (
