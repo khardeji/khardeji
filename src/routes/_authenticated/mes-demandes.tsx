@@ -68,12 +68,24 @@ function QuantityRequestsPage() {
   const buyerQ = useQuery({ queryKey: ["me", "qty_requests", "buyer"], queryFn: () => fetchBuyerReqs() });
 
   const [activeTab, setActiveTab] = useState<"seller" | "buyer">("seller");
+  const [sellerStatusFilter, setSellerStatusFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");
+  const [buyerStatusFilter, setBuyerStatusFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");
   const [selectedReq, setSelectedReq] = useState<any | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const sellerReqs = sellerQ.data ?? [];
   const buyerReqs = buyerQ.data ?? [];
   const pendingCount = sellerReqs.filter((r) => r.status === "pending").length;
+
+  const filteredSellerReqs = sellerReqs.filter((r) => {
+    if (sellerStatusFilter === "all") return true;
+    return r.status === sellerStatusFilter;
+  });
+
+  const filteredBuyerReqs = buyerReqs.filter((r) => {
+    if (buyerStatusFilter === "all") return true;
+    return r.status === buyerStatusFilter;
+  });
 
   async function handleResponse(requestId: string, action: "accepted" | "rejected") {
     setBusyId(requestId);
@@ -154,25 +166,66 @@ function QuantityRequestsPage() {
 
           {/* SELLER INCOMING QUANTITY REQUESTS */}
           <TabsContent value="seller">
+            {/* Status Filter Sub-Bar */}
+            <div className="mb-5 flex flex-wrap gap-2 text-xs">
+              <Button
+                type="button"
+                variant={sellerStatusFilter === "all" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setSellerStatusFilter("all")}
+              >
+                {t({ ar: "الكل", fr: "Toutes", en: "All" })} ({sellerReqs.length})
+              </Button>
+              <Button
+                type="button"
+                variant={sellerStatusFilter === "pending" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setSellerStatusFilter("pending")}
+              >
+                {t({ ar: "في الانتظار", fr: "En attente", en: "Pending" })} ({sellerReqs.filter((r) => r.status === "pending").length})
+              </Button>
+              <Button
+                type="button"
+                variant={sellerStatusFilter === "accepted" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setSellerStatusFilter("accepted")}
+              >
+                <CheckCircle2 className="size-3.5 me-1 text-olive" />
+                {t({ ar: "المقبولة", fr: "Acceptées", en: "Accepted" })} ({sellerReqs.filter((r) => r.status === "accepted").length})
+              </Button>
+              <Button
+                type="button"
+                variant={sellerStatusFilter === "rejected" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setSellerStatusFilter("rejected")}
+              >
+                {t({ ar: "المرفوضة", fr: "Refusées", en: "Rejected" })} ({sellerReqs.filter((r) => r.status === "rejected").length})
+              </Button>
+            </div>
+
             {sellerQ.isPending ? (
               <Loading />
-            ) : sellerReqs.length === 0 ? (
+            ) : filteredSellerReqs.length === 0 ? (
               <div className="surface-card flex flex-col items-center p-12 text-center">
                 <Package className="size-12 text-brass" />
                 <h3 className="mt-3 font-display text-xl font-medium">
-                  {t({ ar: "لا توجد طلبات كميات حالياً", fr: "Aucune demande reçue", en: "No quantity requests" })}
+                  {t({ ar: "لا توجد طلبات في هذا القسم", fr: "Aucune commande dans cette section", en: "No requests in this section" })}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t({
-                    ar: "عندما يطلب المشترون كميات معينة من بضاعتك ستظهر تفاصيل كل طلب هنا.",
-                    fr: "Lorsque des acheteurs commandent des quantités sur vos annonces, elles apparaîtront ici.",
-                    en: "When buyers order specific quantities on your listings, they will show up here.",
+                    ar: "عندما يطلب المشترون كميات معينة من بضاعتك ستظهر تفاصيل كل طلب هنا بشكل دائم.",
+                    fr: "Lorsque des acheteurs commandent des quantités sur vos annonces, elles apparaîtront ici de façon permanente.",
+                    en: "When buyers order specific quantities on your listings, they will show up here permanently.",
                   })}
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {sellerReqs.map((req) => {
+                {filteredSellerReqs.map((req) => {
                   const unitLabel = UNIT_LABEL[req.unit as keyof typeof UNIT_LABEL]?.short
                     ? t(UNIT_LABEL[req.unit as keyof typeof UNIT_LABEL].short)
                     : req.unit;
@@ -313,13 +366,54 @@ function QuantityRequestsPage() {
 
           {/* BUYER SENT QUANTITY REQUESTS */}
           <TabsContent value="buyer">
+            {/* Status Filter Sub-Bar */}
+            <div className="mb-5 flex flex-wrap gap-2 text-xs">
+              <Button
+                type="button"
+                variant={buyerStatusFilter === "all" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setBuyerStatusFilter("all")}
+              >
+                {t({ ar: "الكل", fr: "Toutes", en: "All" })} ({buyerReqs.length})
+              </Button>
+              <Button
+                type="button"
+                variant={buyerStatusFilter === "pending" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setBuyerStatusFilter("pending")}
+              >
+                {t({ ar: "في الانتظار", fr: "En attente", en: "Pending" })} ({buyerReqs.filter((r) => r.status === "pending").length})
+              </Button>
+              <Button
+                type="button"
+                variant={buyerStatusFilter === "accepted" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setBuyerStatusFilter("accepted")}
+              >
+                <CheckCircle2 className="size-3.5 me-1 text-olive" />
+                {t({ ar: "المقبولة", fr: "Acceptées", en: "Accepted" })} ({buyerReqs.filter((r) => r.status === "accepted").length})
+              </Button>
+              <Button
+                type="button"
+                variant={buyerStatusFilter === "rejected" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setBuyerStatusFilter("rejected")}
+              >
+                {t({ ar: "المرفوضة", fr: "Refusées", en: "Rejected" })} ({buyerReqs.filter((r) => r.status === "rejected").length})
+              </Button>
+            </div>
+
             {buyerQ.isPending ? (
               <Loading />
-            ) : buyerReqs.length === 0 ? (
+            ) : filteredBuyerReqs.length === 0 ? (
               <div className="surface-card flex flex-col items-center p-12 text-center">
                 <Package className="size-12 text-muted-foreground" />
                 <h3 className="mt-3 font-display text-xl font-medium">
-                  {t({ ar: "لم تطلب أي كمية بعد", fr: "Aucune commande envoyée", en: "No sent orders yet" })}
+                  {t({ ar: "لا توجد طلبات في هذا القسم", fr: "Aucune commande dans cette section", en: "No orders in this section" })}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t({
@@ -334,7 +428,7 @@ function QuantityRequestsPage() {
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
-                {buyerReqs.map((req) => {
+                {filteredBuyerReqs.map((req) => {
                   const unitLabel = UNIT_LABEL[req.unit as keyof typeof UNIT_LABEL]?.short
                     ? t(UNIT_LABEL[req.unit as keyof typeof UNIT_LABEL].short)
                     : req.unit;

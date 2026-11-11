@@ -6,10 +6,13 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
+  Gavel,
   HandCoins,
   Mail,
   Phone,
+  ShieldCheck,
   User,
+  Users,
   XCircle,
 } from "lucide-react";
 import { useState } from "react";
@@ -30,18 +33,23 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta } from "@/lib/i18n";
-import { getIncomingOffers, getOutgoingOffers, respondToOffer } from "@/lib/marketplace.functions";
+import {
+  getIncomingOffers,
+  getOutgoingOffers,
+  getSellerBiddingRequests,
+  respondToOffer,
+} from "@/lib/marketplace.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 
 export const Route = createFileRoute("/_authenticated/mes-offres")({
   head: ({ match }) => ({
     meta: [
       ...pageMeta(match.context.locale, {
-        title: { ar: "العروض | خردجي", fr: "Offres de prix | Khardeji", en: "Price offers | Khardeji" },
+        title: { ar: "العروض والمزايدات | خردجي", fr: "Offres et enchères | Khardeji", en: "Offers and bids | Khardeji" },
         description: {
-          ar: "تسيير العروض الواردة والصادرة في خردجي.",
-          fr: "Gérez vos offres de prix reçues et envoyées sur Khardeji.",
-          en: "Manage incoming and submitted price offers on Khardeji.",
+          ar: "تسيير العروض والمزايدات الواردة والصادرة في خردجي.",
+          fr: "Gérez vos offres de prix et le suivi de vos enchères reçues sur Khardeji.",
+          en: "Manage incoming price offers and track auction bids on Khardeji.",
         },
         card: "summary",
       }),
@@ -57,18 +65,37 @@ function OffersPage() {
 
   const fetchIncoming = useServerFn(getIncomingOffers);
   const fetchOutgoing = useServerFn(getOutgoingOffers);
+  const fetchBids = useServerFn(getSellerBiddingRequests);
   const sendResponse = useServerFn(respondToOffer);
 
   const incomingQ = useQuery({ queryKey: ["me", "offers", "incoming"], queryFn: () => fetchIncoming() });
   const outgoingQ = useQuery({ queryKey: ["me", "offers", "outgoing"], queryFn: () => fetchOutgoing() });
+  const bidsQ = useQuery({ queryKey: ["me", "offers", "bids"], queryFn: () => fetchBids() });
 
-  const [activeTab, setActiveTab] = useState<"incoming" | "outgoing">("incoming");
+  const [activeTab, setActiveTab] = useState<"incoming" | "bids" | "outgoing">("incoming");
+  const [incomingStatusFilter, setIncomingStatusFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");
+  const [outgoingStatusFilter, setOutgoingStatusFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");
   const [selectedOffer, setSelectedOffer] = useState<any | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
 
   const incoming = incomingQ.data ?? [];
   const outgoing = outgoingQ.data ?? [];
-  const pendingIncoming = incoming.filter((o) => o.status === "pending").length;
+  const auctionItems = bidsQ.data ?? [];
+
+  const pendingIncomingCount = incoming.filter((o) => o.status === "pending").length;
+  const totalBidsCount = auctionItems.reduce((acc: number, item: any) => acc + (item.totalBids || 0), 0);
+
+  // Filtered incoming offers
+  const filteredIncoming = incoming.filter((o) => {
+    if (incomingStatusFilter === "all") return true;
+    return o.status === incomingStatusFilter;
+  });
+
+  // Filtered outgoing offers
+  const filteredOutgoing = outgoing.filter((o) => {
+    if (outgoingStatusFilter === "all") return true;
+    return o.status === outgoingStatusFilter;
+  });
 
   async function handleResponse(offerId: string, action: "accepted" | "rejected") {
     setBusyId(offerId);
@@ -114,61 +141,111 @@ function OffersPage() {
     <>
       <PageHeader
         eyebrow={t({ ar: "حسابي", fr: "Mon compte", en: "My account" })}
-        title={t({ ar: "عروض التفاوض", fr: "Offres de négociation", en: "Price offers" })}
+        title={t({ ar: "عروض التفاوض والمزايدات", fr: "Offres & Enchères reçues", en: "Offers & Auction bids" })}
         intro={t({
-          ar: "تابع وقبل عروض المشترين، وراقب حالة العروض اللي قدّمتها.",
-          fr: "Consultez et répondez aux propositions des acheteurs et suivez vos offres envoyées.",
-          en: "Review and respond to buyer proposals and track your submitted offers.",
+          ar: "تابع وقبل عروض المشترين، راقب المزايدات على إعلاناتك، وتابع عروضك المرسلة.",
+          fr: "Consultez et répondez aux propositions, suivez les enchères sur vos articles et gérez vos offres envoyées.",
+          en: "Review and respond to buyer proposals, track bids on your auction items, and manage your submitted offers.",
         })}
       />
       <AccountNav current="offres" />
 
       <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
         <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-          <TabsList className="mb-6 grid w-full max-w-md grid-cols-2">
-            <TabsTrigger value="incoming" className="relative">
+          <TabsList className="mb-6 grid w-full max-w-2xl grid-cols-3">
+            <TabsTrigger value="incoming" className="relative text-xs sm:text-sm">
               {t({ ar: "العروض الواردة", fr: "Offres reçues", en: "Incoming offers" })}
-              {pendingIncoming > 0 && (
+              {pendingIncomingCount > 0 && (
                 <span className="ms-2 rounded-full bg-rust px-1.5 py-0.5 text-[0.7rem] font-bold text-rust-foreground">
-                  {pendingIncoming}
+                  {pendingIncomingCount}
                 </span>
               )}
             </TabsTrigger>
-            <TabsTrigger value="outgoing">
-              {t({ ar: "عروضي المرسلة", fr: "Mes offres envoyées", en: "Sent offers" })}
+            <TabsTrigger value="bids" className="relative text-xs sm:text-sm">
+              {t({ ar: "المزايدات المستلمة", fr: "Enchères reçues", en: "Auction bids" })}
+              {totalBidsCount > 0 && (
+                <span className="ms-2 rounded-full bg-brass px-1.5 py-0.5 text-[0.7rem] font-bold text-brass-foreground">
+                  {totalBidsCount}
+                </span>
+              )}
+            </TabsTrigger>
+            <TabsTrigger value="outgoing" className="text-xs sm:text-sm">
+              {t({ ar: "عروضي المرسلة", fr: "Mes offres", en: "Sent offers" })}
             </TabsTrigger>
           </TabsList>
 
-          {/* INCOMING OFFERS (SELLER) */}
+          {/* 1. INCOMING OFFERS (SELLER) */}
           <TabsContent value="incoming">
+            {/* Status Filter Sub-Bar */}
+            <div className="mb-5 flex flex-wrap gap-2 text-xs">
+              <Button
+                type="button"
+                variant={incomingStatusFilter === "all" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setIncomingStatusFilter("all")}
+              >
+                {t({ ar: "الكل", fr: "Toutes", en: "All" })} ({incoming.length})
+              </Button>
+              <Button
+                type="button"
+                variant={incomingStatusFilter === "pending" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setIncomingStatusFilter("pending")}
+              >
+                {t({ ar: "في الانتظار", fr: "En attente", en: "Pending" })} ({incoming.filter((o) => o.status === "pending").length})
+              </Button>
+              <Button
+                type="button"
+                variant={incomingStatusFilter === "accepted" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setIncomingStatusFilter("accepted")}
+              >
+                <CheckCircle2 className="size-3.5 me-1 text-olive" />
+                {t({ ar: "المقبولة", fr: "Acceptées", en: "Accepted" })} ({incoming.filter((o) => o.status === "accepted").length})
+              </Button>
+              <Button
+                type="button"
+                variant={incomingStatusFilter === "rejected" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setIncomingStatusFilter("rejected")}
+              >
+                {t({ ar: "المرفوضة", fr: "Refusées", en: "Rejected" })} ({incoming.filter((o) => o.status === "rejected").length})
+              </Button>
+            </div>
+
             {incomingQ.isPending ? (
               <Loading />
-            ) : incoming.length === 0 ? (
+            ) : filteredIncoming.length === 0 ? (
               <div className="surface-card flex flex-col items-center p-12 text-center">
                 <HandCoins className="size-12 text-brass" />
                 <h3 className="mt-3 font-display text-xl font-medium">
-                  {t({ ar: "لا توجد عروض واردة حالياً", fr: "Aucune offre reçue", en: "No incoming offers" })}
+                  {t({ ar: "لا توجد عروض في هذا القسم", fr: "Aucune offre dans cette section", en: "No offers in this section" })}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t({
-                    ar: "عندما يقترح أحد المشترين سعراً على إعلاناتك، ستظهر تفاصيل العرض هنا.",
-                    fr: "Lorsque des acheteurs font des offres sur vos annonces négociables, elles apparaîtront ici.",
-                    en: "When buyers make offers on your negotiable listings, they will show up here.",
+                    ar: "عندما يقترح أحد المشترين سعراً على إعلاناتك، ستظهر تفاصيل العرض هنا بشكل دائم.",
+                    fr: "Lorsque des acheteurs font des offres sur vos annonces, elles apparaîtront ici de façon permanente.",
+                    en: "When buyers make offers on your listings, they will appear here permanently.",
                   })}
                 </p>
               </div>
             ) : (
               <div className="space-y-4">
-                {incoming.map((offer) => {
+                {filteredIncoming.map((offer) => {
                   const unitLabel = UNIT_LABEL[offer.unit as keyof typeof UNIT_LABEL]?.short
                     ? t(UNIT_LABEL[offer.unit as keyof typeof UNIT_LABEL].short)
                     : offer.unit;
                   const isPending = offer.status === "pending";
+                  const isAccepted = offer.status === "accepted";
 
                   return (
                     <article
                       key={offer.id}
-                      className="surface-card overflow-hidden p-5 transition-shadow hover:shadow-md"
+                      className={`surface-card overflow-hidden p-5 transition-shadow hover:shadow-md ${isAccepted ? "border-olive/50 bg-olive/5" : ""}`}
                     >
                       <div className="flex flex-col gap-5 sm:flex-row sm:items-center">
                         <img
@@ -198,75 +275,80 @@ function OffersPage() {
                           <h3 className="truncate font-display text-lg font-semibold">{t(offer.listingTitle)}</h3>
 
                           <div className="grid gap-2 text-sm sm:grid-cols-2">
-                            <div className="rounded-lg bg-muted/50 p-2.5">
-                              <p className="text-xs text-muted-foreground">
-                                {t({ ar: "السعر الأصلي", fr: "Prix initial", en: "Original price" })}
-                              </p>
-                              <p className="font-semibold text-foreground">
-                                {dt(offer.originalPrice)} / {unitLabel}
-                              </p>
+                            <div className="flex items-center gap-2 text-muted-foreground">
+                              <span>{t({ ar: "السعر الأصلي:", fr: "Prix initial :", en: "Original:" })}</span>
+                              <span className="font-medium text-foreground line-through">{dt(offer.originalPrice)}</span>
                             </div>
 
-                            <div className="rounded-lg bg-rust/10 p-2.5">
-                              <div className="flex items-center justify-between">
-                                <p className="text-xs font-medium text-rust">
-                                  {t({ ar: "العرض المقترح", fr: "Prix proposé", en: "Offered price" })}
-                                </p>
-                                <span className="inline-flex items-center text-xs font-semibold text-rust">
-                                  <ArrowDownRight className="size-3.5 me-0.5" />
-                                  {offer.difference} DT ({offer.percentage}%)
-                                </span>
-                              </div>
-                              <p className="font-display text-xl font-bold text-rust">
-                                {dt(offer.offeredPrice)} / {unitLabel}
-                              </p>
+                            <div className="flex items-center gap-2">
+                              <span className="font-semibold text-rust">{t({ ar: "العرض المقترح:", fr: "Offre :", en: "Offer:" })}</span>
+                              <span className="font-display text-lg font-bold text-rust">{dt(offer.offeredPrice)}</span>
+                              <span className="text-xs text-muted-foreground">/ {unitLabel}</span>
+                              <span className="rounded bg-rust/10 px-1.5 py-0.5 text-xs font-semibold text-rust">
+                                -{offer.difference} DT ({offer.percentage}%)
+                              </span>
                             </div>
                           </div>
 
-                          {/* Buyer info snippet */}
-                          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3 text-xs text-muted-foreground">
-                            <div className="flex items-center gap-2">
-                              <User className="size-3.5 text-brass" />
-                              <span className="font-medium text-foreground">{offer.buyer.name}</span>
-                              <span className="capitalize">({offer.buyer.accountType})</span>
+                          {/* Buyer Preview */}
+                          <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-2 text-xs">
+                            <div className="flex items-center gap-1.5 text-foreground">
+                              <User className="size-3.5 text-muted-foreground" />
+                              <span className="font-medium">{offer.buyer.name}</span>
+                              <span className="text-muted-foreground">({offer.buyer.accountType})</span>
+                              {offer.buyer.phone && (
+                                <a
+                                  href={`tel:${offer.buyer.phone}`}
+                                  className="ms-2 font-semibold text-rust hover:underline"
+                                  dir="ltr"
+                                >
+                                  <Phone className="inline size-3 me-1" />
+                                  {offer.buyer.phone}
+                                </a>
+                              )}
                             </div>
 
-                            <div className="flex flex-wrap items-center gap-2">
+                            {offer.notes && (
+                              <p className="w-full text-xs text-muted-foreground italic sm:w-auto">
+                                "{offer.notes}"
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div className="flex flex-row gap-2 sm:flex-col sm:items-end">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex-1 sm:flex-none"
+                            onClick={() => setSelectedOffer(offer)}
+                          >
+                            {t({ ar: "التفاصيل والمشتري", fr: "Détails & Contact", en: "Details & Contact" })}
+                          </Button>
+
+                          {isPending && (
+                            <div className="flex gap-2">
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="h-8 text-xs"
-                                onClick={() => setSelectedOffer(offer)}
+                                className="text-destructive hover:bg-destructive/10"
+                                disabled={busyId === offer.id}
+                                onClick={() => handleResponse(offer.id, "rejected")}
                               >
-                                {t({ ar: "التفاصيل والاتصال", fr: "Détails & contact", en: "Details & contact" })}
+                                <XCircle className="size-4" />
                               </Button>
-
-                              {isPending && (
-                                <>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="h-8 text-xs text-destructive hover:bg-destructive/10"
-                                    disabled={busyId === offer.id}
-                                    onClick={() => handleResponse(offer.id, "rejected")}
-                                  >
-                                    <XCircle className="size-3.5 me-1" />
-                                    {t({ ar: "رفض", fr: "Refuser", en: "Reject" })}
-                                  </Button>
-                                  <Button
-                                    variant="rust"
-                                    size="sm"
-                                    className="h-8 text-xs font-semibold"
-                                    disabled={busyId === offer.id}
-                                    onClick={() => handleResponse(offer.id, "accepted")}
-                                  >
-                                    <CheckCircle2 className="size-3.5 me-1" />
-                                    {t({ ar: "قبول العرض", fr: "Accepter", en: "Accept" })}
-                                  </Button>
-                                </>
-                              )}
+                              <Button
+                                variant="rust"
+                                size="sm"
+                                disabled={busyId === offer.id}
+                                onClick={() => handleResponse(offer.id, "accepted")}
+                              >
+                                <CheckCircle2 className="size-4" />
+                                <span className="ms-1">{t({ ar: "قبول", fr: "Accepter", en: "Accept" })}</span>
+                              </Button>
                             </div>
-                          </div>
+                          )}
                         </div>
                       </div>
                     </article>
@@ -276,30 +358,211 @@ function OffersPage() {
             )}
           </TabsContent>
 
-          {/* OUTGOING OFFERS (BUYER) */}
-          <TabsContent value="outgoing">
-            {outgoingQ.isPending ? (
+          {/* 2. AUCTION BIDS RECEIVED (SELLER) */}
+          <TabsContent value="bids">
+            {bidsQ.isPending ? (
               <Loading />
-            ) : outgoing.length === 0 ? (
+            ) : auctionItems.length === 0 ? (
               <div className="surface-card flex flex-col items-center p-12 text-center">
-                <HandCoins className="size-12 text-muted-foreground" />
+                <Gavel className="size-12 text-brass" />
                 <h3 className="mt-3 font-display text-xl font-medium">
-                  {t({ ar: "لم تقدم أي عرض بعد", fr: "Aucune offre envoyée", en: "No offers sent yet" })}
+                  {t({ ar: "لا توجد مزايدات على إعلاناتك حالياً", fr: "Aucune enchère reçue pour le moment", en: "No auction bids received yet" })}
                 </h3>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t({
-                    ar: "عندما تتفاوض على أي إعلان قابل للنقاش، يمكنك متابعة قرار البائع هنا.",
-                    fr: "Lorsque vous proposez un prix sur une annonce négociable, suivez la réponse du vendeur ici.",
-                    en: "When you negotiate on a listing, track the seller's response here.",
+                    ar: "عندما تضع إعلاناً من نوع مزاد ويقوم المشترون بالمزايدة، ستظهر قائمة المزايدين ومعلومات الاتصال بهم هنا.",
+                    fr: "Lorsque vous publiez une annonce aux enchères et que des acheteurs surenchérissent, l'historique complet et leurs coordonnées s'affichent ici.",
+                    en: "When buyers place bids on your auction listings, the full bidding history and contact details will appear here.",
                   })}
                 </p>
-                <Button asChild variant="rust" className="mt-5">
-                  <Link to="/annonces">{t({ ar: "تصفح الإعلانات", fr: "Voir les annonces", en: "Browse listings" })}</Link>
+                <Button asChild variant="rust" className="mt-4">
+                  <Link to="/publier">{t({ ar: "نشر إعلان مزاد", fr: "Créer une enchère", en: "Create an auction" })}</Link>
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {auctionItems.map((item: any) => (
+                  <article key={item.id} className="surface-card overflow-hidden p-5">
+                    <div className="flex flex-col gap-4 border-b border-border pb-4 sm:flex-row sm:items-center">
+                      <img
+                        src={item.image}
+                        alt=""
+                        className="h-24 w-full shrink-0 rounded-lg object-cover sm:w-28"
+                        loading="lazy"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center justify-between gap-2">
+                          <h3 className="truncate font-display text-lg font-semibold">{t(item.title)}</h3>
+                          <Button asChild variant="ghost" size="sm" className="h-7 text-xs">
+                            <Link to="/annonces/$id" params={{ id: item.id }}>
+                              <ExternalLink className="me-1 size-3" />
+                              {t({ ar: "صفحة المزاد", fr: "Fiche enchère", en: "Auction page" })}
+                            </Link>
+                          </Button>
+                        </div>
+
+                        <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+                          <div>
+                            <span className="text-xs text-muted-foreground">{t({ ar: "سعر الانطلاق:", fr: "Prix de départ :", en: "Start price:" })}</span>{" "}
+                            <span className="font-medium">{dt(item.startPrice)}</span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground">{t({ ar: "الزيادة:", fr: "Pas :", en: "Increment:" })}</span>{" "}
+                            <span className="font-medium">+{dt(item.increment)}</span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground">{t({ ar: "أعلى مزايدة حالية:", fr: "Offre la plus haute :", en: "Highest bid:" })}</span>{" "}
+                            <span className="font-display text-lg font-bold text-rust">{dt(item.currentHighestBid)}</span>
+                          </div>
+                          <div>
+                            <span className="text-xs text-muted-foreground">{t({ ar: "عدد المزايدات:", fr: "Total enchères :", en: "Total bids:" })}</span>{" "}
+                            <span className="font-semibold">{item.totalBids}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bidders Table */}
+                    <div className="mt-4">
+                      <h4 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                        <Users className="size-3.5 text-brass" />
+                        {t({ ar: "قائمة المزايدين (مرئية لك كبائع)", fr: "Historique des enchérisseurs (visible par le vendeur)", en: "Bidders history (visible to seller)" })}
+                      </h4>
+
+                      {item.bids.length === 0 ? (
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {t({ ar: "لا توجد عروض بعد على هذا المزاد.", fr: "Aucune enchère enregistrée.", en: "No bids placed yet." })}
+                        </p>
+                      ) : (
+                        <div className="mt-3 overflow-x-auto">
+                          <table className="w-full text-start text-sm">
+                            <thead>
+                              <tr className="border-b border-border text-xs text-muted-foreground">
+                                <th className="pb-2 text-start font-medium">{t({ ar: "المزايد", fr: "Enchérisseur", en: "Bidder" })}</th>
+                                <th className="pb-2 text-start font-medium">{t({ ar: "الهاتف", fr: "Téléphone", en: "Phone" })}</th>
+                                <th className="pb-2 text-start font-medium">{t({ ar: "البريد الإلكتروني", fr: "Email", en: "Email" })}</th>
+                                <th className="pb-2 text-end font-medium">{t({ ar: "المبلغ", fr: "Montant", en: "Amount" })}</th>
+                                <th className="pb-2 text-end font-medium">{t({ ar: "التاريخ", fr: "Date", en: "Date" })}</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-border/60">
+                              {item.bids.map((b: any, idx: number) => (
+                                <tr key={idx} className={idx === 0 ? "bg-rust/5 font-semibold" : ""}>
+                                  <td className="py-2.5">
+                                    <div className="flex items-center gap-2">
+                                      <span className="grid size-6 place-items-center rounded-full bg-charcoal text-xs font-bold text-brass">
+                                        {b.bidder}
+                                      </span>
+                                      <span>{b.bidderName}</span>
+                                      {idx === 0 && (
+                                        <Badge variant="rust" className="text-[0.65rem] px-1 py-0">
+                                          {t({ ar: "الأعلى", fr: "Le plus offrant", en: "Highest" })}
+                                        </Badge>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="py-2.5">
+                                    {b.bidderPhone ? (
+                                      <a href={`tel:${b.bidderPhone}`} className="text-rust hover:underline" dir="ltr">
+                                        {b.bidderPhone}
+                                      </a>
+                                    ) : (
+                                      <span className="text-muted-foreground">—</span>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 text-xs">
+                                    {b.bidderEmail ? (
+                                      <a href={`mailto:${b.bidderEmail}`} className="text-muted-foreground hover:underline">
+                                        {b.bidderEmail}
+                                      </a>
+                                    ) : (
+                                      <span className="text-muted-foreground">—</span>
+                                    )}
+                                  </td>
+                                  <td className="py-2.5 text-end font-display font-bold text-rust">
+                                    {dt(b.amount)}
+                                  </td>
+                                  <td className="py-2.5 text-end text-xs text-muted-foreground">
+                                    {b.createdAt ? date(b.createdAt) : "—"}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                    </div>
+                  </article>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* 3. OUTGOING OFFERS (BUYER) */}
+          <TabsContent value="outgoing">
+            {/* Status Filter Sub-Bar */}
+            <div className="mb-5 flex flex-wrap gap-2 text-xs">
+              <Button
+                type="button"
+                variant={outgoingStatusFilter === "all" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setOutgoingStatusFilter("all")}
+              >
+                {t({ ar: "الكل", fr: "Toutes", en: "All" })} ({outgoing.length})
+              </Button>
+              <Button
+                type="button"
+                variant={outgoingStatusFilter === "pending" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setOutgoingStatusFilter("pending")}
+              >
+                {t({ ar: "في الانتظار", fr: "En attente", en: "Pending" })} ({outgoing.filter((o) => o.status === "pending").length})
+              </Button>
+              <Button
+                type="button"
+                variant={outgoingStatusFilter === "accepted" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setOutgoingStatusFilter("accepted")}
+              >
+                <CheckCircle2 className="size-3.5 me-1 text-olive" />
+                {t({ ar: "المقبولة", fr: "Acceptées", en: "Accepted" })} ({outgoing.filter((o) => o.status === "accepted").length})
+              </Button>
+              <Button
+                type="button"
+                variant={outgoingStatusFilter === "rejected" ? "rust" : "outline"}
+                size="sm"
+                className="h-8"
+                onClick={() => setOutgoingStatusFilter("rejected")}
+              >
+                {t({ ar: "المرفوضة", fr: "Refusées", en: "Rejected" })} ({outgoing.filter((o) => o.status === "rejected").length})
+              </Button>
+            </div>
+
+            {outgoingQ.isPending ? (
+              <Loading />
+            ) : filteredOutgoing.length === 0 ? (
+              <div className="surface-card flex flex-col items-center p-12 text-center">
+                <HandCoins className="size-12 text-brass" />
+                <h3 className="mt-3 font-display text-xl font-medium">
+                  {t({ ar: "لم تقدم أي عروض بعد", fr: "Aucune offre envoyée", en: "No sent offers" })}
+                </h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {t({
+                    ar: "عندما تتفاوض على سعر منتج وتقدم عرضك، ستتمكن من متابعة قبول أو رفض البائع هنا.",
+                    fr: "Lorsque vous négociez un prix et soumettez une offre, suivez la décision du vendeur ici.",
+                    en: "When you negotiate and submit an offer, track the seller's response here.",
+                  })}
+                </p>
+                <Button asChild variant="rust" className="mt-4">
+                  <Link to="/annonces">{t({ ar: "تصفح الإعلانات", fr: "Explorer les annonces", en: "Browse listings" })}</Link>
                 </Button>
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
-                {outgoing.map((offer) => {
+                {filteredOutgoing.map((offer) => {
                   return (
                     <article key={offer.id} className="surface-card flex flex-col justify-between p-5">
                       <div className="flex gap-4">
@@ -465,4 +728,3 @@ function OffersPage() {
     </>
   );
 }
-
