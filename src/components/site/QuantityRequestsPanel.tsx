@@ -62,8 +62,8 @@ export function QuantityRequestsPanel() {
   const sendResponse = useServerFn(respondToQuantityRequest);
   const repostListing = useServerFn(repostMyListing);
 
-  const sellerQ = useQuery({ queryKey: ["me", "qty_requests", "seller"], queryFn: () => fetchSellerReqs() });
-  const buyerQ = useQuery({ queryKey: ["me", "qty_requests", "buyer"], queryFn: () => fetchBuyerReqs() });
+  const sellerQ = useQuery({ queryKey: ["me", "qty_requests", "seller"], queryFn: () => fetchSellerReqs(), refetchInterval: 3000, refetchOnWindowFocus: true });
+  const buyerQ = useQuery({ queryKey: ["me", "qty_requests", "buyer"], queryFn: () => fetchBuyerReqs(), refetchInterval: 3000, refetchOnWindowFocus: true });
 
   const [activeTab, setActiveTab] = useState<"seller" | "buyer">("seller");
   const [sellerStatusFilter, setSellerStatusFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");

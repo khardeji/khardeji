@@ -53,6 +53,8 @@ export function PurchasesPanel() {
   const { data, isLoading, isRefetching, refetch } = useQuery({
     queryKey: ["me", "purchases"],
     queryFn: () => fetchPurchases(),
+    refetchInterval: 3000,
+    refetchOnWindowFocus: true,
   });
 
   const [statusFilter, setStatusFilter] = useState<"all" | "confirmed" | "pending" | "declined">("all");

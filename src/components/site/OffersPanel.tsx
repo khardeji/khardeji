@@ -52,9 +52,9 @@ export function OffersPanel() {
   const sendResponse = useServerFn(respondToOffer);
   const repostListing = useServerFn(repostMyListing);
 
-  const incomingQ = useQuery({ queryKey: ["me", "offers", "incoming"], queryFn: () => fetchIncoming() });
-  const outgoingQ = useQuery({ queryKey: ["me", "offers", "outgoing"], queryFn: () => fetchOutgoing() });
-  const bidsQ = useQuery({ queryKey: ["me", "offers", "bids"], queryFn: () => fetchBids() });
+  const incomingQ = useQuery({ queryKey: ["me", "offers", "incoming"], queryFn: () => fetchIncoming(), refetchInterval: 3000, refetchOnWindowFocus: true });
+  const outgoingQ = useQuery({ queryKey: ["me", "offers", "outgoing"], queryFn: () => fetchOutgoing(), refetchInterval: 3000, refetchOnWindowFocus: true });
+  const bidsQ = useQuery({ queryKey: ["me", "offers", "bids"], queryFn: () => fetchBids(), refetchInterval: 3000, refetchOnWindowFocus: true });
 
   const [activeTab, setActiveTab] = useState<"incoming" | "bids" | "outgoing">("incoming");
   const [incomingStatusFilter, setIncomingStatusFilter] = useState<"all" | "pending" | "accepted" | "rejected">("all");
