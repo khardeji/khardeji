@@ -1000,11 +1000,11 @@ export function DashboardPage() {
 
       {/* Buy Tokens Pack Modal */}
       <BuyTokensDialog
-        pack={{ id: "pack-30", tokens: 30, price: 25 }}
         open={buyPackOpen}
         onClose={() => setBuyPackOpen(false)}
         onSuccess={() => {
           void qc.invalidateQueries({ queryKey: ["me", "requests"] });
+          void qc.invalidateQueries({ queryKey: ["me", "overview"] });
         }}
       />
 
