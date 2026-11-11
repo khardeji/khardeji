@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useI18n } from "@/hooks/use-i18n";
+import { useRealtimeMessages } from "@/hooks/use-realtime";
 import { displayMessageContent } from "@/lib/message-display";
 import { deleteConversation, markMessageRead, replyToConversation, type MessageItem } from "@/lib/services.functions";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,9 @@ export function MessengerChat({
   const setRead = useServerFn(markMessageRead);
   const sendReply = useServerFn(replyToConversation);
   const removeConversation = useServerFn(deleteConversation);
+
+  // Subscribe to real-time incoming messages
+  useRealtimeMessages(onReplySent);
 
   // Group messages by conversation thread (one conversation per partner)
   const conversations = useMemo(() => {

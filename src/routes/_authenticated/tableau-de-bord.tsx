@@ -54,6 +54,7 @@ import {
 } from "@/data/catalog";
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
+import { useRealtimeDashboard } from "@/hooks/use-realtime";
 import { pageMeta, type Msg } from "@/lib/i18n";
 import { deleteMyListing, getMyListings, markListingSold, repostMyListing } from "@/lib/listings.functions";
 import { getEffectivePlan, PLAN_CONFIG } from "@/lib/listing-rules";
@@ -110,6 +111,9 @@ export function DashboardPage() {
   const { t, dt, date, num, dir } = useI18n();
   const { user, loading: authLoading } = useAuth();
   const qc = useQueryClient();
+
+  // Instant real-time updates for dashboard, messages, offers, token balance
+  useRealtimeDashboard();
 
   const fetchOverview = useServerFn(getMyOverview);
   const fetchListings = useServerFn(getMyListings);
