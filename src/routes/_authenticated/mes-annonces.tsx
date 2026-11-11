@@ -24,7 +24,7 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { useI18n } from "@/hooks/use-i18n";
 import { pageMeta, type Msg } from "@/lib/i18n";
-import { deleteMyListing, getMyListings, markListingSold } from "@/lib/listings.functions";
+import { deleteMyListing, getMyListings, markListingSold, repostMyListing } from "@/lib/listings.functions";
 import { UNIT_LABEL } from "@/lib/quantity";
 
 export const Route = createFileRoute("/_authenticated/mes-annonces")({
@@ -60,6 +60,7 @@ function MyListings() {
   const fetchMine = useServerFn(getMyListings);
   const remove = useServerFn(deleteMyListing);
   const markSold = useServerFn(markListingSold);
+  const repost = useServerFn(repostMyListing);
   const qc = useQueryClient();
   const q = useQuery({ queryKey: ["me", "listings"], queryFn: () => fetchMine(), enabled: !!user, retry: false });
 
@@ -226,6 +227,29 @@ function MyListings() {
                           <Link to="/annonces/$id" params={{ id: l.id }}><ExternalLink /> {t({ ar: "شوف", fr: "Voir", en: "View" })}</Link>
                         </Button>
                       </>
+                    )}
+                    {st === "sold" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 border-olive text-olive"
+                        onClick={async () => {
+                          const res = await repost({ data: { id: l.id, stock: l.stock > 0 ? l.stock : undefined } }).catch(() => ({ ok: false as const }));
+                          if (res.ok) {
+                            toast.success(t({
+                              ar: "أُعيد نشر الإعلان كإعلان جديد في حسابك.",
+                              fr: "Annonce republiée : elle compte comme une nouvelle annonce sur votre compte.",
+                              en: "Listing reposted. It counts as a new post on your account.",
+                            }));
+                            await qc.invalidateQueries({ queryKey: ["me", "listings"] });
+                            await qc.invalidateQueries({ queryKey: ["me", "overview"] });
+                          } else {
+                            toast.error(t({ ar: "تعذر إعادة النشر. حدّد كمية في التعديل أولاً إن كان المخزون صفراً.", fr: "Republication impossible. Indiquez une quantité si le stock est à zéro.", en: "Could not repost. Set a quantity first if stock is zero." }));
+                          }
+                        }}
+                      >
+                        {t({ ar: "إعادة النشر", fr: "Republier", en: "Repost" })}
+                      </Button>
                     )}
                     {st !== "sold" && (
                       <Button

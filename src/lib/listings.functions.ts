@@ -142,6 +142,72 @@ export const markListingSold = createServerFn({ method: "POST" })
   });
 
 /**
+ * Republish a listing as a brand-new post on the owner's account.
+ * The sold listing stays sold; the copy is a separate row so it counts in the account total.
+ */
+export const repostMyListing = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { id: string; stock?: number }) => ({
+    id: String(d.id),
+    stock: d.stock == null ? undefined : Number(d.stock),
+  }))
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { data: row, error: fetchErr } = await supabase
+      .from("listings")
+      .select("*")
+      .eq("id", data.id)
+      .eq("owner_id", userId)
+      .maybeSingle();
+
+    if (fetchErr || !row) return { ok: false as const, error: "not_found" };
+
+    const stock =
+      row.unit === "libre"
+        ? 0
+        : data.stock != null && data.stock > 0
+          ? data.stock
+          : Number(row.stock) > 0
+            ? Number(row.stock)
+            : 0;
+
+    if (row.unit !== "libre" && !(stock > 0)) {
+      return { ok: false as const, error: "stock" };
+    }
+
+    const { data: created, error } = await supabase
+      .from("listings")
+      .insert({
+        owner_id: userId,
+        title: row.title,
+        description: row.description,
+        category: row.category,
+        subcategory: row.subcategory,
+        governorate: row.governorate,
+        city: row.city,
+        price: row.price,
+        unit: row.unit,
+        stock,
+        sale_type: row.sale_type,
+        images: row.images,
+        seller: row.seller,
+        auction: row.auction,
+        urgent: false,
+        featured: false,
+        status: "pending",
+        moderation_note: "Republication — nouvelle annonce en attente de validation",
+      })
+      .select("id")
+      .single();
+
+    if (error || !created) {
+      console.error("repostMyListing failed", error?.message);
+      return { ok: false as const, error: "failed" };
+    }
+    return { ok: true as const, id: created.id };
+  });
+
+/**
  * Update listing details.
  * Setting status to 'pending' ensures the modified listing undergoes
  * admin re-moderation before going live again.
