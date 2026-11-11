@@ -3,6 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { createClient } from "@supabase/supabase-js";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import type { Database } from "@/integrations/supabase/types";
+import { type ActiveBoost, type BoostType, BOOST_DURATIONS } from "@/data/catalog";
 import type { Msg } from "./i18n";
 
 const missingRelation = (code?: string) => code === "PGRST205" || code === "42P01" || code === "42703";
@@ -392,16 +393,18 @@ export const BOOST_COSTS: Record<string, number> = {
   "a-la-une": 15,
 };
 
-export type BoostResult = { ok: true; newBalance: number } | { ok: false; error: "not_owner" | "insufficient_tokens" | "not_ready" | "failed" };
+export type BoostResult =
+  | { ok: true; newBalance: number; activeBoost: ActiveBoost }
+  | { ok: false; error: "not_owner" | "insufficient_tokens" | "already_boosted" | "not_ready" | "failed"; message?: string; activeBoost?: ActiveBoost };
 
-/** Apply a boost service to an approved listing using tokens. */
+/** Apply a boost service to an approved listing using tokens. Enforces 1 active boost per listing. */
 export const applyBoost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { listingId: string; boostId: "remonter" | "urgent" | "premium-7j" | "a-la-une" }) => d)
+  .inputValidator((d: { listingId: string; boostId: BoostType; replace?: boolean }) => d)
   .handler(async ({ data, context }): Promise<BoostResult> => {
     const { supabase, userId } = context;
     const cost = BOOST_COSTS[data.boostId];
-    if (!cost) return { ok: false, error: "failed" };
+    if (!cost) return { ok: false, error: "failed", message: "Type de boost invalide." };
 
     // 1. Check user token balance
     const { data: profile, error: profErr } = await supabase
@@ -412,16 +415,33 @@ export const applyBoost = createServerFn({ method: "POST" })
 
     if (profErr && missingRelation(profErr.code)) return { ok: false, error: "not_ready" };
     const currentTokens = (profile as any)?.tokens_balance ?? 0;
-    if (currentTokens < cost) return { ok: false, error: "insufficient_tokens" };
+    if (currentTokens < cost) return { ok: false, error: "insufficient_tokens", message: "Solde de jetons insuffisant." };
 
-    // 2. Check listing ownership
+    // 2. Check listing ownership & existing active boost
     const { data: listing, error: listErr } = await supabase
       .from("listings")
-      .select("id, owner_id, status")
+      .select("id, owner_id, status, seller, urgent, featured, published_at")
       .eq("id", data.listingId)
       .maybeSingle();
 
-    if (listErr || !listing || listing.owner_id !== userId) return { ok: false, error: "not_owner" };
+    if (listErr || !listing || listing.owner_id !== userId) {
+      return { ok: false, error: "not_owner", message: "Vous n'êtes pas le propriétaire de cette annonce." };
+    }
+
+    // Check if there is an active boost already
+    const sellerObj = (listing.seller && typeof listing.seller === "object" ? listing.seller : {}) as any;
+    const existingBoost = sellerObj.activeBoost as ActiveBoost | undefined;
+    if (existingBoost && existingBoost.expiresAt && new Date(existingBoost.expiresAt).getTime() > Date.now()) {
+      if (!data.replace) {
+        return {
+          ok: false,
+          error: "already_boosted",
+          message: "Cette annonce a déjà un boost actif. Vous pouvez le retirer ou choisir de re-booster pour le remplacer.",
+          activeBoost: existingBoost,
+        };
+      }
+      // Re-boosting: previous tokens are NOT refunded!
+    }
 
     // 3. Deduct tokens
     const newBalance = currentTokens - cost;
@@ -435,15 +455,39 @@ export const applyBoost = createServerFn({ method: "POST" })
       return { ok: false, error: "failed" };
     }
 
-    // 4. Apply boost to listing
-    const patch: any = { boosted_at: new Date().toISOString() };
+    // 4. Calculate new duration & expiration
+    const appliedAt = new Date().toISOString();
+    const durationHours = BOOST_DURATIONS[data.boostId].hours;
+    const expiresAt = new Date(Date.now() + durationHours * 3600 * 1000).toISOString();
+
+    const newActiveBoost: ActiveBoost = {
+      boostId: data.boostId,
+      appliedAt,
+      expiresAt,
+      cost,
+    };
+
+    const updatedSeller = {
+      ...sellerObj,
+      activeBoost: newActiveBoost,
+    };
+
+    const patch: any = {
+      seller: updatedSeller,
+      boosted_at: appliedAt,
+    };
+
     if (data.boostId === "remonter") {
-      patch.published_at = new Date().toISOString().slice(0, 10);
-      patch.created_at = new Date().toISOString();
+      patch.published_at = appliedAt.slice(0, 10);
+      patch.created_at = appliedAt;
+      patch.urgent = false;
+      patch.featured = false;
     } else if (data.boostId === "urgent") {
       patch.urgent = true;
+      patch.featured = false;
     } else if (data.boostId === "premium-7j" || data.boostId === "a-la-une") {
       patch.featured = true;
+      patch.urgent = false;
     }
 
     await supabase.from("listings").update(patch).eq("id", data.listingId);
@@ -454,9 +498,49 @@ export const applyBoost = createServerFn({ method: "POST" })
       user_id: userId,
       boost_id: data.boostId,
       cost,
+      created_at: appliedAt,
     } as any);
 
-    return { ok: true, newBalance };
+    return { ok: true, newBalance, activeBoost: newActiveBoost };
+  });
+
+/** Remove an active boost from a listing. Note: tokens are NOT refunded when removed. */
+export const removeBoost = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { listingId: string }) => d)
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+
+    const { data: listing, error: listErr } = await supabase
+      .from("listings")
+      .select("id, owner_id, seller, urgent, featured")
+      .eq("id", data.listingId)
+      .maybeSingle();
+
+    if (listErr || !listing || listing.owner_id !== userId) {
+      return { ok: false as const, error: "not_owner" as const, message: "Action non autorisée." };
+    }
+
+    const sellerObj = (listing.seller && typeof listing.seller === "object" ? listing.seller : {}) as any;
+    const updatedSeller = {
+      ...sellerObj,
+      activeBoost: null,
+    };
+
+    // Remove boost: tokens are NOT refunded!
+    await supabase
+      .from("listings")
+      .update({
+        seller: updatedSeller,
+        urgent: false,
+        featured: false,
+      })
+      .eq("id", data.listingId);
+
+    return {
+      ok: true as const,
+      message: "Le boost a été retiré. Vous pouvez désormais appliquer un nouveau boost.",
+    };
   });
 
 export type RequestOrderResult = { ok: true } | { ok: false; error: "not_ready" | "failed" };

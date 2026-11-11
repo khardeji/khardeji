@@ -730,3 +730,4 @@ export function PurchasesPanel() {
     </div>
   );
 }
+
