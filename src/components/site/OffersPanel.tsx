@@ -223,7 +223,7 @@ export function OffersPanel() {
                   : offer.unit;
                 const isPending = offer.status === "pending";
                 const isAccepted = offer.status === "accepted";
-                const buyerName = offer.buyer?.name || offer.buyerName || "Acheteur";
+                const buyerName = offer.buyer?.name || (offer as any).buyerName || "Acheteur";
                 const buyerPhone = offer.buyer?.phone || "";
 
                 return (
@@ -336,11 +336,11 @@ export function OffersPanel() {
                             {t({ ar: "رفض", fr: "Refuser", en: "Reject" })}
                           </Button>
                           <Button
-                            variant="olive"
+                            variant="rust"
                             size="sm"
                             disabled={busyId === offer.id}
                             onClick={() => handleResponse(offer.id, "accepted")}
-                            className="gap-1.5"
+                            className="gap-1.5 bg-olive hover:bg-olive/90"
                           >
                             <CheckCircle2 className="size-4" />
                             {t({ ar: "قبول العرض", fr: "Accepter l'offre", en: "Accept offer" })}
@@ -721,8 +721,8 @@ export function OffersPanel() {
                     {t({ ar: "رفض العرض", fr: "Refuser l'offre", en: "Reject" })}
                   </Button>
                   <Button
-                    variant="olive"
-                    className="flex-1 font-semibold"
+                    variant="rust"
+                    className="flex-1 font-semibold bg-olive hover:bg-olive/90"
                     onClick={() => handleResponse(selectedOffer.id, "accepted")}
                   >
                     <CheckCircle2 className="size-4 me-1" />

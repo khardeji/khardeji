@@ -9,6 +9,15 @@ import { validateNegotiationOffer } from "./negotiation";
 
 const missingTable = (code?: string) => code === "PGRST205" || code === "42P01";
 
+interface AuctionJson {
+  bids?: any[];
+  startPrice?: number;
+  increment?: number;
+  endsAt?: string;
+  startsAt?: string;
+  endsInHours?: number;
+}
+
 // Helper: Create persistent notification in Supabase
 async function createNotification(
   supabase: any,
@@ -106,7 +115,7 @@ export const placeAuctionBid = createServerFn({ method: "POST" })
       return { ok: false as const, error: "not_auction", message: "Cette annonce n'est pas une enchère." };
     }
 
-    const a = (listing.auction && typeof listing.auction === "object" ? listing.auction : {}) as Record<string, any>;
+    const a = (listing.auction && typeof listing.auction === "object" ? listing.auction : {}) as AuctionJson;
     const startPrice = Number(a.startPrice ?? listing.price ?? 0);
     const increment = Number(a.increment ?? 1);
     const existingBids: any[] = Array.isArray(a.bids) ? a.bids : [];
@@ -1334,7 +1343,7 @@ export const getListingBidders = createServerFn({ method: "GET" })
     const isOwner = listing.owner_id === userId;
     const { data: isAdmin } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
 
-    const a = (listing.auction && typeof listing.auction === "object" ? listing.auction : {}) as Record<string, any>;
+    const a = (listing.auction && typeof listing.auction === "object" ? listing.auction : {}) as AuctionJson;
     const bids: any[] = Array.isArray(a.bids) ? a.bids : [];
 
     const sorted = [...bids].reverse();
@@ -1376,7 +1385,7 @@ export const getSellerBiddingRequests = createServerFn({ method: "GET" })
     if (!listings || listings.length === 0) return [];
 
     return listings.map((l: any) => {
-      const a = (l.auction && typeof l.auction === "object" ? l.auction : {}) as Record<string, any>;
+      const a = (l.auction && typeof l.auction === "object" ? l.auction : {}) as AuctionJson;
       const bids: any[] = Array.isArray(a.bids) ? a.bids : [];
       const titleObj = (l.title && typeof l.title === "object" ? l.title : {}) as any;
       const images: string[] = Array.isArray(l.images) ? l.images : [];
@@ -1393,7 +1402,7 @@ export const getSellerBiddingRequests = createServerFn({ method: "GET" })
         createdAt: b.createdAt || b.created_at || "",
       }));
 
-      const highestBid = sortedBids.length > 0 ? sortedBids[0].amount : startPrice;
+      const highestBid = sortedBids.length > 0 && sortedBids[0] ? sortedBids[0].amount : startPrice;
 
       return {
         id: l.id,
